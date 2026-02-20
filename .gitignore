@@ -1,0 +1,30 @@
+# Jetbrain IDE's folder
+.idea/
+
+# Microsoft IDE
+.vs
+.vscode
+
+# Premake
+Premake
+
+# Project files
+Solution
+*.vcxproj
+*.vcxproj.*
+*.cmake
+*.sln
+*.slnx
+*.vs2026
+Makefile
+*.make
+
+# Generated
+Temp
+
+# Binaries
+Binaries
+Intermediates
+
+# Dependencies
+# Dependencies/LibSources

@@ -1,0 +1,6 @@
+[submodule "stb"]
+	path = Dependencies/LibSources/stb
+	url = https://github.com/nothings/stb
+[submodule "imgui"]
+	path = Dependencies/LibSources/imgui
+	url = https://github.com/ocornut/imgui.git
