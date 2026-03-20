@@ -81,76 +81,76 @@ extern const char* GammaTypesNames[ColorState::G_Count];
 
 // Calculates conversion matrix to XYZ coords from RGB coords defined respective to the gamut provided by the input chromaticity values for color primaries
 // The same RGB coords will output different XYZ coords depending on the gamut the RGB space is defined in...
-Matrix4f CalculateRGBtoXYZConversionMat( Vector2f chromaRed, Vector2f chromaGreen, Vector2f chromaBlue, Vector2f chromaWhite = /*D65*/ Vector2f( 0.31270f, 0.32900f ) );
+Math::Matrix4f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, Math::Vector2f chromaWhite = /*D65*/ Math::Vector2f( 0.31270f, 0.32900f ) );
 
 // Calculates conversion matrix to XYZ coords from RGB coords defined respective to the gamut provided by the input chromaticity values for color primaries
 // The same RGB coords will output different XYZ coords depending on the gamut the RGB space is defined in...
 //Assuming the white point luminance Y value is 100 like standardised in D65 mid-day sunlight (which is also the standard white in REC 709)
-Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Vector2f chromaRed, Vector2f chromaGreen, Vector2f chromaBlue, float WhitePointLuminance = 100.0f, Vector2f chromaWhite = /*D65*/ Vector2f( 0.31270f, 0.32900f ) );
+Math::Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, float WhitePointLuminance = 100.0f, Math::Vector2f chromaWhite = /*D65*/ Math::Vector2f( 0.31270f, 0.32900f ) );
 
 namespace D65
 {
-    INLINE Vector2f WhitePoint()    {return Vector2f(0.31270f, 0.32900f);}
+    INLINE Math::Vector2f WhitePoint()    {return Math::Vector2f(0.31270f, 0.32900f);}
 }
 
 namespace Rec709
 {
-    INLINE Vector2f WhitePoint()    {return D65::WhitePoint();}
-    INLINE Vector2f Red()           {return Vector2f(0.64f, 0.33f);}
-    INLINE Vector2f Green()         {return Vector2f(0.30f, 0.60f);}
-    INLINE Vector2f Blue()          {return Vector2f(0.15f, 0.06f);}
+    INLINE Math::Vector2f WhitePoint()    {return D65::WhitePoint();}
+    INLINE Math::Vector2f Red()           {return Math::Vector2f(0.64f, 0.33f);}
+    INLINE Math::Vector2f Green()         {return Math::Vector2f(0.30f, 0.60f);}
+    INLINE Math::Vector2f Blue()          {return Math::Vector2f(0.15f, 0.06f);}
 
     // https://en.wikipedia.org/wiki/Rec._709
-    INLINE Matrix4f ToXYZ() 
+    INLINE Math::Matrix4f ToXYZ() 
     { 
         return CalculateRGBtoXYZConversionMat( Red(), Green(), Blue(), WhitePoint());
     }
 
-    INLINE Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
+    INLINE Math::Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
 }
 
 namespace DciP3D65
 {
-    INLINE Vector2f WhitePoint()    {return D65::WhitePoint();}
-    INLINE Vector2f Red()           {return Vector2f(0.680f, 0.320f);}
-    INLINE Vector2f Green()         {return Vector2f(0.265f, 0.690f);}
-    INLINE Vector2f Blue()          {return Vector2f(0.150f, 0.060f);}
+    INLINE Math::Vector2f WhitePoint()    {return D65::WhitePoint();}
+    INLINE Math::Vector2f Red()           {return Math::Vector2f(0.680f, 0.320f);}
+    INLINE Math::Vector2f Green()         {return Math::Vector2f(0.265f, 0.690f);}
+    INLINE Math::Vector2f Blue()          {return Math::Vector2f(0.150f, 0.060f);}
 
     // https://en.wikipedia.org/wiki/DCI-P3
-    INLINE Matrix4f ToXYZ() 
+    INLINE Math::Matrix4f ToXYZ() 
     { 
         return CalculateRGBtoXYZConversionMat( Red(), Green(), Blue(), WhitePoint());
     }
 
-    INLINE Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
+    INLINE Math::Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
 }
 
 namespace Rec2020
 {
-    INLINE Vector2f WhitePoint()    {return D65::WhitePoint();}
-    INLINE Vector2f Red()           {return Vector2f(0.708f, 0.292f);}
-    INLINE Vector2f Green()         {return Vector2f(0.170f, 0.797f);}
-    INLINE Vector2f Blue()          {return Vector2f(0.131f, 0.046f);}
+    INLINE Math::Vector2f WhitePoint()    {return D65::WhitePoint();}
+    INLINE Math::Vector2f Red()           {return Math::Vector2f(0.708f, 0.292f);}
+    INLINE Math::Vector2f Green()         {return Math::Vector2f(0.170f, 0.797f);}
+    INLINE Math::Vector2f Blue()          {return Math::Vector2f(0.131f, 0.046f);}
 
     // https://en.wikipedia.org/wiki/Rec._2020
-    INLINE Matrix4f ToXYZ() 
+    INLINE Math::Matrix4f ToXYZ() 
     { 
         return CalculateRGBtoXYZConversionMat( Red(), Green(), Blue(), WhitePoint());
     }
 
-    INLINE Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
+    INLINE Math::Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
 }
 
 namespace Rec2100
 {
-    INLINE Vector2f WhitePoint()    {return Rec2020::WhitePoint();}
-    INLINE Vector2f Red()           {return Rec2020::Red();}
-    INLINE Vector2f Green()         {return Rec2020::Green();}
-    INLINE Vector2f Blue()          {return Rec2020::Blue();}
+    INLINE Math::Vector2f WhitePoint()    {return Rec2020::WhitePoint();}
+    INLINE Math::Vector2f Red()           {return Rec2020::Red();}
+    INLINE Math::Vector2f Green()         {return Rec2020::Green();}
+    INLINE Math::Vector2f Blue()          {return Rec2020::Blue();}
 
     // https://en.wikipedia.org/wiki/Rec._2100
-    INLINE Matrix4f ToXYZ()   { return Rec2020::ToXYZ(); };
-    INLINE Matrix4f FromXYZ() { return Rec2020::FromXYZ(); };
+    INLINE Math::Matrix4f ToXYZ()   { return Rec2020::ToXYZ(); };
+    INLINE Math::Matrix4f FromXYZ() { return Rec2020::FromXYZ(); };
 }
 
 namespace ArriLogC
@@ -168,41 +168,41 @@ namespace ArriLogC
         static constexpr double f = 0.092809;
     };
 
-    const Matrix3f CSArriLogCToCSXYZMat
+    const Math::Matrix3f CSArriLogCToCSXYZMat
     {
         // Check Row/Column major
-        0.638008, 0.214704, 0.097744,
-        0.291954, 0.823841, -0.115795,
-        0.002798, -0.067034, 1.153294
+        0.638008f, 0.214704f, 0.097744f,
+        0.291954f, 0.823841f, -0.115795f,
+        0.002798f, -0.067034f, 1.153294f
     };
 
-    const Matrix3f CSXYZToCSArriLogCMat
+    const Math::Matrix3f CSXYZToCSArriLogCMat
     {
         // Check Row/Column major
-        1.789066, -0.482534, -0.200076,
-        -0.639849, 1.396400, 0.194432,
-        -0.041532, 0.082335, 0.878868
+        1.789066f, -0.482534f, -0.200076f,
+        -0.639849f, 1.396400f, 0.194432f,
+        -0.041532f, 0.082335f, 0.878868f
     };
     
 
-    Vector3f CSArriLogCToCSXYZ(Vector3f color)
+    Math::Vector3f CSArriLogCToCSXYZ(Math::Vector3f color)
     {
         return CSArriLogCToCSXYZMat * color;
     }
 
-    Vector3f CSXYZToCSArriLogC(Vector3f color)
+    Math::Vector3f CSXYZToCSArriLogC(Math::Vector3f color)
     {
         return CSXYZToCSArriLogCMat * color;
     }
 
     template <typename EI = EI800>
-    Vector3f GLinearToGArriLogC(Vector3f color)
+    Math::Vector3f GLinearToGArriLogC(Math::Vector3f color)
     {
         return (color > EI::cut) ? EI::c * log10(EI::a * color + EI::b) + EI::d : EI::e * color + EI::f;
     }
 
     template <typename EI = EI800>
-    Vector3f GArriLogCToGLinear(Vector3f color)
+    Math::Vector3f GArriLogCToGLinear(Math::Vector3f color)
     {
         return (color > (EI::e * EI::cut + EI::f)) ? (pow(10, (color - EI::d) / EI::c) - 2) / EI::a : (color - EI::f) / EI::e;
     }

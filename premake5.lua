@@ -43,15 +43,9 @@ solution "GraphicsBox"
     configurations { "Debug", "Development", "Release" }
     debugdir ( gb_SolutionDir )
     objdir ( path.join(gb_IntermediatesDir, "objects") )
-
+    
     -- Solution file
-    filter "action:vs*"
-        location (gb_SolutionProjectDir)
-    filter "action:cmake"
-        location (gb_SolutionDir)
-    filter "action:gmake"
-        location (gb_SolutionDir)
-    filter {}
+    location (gb_SolutionDir)
 
     -- Build Configurations setup
     filter "configurations:Debug"
@@ -143,6 +137,9 @@ group "Dependencies"
         language "C++"
         kind "StaticLib"
         
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
         -- Project includes
         includedirs (path.join(gb_SourceDependencyDir, "stb"))
 
@@ -155,6 +152,9 @@ group "Dependencies"
         language "C++"
         kind "StaticLib"
         
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
         -- Project includes
         includedirs (path.join(gb_SourceDependencyDir, "stb"))
 
@@ -166,6 +166,9 @@ group "Dependencies"
     project "ImGUI"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
         
         project_dir = path.join(gb_SourceDependencyDir, "imgui")
         
@@ -210,6 +213,9 @@ group "Utilites"
     project "Shared"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
 
         -- Project includes
         includedirs {
@@ -230,6 +236,9 @@ group "Utilites"
     project "Math"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
 
         -- Project includes
         includedirs {
@@ -250,6 +259,9 @@ group "Utilites"
     project "Modeling"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
 
         -- Project includes
         includedirs {            
@@ -270,6 +282,9 @@ group "Utilites"
     project "Image"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
 
         -- Project includes
         includedirs {
@@ -301,6 +316,9 @@ group "Utilites"
     project "Files"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
 
         -- Project includes
         includedirs {
@@ -321,6 +339,9 @@ group "Utilites"
     project "Memory"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
 
         -- Project includes
         includedirs {
@@ -341,6 +362,9 @@ group "Utilites"
     project "Rendering"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
 
         -- Project includes
         includedirs {
@@ -379,10 +403,13 @@ group "Utilites"
             links { "opengl32", "glew32" }
 
 if _OPTIONS["samples"] then
-group "Samples"
+group "Samples"    
     project "MiniEngine"
         language "C++"
         kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "samples"))
 
         -- Project includes
         includedirs {
@@ -492,13 +519,16 @@ group "Samples"
     SampleProjects = {
         "GIMesh",
         "PBR",
-        "SpecralRenering"
+        "SpectralRendering"
     }
 
     for i, name in ipairs(SampleProjects) do
         project (name)
             language "C++"
             kind "ConsoleApp"
+            
+            -- Solution file
+            location (path.join(gb_SolutionProjectDir, "samples"))
 
             -- Project includes
             includedirs {
