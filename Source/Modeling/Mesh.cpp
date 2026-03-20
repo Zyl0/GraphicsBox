@@ -3,6 +3,8 @@
 #include "Shared/Logger.h"
 #include "Shared/Assertion.h"
 
+#include <tiny_gltf.h>
+
 unsigned int Mesh::GetFaceCount() const
 {
     switch (GetMeshType())
@@ -608,3 +610,181 @@ void Mesh::GenerateBounds()
         }
     }
 }
+
+#ifdef ENABLE_WAVEFRONT
+// TODO fix implement
+bool LoadWavefrontMesh(const std::filesystem::path& Filename, Mesh& OutMesh)
+{
+    std::vector<math::Vector3f> normals;
+    std::vector<math::Point3f>  positions;
+    std::vector<math::Vector2f> coordinates;
+    std::vector<size_t>         index_position;
+    std::vector<size_t>         index_normal;
+    std::vector<size_t>         index_coordinate;
+    bool                        CanBeIndexed                = true;
+    size_t                      VertexPerPrimitiveCount     = 3;
+    
+    //mesh data from .obj
+    std::istringstream stream(src);
+    std::string line;
+    while (std::getline(stream, line))
+    {
+        //skip white space at the beginning of the line
+        size_t start = 0;
+        while (start < line.size() && std::isspace(line[start]))
+        {
+            ++start;
+        }
+        line = line.substr(start);
+        
+        switch (line[0])
+        {
+        // Get vertex attributes
+        case 'v':
+            {
+                float x, y, z;
+                if(line[1] == ' ')          // position x y z
+                {
+                    if(sscanf(line, "v %f %f %f", &x, &y, &z) != 3)
+                        break;
+                    positions.push_back( vec3(x, y, z) );
+                }
+                else if(line[1] == 'n')     // normal x y z
+                {
+                    if(sscanf(line, "vn %f %f %f", &x, &y, &z) != 3)
+                        break;
+                    normals.push_back( vec3(x, y, z) );
+                }
+                else if(line[1] == 't')     // texcoord x y
+                {
+                    if(sscanf(line, "vt %f %f", &x, &y) != 2)
+                        break;
+                    texcoords.push_back( vec2(x, y) );
+                }
+            }
+            
+        case 'p':
+                break;
+                
+            // Get vertex normal
+            case 'n':
+                {
+                    std::vector<Parser::RegexMatch> matches = Parser::MatchRegex(std::string(&line[2]), floatRegex);
+                    normals.emplace_back(
+                        strtod(matches[0].CapturedPattern.c_str(), nullptr),
+                        strtod(matches[1].CapturedPattern.c_str(), nullptr),
+                        strtod(matches[2].CapturedPattern.c_str(), nullptr)
+                    );
+                }
+                break;
+                
+            // Get vertex texture coordinates
+            case 't':
+                {
+                    std::vector<Parser::RegexMatch> matches = Parser::MatchRegex(std::string(&line[2]), floatRegex);
+                    coordinates.emplace_back(
+                        strtod(matches[0].CapturedPattern.c_str(), nullptr),
+                        strtod(matches[1].CapturedPattern.c_str(), nullptr)
+                    );
+                }
+                break;
+                
+            default:
+                UNREACHABLE;
+            break;
+            }
+            break;
+
+        // Get triangle attributes
+        case 'f':
+            {
+                std::string str(&line[2]);
+                size_t start = 0, end = 0, vcount = 0;
+                
+                do 
+                {
+                    end = str.find(' ', start);
+                    if (end != start)
+                    {
+                        std::string sample = str.substr(start, end - start);
+                        int p = -1, t = -1, n = -1;
+
+                        // todo fix compiler warning, last if should throw an error
+#ifdef PLATFORM_WINDOWS
+                        if     (sscanf_s(sample.c_str(), "%d/%d/%d", &p, &t, &n) == 3) {}
+                        else if(sscanf_s(sample.c_str(), "%d/%d", &p, &t) == 2) {}
+                        else if(sscanf_s(sample.c_str(), "%d//%d", &p, &n) == 2) {}
+                        else if(sscanf_s(sample.c_str(), "%d",&p) == 1) {}
+#else
+                        if     (sscanf(sample.c_str(), "%d/%d/%d", &p, &t, &n) == 3);
+                        else if(sscanf(sample.c_str(), "%d/%d", &p, &t) == 2);
+                        else if(sscanf(sample.c_str(), "%d//%d", &p, &n) == 2);
+                        else if(sscanf(sample.c_str(), "%d",&p) == 1);
+#endif
+
+                        if(p >= 0) index_position.push_back(p);
+                        if(t >= 0) index_coordinate.push_back(t);
+                        if(n >= 0) index_normal.push_back(n);
+
+                        CanBeIndexed &= (t == -1 || t == p) && (n == -1 || n == p);
+                    }
+                    start = end + 1;
+                    vcount++;
+                }
+                while (end != std::string::npos);
+                VertexPerPrimitiveCount = vcount;                
+            }
+            break;
+        default:
+            //Ignore unsupported lines
+            break;
+        }
+    }
+
+    switch (VertexPerPrimitiveCount)
+    {
+    case 3 :
+        out.BeginMesh(rhal::geometry::TRIANGLES);
+        break;
+    case 4 :
+        out.BeginMesh(rhal::geometry::QUADS);
+        break;
+
+    default:
+        AssertOrErrorF(false, "Unsuported mesh primitive type. (vertex count = %llu)", VertexPerPrimitiveCount);
+        break;
+    }
+
+    if(CanBeIndexed)
+    {
+        for (const auto & position : positions)
+            out.AddVertexPosition(position);
+        for (const auto & normal : normals)
+            out.AddVertexNormal(normal);
+        for (const auto & coordinate : coordinates)
+            out.AddVertexTextureCoordinate(coordinate);
+        for (size_t value : index_position)
+            out.AddVertexPolygonIndex(static_cast<unsigned int>(value - 1));
+    }
+    else
+    {
+        bool hasTextCoordinates = !index_coordinate.empty();
+        bool hasNormals         = !index_normal.empty();
+        for (size_t i : index_position)
+            out.AddVertexPosition(positions[i - 1]);
+
+        //todo fix empty normals
+        for (size_t i : index_normal)
+            out.AddVertexNormal(normals[i - 1]);
+        
+        if (hasTextCoordinates)
+            for (size_t i : index_coordinate)
+                out.AddVertexTextureCoordinate(coordinates[i - 1]);
+        else
+            for (size_t i = 0; i < index_position.size(); i++)
+                out.AddVertexTextureCoordinate(math::Vector2f(0,0));
+    }
+    out.AddVertexGroup(0, index_position.size());
+    out.CommitMesh();
+}
+#endif // ENABLE_WAVEFRONT

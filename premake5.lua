@@ -162,6 +162,30 @@ group "Dependencies"
         files {
             path.join(gb_LibsImplementDir, "stb_image_write.cpp")
         }
+    
+    project "TinyGLTF"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
+        -- Project includes
+        includedirs {
+            path.join(gb_SourceDependencyDir, "stb"),
+            path.join(gb_SourceDependencyDir, "TinyGLTF")
+        }
+
+        -- Project files    
+        files { 
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "*.cpp"),
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "*.c"), 
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "*.h"),
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "*.hpp"),
+            path.join(gb_LibsImplementDir, "tiny_gltf.cpp")
+        }
+    
+        dependson {"stb_image"}
 
     project "ImGUI"
         language "C++"
@@ -414,7 +438,8 @@ group "Samples"
         -- Project includes
         includedirs {
             gb_IncludeDir,
-            path.join(gb_SamplesDir, "MiniEngine", "Include")
+            path.join(gb_SamplesDir, "MiniEngine", "Include"),
+            path.join(gb_SourceDependencyDir, "TinyGLTF")
         }
 
         -- Project files
@@ -437,6 +462,7 @@ group "Samples"
             "Memory",
             "Modeling",
             "Rendering",
+            "TinyGLTF"
         }
 
         dependson {
@@ -447,6 +473,7 @@ group "Samples"
             "Memory",
             "Modeling",
             "Rendering",
+            "TinyGLTF"
         }
 
         -- Window specific 
