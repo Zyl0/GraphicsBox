@@ -21,7 +21,7 @@ namespace Engine::World
     
     template<typename ComponentSystem> concept HasECSFlags =                requires {{ ComponentSystem::Flags } -> std::same_as<ECSFeatureFlags>; };
     
-    template<typename ComponentSystem> concept ComponentSystem =            requires { {std::default_initializable<ComponentSystem> || std::is_default_constructible_v<ComponentSystem> }; HasComponent<ComponentSystem>; HasECSFlags<ComponentSystem>; };
+    template<typename CS> concept ComponentSystem =            requires { {std::default_initializable<CS> || std::is_default_constructible_v<CS> }; HasComponent<CS>; HasECSFlags<CS>; };
     
     
     template<typename ComponentSystem> concept HasInitializeComponent =     requires {{static_cast<void (ComponentSystem::*)(typename ComponentSystem::Component&, Handle)>(&ComponentSystem::Initialize)};};

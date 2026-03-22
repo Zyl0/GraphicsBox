@@ -14,7 +14,7 @@
 #include <malloc.h>
 #endif
 
-void NAMESPACE_ENGINE::Logger::Log(const char* file, unsigned int line, const char* level, const char* format, ...)
+void Logger::Log(const char* file, unsigned int line, const char* level, const char* format, ...)
 {
 #ifndef USE_CSTYLE_VA_EXTRACTION
     printf("[%s : %s line %u] ", level, file, line);

@@ -77,7 +77,7 @@ solution "GraphicsBox"
      -- Platforms specific setup
     filter "system:linux"
         -- TODO specify CLang version
-        -- toolset "clang-20"
+        toolset "clang-21"
         cppdialect (gb_gnuc_cpp_version)
         cdialect (gb_gnuc_c_version)
 

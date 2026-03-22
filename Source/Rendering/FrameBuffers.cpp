@@ -1,5 +1,7 @@
 ﻿#include "FrameBuffers.h"
 
+#include <vector>
+
 #include "Shared/Assertion.h"
 
 FrameBuffer::FrameBuffer(const ExternalAttachment& Attachments) :
@@ -27,7 +29,7 @@ FrameBuffer::FrameBuffer(std::span<const ExternalAttachment> Attachments):
         AssertOrErrorCallF(attachment.width == m_Width && attachment.height == m_Height && attachment.depth == m_Depth, return,
             "Failed to create framebuffer. Attachment size missmaitch. Expected %ux%ux%u, got %ux%ux%u",
             m_Width, m_Height, m_Depth, attachment.width, attachment.height, attachment.depth)
-        AssertOrErrorCallF(m_Type == attachment.Type, return,
+        AssertOrErrorCall(m_Type == attachment.Type, return,
             "Failed to create framebuffer. Attachment type missmaitch.")
 
         switch (attachment.Type)

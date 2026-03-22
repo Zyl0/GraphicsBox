@@ -1,6 +1,8 @@
 ﻿#include "Image.h"
 
+#include <cstring>
 #include <fstream>
+#include <vector>
 #include <stb_image.h>
 #include <stb_image_write.h>
 
@@ -456,7 +458,7 @@ CubeLUT ImageLoadCubeLUT(const std::filesystem::path& ImagePath)
             }
         }
 
-        AssertOrErrorCallF(size > 0, goto EmptyLut, "LUT size must be greater than zero")
+        AssertOrErrorCall(size > 0, goto EmptyLut, "LUT size must be greater than zero")
         AssertOrErrorCallF(data.size() / 3 == (static_cast<size_t>(size) * size * size), goto EmptyLut,
             "LUT data size mismatch. Expected %llu got %llu. Lut size must be a square", (static_cast<size_t>(size) * size * size), data.size() / 3)
         

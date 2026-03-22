@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "Shared/Annotations.h"
 #include "Math/RMath.h"
 

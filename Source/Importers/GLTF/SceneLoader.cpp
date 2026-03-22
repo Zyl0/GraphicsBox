@@ -1,4 +1,4 @@
-#include "GLTF\SceneLoader.h"
+#include "GLTF/SceneLoader.h"
 
 #include <tiny_gltf.h>
 
