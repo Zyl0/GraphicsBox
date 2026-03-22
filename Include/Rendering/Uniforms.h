@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Math/Math.h"
+#include "Math/RMath.h"
 
 #include "GLHelper.h"
 

@@ -7,7 +7,55 @@
 #include "Shared/Annotations.h"
 #include "Shared/Assertion.h"
 
-Image::Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, void* Data) :
+uint32_t Image::ChannelSize(Type ComponentType)
+{
+    switch (ComponentType)
+    {
+    case UnsignedByte:
+    case Byte:          return 1;
+        
+    case UnsignedShort:
+    case Short:         return 2;
+        
+    case UnsignedInt:
+    case Int:
+    case Float:         return 4;
+    case Double:        return 8;
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported channel type")
+    }
+}
+
+uint32_t Image::ComponentCount(Layout ComponentLayout)
+{
+    switch (ComponentLayout)
+    {
+    case R:         return 1;
+    case RG:        return 2;
+    case RGB:
+    case BGR:       return 3;
+    case RGBA:
+    case ARGB:
+    case ABGR:      return 4;
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported channel layout")
+    }
+}
+
+uint32_t Image::PixelSize(Type ComponentType, Layout ComponentLayout)
+{
+    return ComponentCount(ComponentLayout) * ChannelSize(ComponentType);
+}
+
+Image::Image():
+    m_Width(0), m_Height(0),
+    m_ComponentType(Byte),
+    m_ComponentLayout(R),
+    m_Data(nullptr)
+{
+}
+
+Image::Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, const void* Data) :
     m_Width(Width), m_Height(Height),
     m_ComponentType(ComponentType),
     m_ComponentLayout(ComponentLayout),
@@ -26,30 +74,61 @@ Image::~Image()
     free(m_Data);
 }
 
-Image::Image(const Image& other):
-    m_Width(other.m_Width),
-    m_Height(other.m_Height),
-    m_ComponentType(other.m_ComponentType),
-    m_ComponentLayout(other.m_ComponentLayout),
+Image::Image(const Image& Other): 
+    m_Width(Other.m_Width),
+    m_Height(Other.m_Height),
+    m_ComponentType(Other.m_ComponentType),
+    m_ComponentLayout(Other.m_ComponentLayout),
     m_Data(m_Width * m_Height > 0 ? malloc(DataSize()) : nullptr)
 {
-    memcpy(m_Data, other.m_Data, DataSize());
+    if (m_Data != nullptr && Other.m_Data != nullptr)
+    {
+        memcpy(m_Data, Other.m_Data, DataSize());
+    }
 }
 
-Image::Image(Image&& other) noexcept:
-    m_Width(other.m_Width),
-    m_Height(other.m_Height),
-    m_ComponentType(other.m_ComponentType),
-    m_ComponentLayout(other.m_ComponentLayout),
-    m_Data(other.m_Data)
+Image::Image(Image&& Other) noexcept: 
+    m_Width(Other.m_Width),
+    m_Height(Other.m_Height),
+    m_ComponentType(Other.m_ComponentType),
+    m_ComponentLayout(Other.m_ComponentLayout),
+    m_Data(Other.m_Data)
 {
-    other.m_Data = nullptr;
+    Other.m_Data = nullptr;
 }
 
-Image& Image::operator=(Image other)
+Image& Image::operator=(const Image& Other)
 {
-    using std::swap;
-    swap(*this, other);
+    if (this == &Other)
+        return *this;
+    
+    m_Width = Other.m_Width;
+    m_Height = Other.m_Height;
+    m_ComponentType = Other.m_ComponentType;
+    m_ComponentLayout = Other.m_ComponentLayout;
+    m_Data = m_Width * m_Height > 0 ? malloc(DataSize()) : nullptr;
+    
+    if (m_Data != nullptr && Other.m_Data != nullptr)
+    {
+        memcpy(m_Data, Other.m_Data, DataSize());
+    }
+    
+    return *this;
+}
+
+Image& Image::operator=(Image&& Other) noexcept
+{
+    if (this == &Other)
+        return *this;
+    
+    m_Width = Other.m_Width;
+    m_Height = Other.m_Height;
+    m_ComponentType = Other.m_ComponentType;
+    m_ComponentLayout = Other.m_ComponentLayout;
+    m_Data = Other.m_Data;
+    
+    Other.m_Data = nullptr;
+    
     return *this;
 }
 

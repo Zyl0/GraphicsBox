@@ -1,18 +1,17 @@
 #pragma once
 
-#include <filesystem>
 #include <vector>
 
-#include "Vector.h"
+#include "Math/Vector.h"
 #include "Shared/Annotations.h"
 
 /**
- * @brief Mesh is a representation of a mesh for both CPU and GPU side used for rendering.
+ * @brief A rendering::Mesh is a representation of a mesh on the CPU.
  */
 class Mesh
 {
 public:
-    enum VertexType
+    enum VertexType : uint8_t
     {
         POINTS = 0,
         LINE_STRIP,
@@ -20,14 +19,14 @@ public:
         LINES,
         LINE_STRIP_ADJACENCY,
         LINES_ADJACENCY,
-        TRIANGLE_STRIP,
-        TRIANGLE_FAN,
-        TRIANGLES,
+        PATCHES,
         TRIANGLE_STRIP_ADJACENCY,
         TRIANGLES_ADJACENCY,
-        QUADS,
+        TRIANGLE_STRIP,
+        TRIANGLE_FAN,
         QUAD_STRIP,
-        PATCHES,
+        TRIANGLES,
+        QUADS,
         _Count
     };
     
@@ -40,12 +39,11 @@ public:
          * @brief The index of the first vertex to draw.
          */
         unsigned int FirstVertex;
-
         /**
          * @brief The count of vertices to draw
          */
         unsigned int VertexCount;
-
+        
         Math::Point3f BoundsMin;
         Math::Point3f BoundsMax;
     };
@@ -98,7 +96,7 @@ public:
     INLINE const std::vector<Math::Vector3f> &GetNormals() const            {return m_normals;}
     INLINE const std::vector<Math::Vector3f> &GetTangents() const            {return m_tangents;}
     INLINE const std::vector<Math::Vector2f> &GetTextureCoordinates() const {return m_texture_coordinates;}
-    INLINE const std::vector<unsigned int> &GetIndexes() const                      {return m_indexes;}
+    INLINE const std::vector<unsigned int> &GetIndices() const                      {return m_indexes;}
 
     INLINE const std::vector<VertexGroup> &GetVertexGroups() const                  {return m_vertex_group;}
     
@@ -197,6 +195,8 @@ public:
 
     void GenerateTangents();
 
+    void GenerateBounds();
+
     void ClearTangents();
 
     struct Vertex
@@ -208,6 +208,8 @@ public:
 
         Vertex(Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(MeshReference), m_Vertex(Vertex) {}
 
+        Vertex(const iterator& it) : m_MeshReference(it.m_MeshReference), m_Vertex(it.m_Vertex) {}
+        
         Math::Point3f& Position();
         const Math::Point3f& Position() const;
 
@@ -222,6 +224,8 @@ public:
     private:
         struct VertexIterator
         {
+            friend Vertex;
+            
             VertexIterator(Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(MeshReference), m_Vertex(Vertex) {}
 
             INLINE VertexIterator& operator++ () {m_Vertex++; return *this;}
@@ -325,21 +329,22 @@ public:
     private:
         Mesh& m_MeshReference;
     };
-    
+
+
     /**
-     * @brief Put the mesh out of edit mode and generate required data
+     * @brief Put the mesh out of edit mode and initialize it on the GPU side.
      */
     void CommitMesh();
-    
-private:        
-    void GenerateBounds();
 
+    void Clear(bool ResizeToZero = false);
+
+private:
     bool bIsInEditMode = false;
     
     /**
      * @brief Mesh primitive type (lines, triangles, quads, etc)
      */
-    VertexType m_mesh_type = TRIANGLES;
+    VertexType m_mesh_type = VertexType::TRIANGLES;
 
     std::vector<unsigned int> m_indexes;
     std::vector<Math::Point3f> m_positions;

@@ -56,11 +56,13 @@ class Texture2D
 public:
     Texture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout);
     Texture2D(const Image& Image, bool UseMips = true);
+    Texture2D(uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips = true);
     ~Texture2D();
 
     void Data(uint32_t width, uint32_t height);
     void Data(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout);
     void Data(const Image& Image, bool UseMips = true);
+    void Data(Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips = true);
     void Export(Image& Export);
 
     INLINE GLuint Handle() const                    { return m_Texture;}

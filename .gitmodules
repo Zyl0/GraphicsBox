@@ -7,3 +7,6 @@
 [submodule "STBImage"]
 	path = Dependencies/LibSources/TinyGLTF
 	url = https://github.com/syoyo/tinygltf.git
+[submodule "CTTI"]
+	path = Dependencies/LibSources/ctti
+	url = https://github.com/Manu343726/ctti.git

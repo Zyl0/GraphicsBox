@@ -1,14 +1,10 @@
 ﻿#pragma once
 
-#ifdef PLATFORM_LINUX
-#include <stddef.h> 
-#endif
-#include <cmath>
-#include <type_traits>
 #include <algorithm>
+#include <cstddef> 
+#include <cmath> 
 
 #include "Shared/Annotations.h"
-
 
 namespace Math
 {

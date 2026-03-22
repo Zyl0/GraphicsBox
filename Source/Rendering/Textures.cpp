@@ -387,6 +387,36 @@ Texture2D::Texture2D(const Image& Image, bool UseMips):
     UnBind(*this);
 }
 
+Texture2D::Texture2D(uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips):
+    m_Width(width), m_Height(height),
+    m_MipCount(UseMips ? miplevels(m_Width, m_Height) : 0), m_Type(Texture::ToTextureType(type)),
+    m_Layout(Texture::ToTextureLayout(layout))
+{
+    GLCall(glGenTextures(1, &m_Texture))
+    
+    AssertOrErrorCall(m_Width * m_Height * Image::PixelSize(type, layout) == ImageSize, return;, "Texture and image data size missmatch")
+
+    Bind(*this);
+
+    // Texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, m_MipCount);
+
+    GLCall(glTexImage2D(GL_TEXTURE_2D, 0,
+        ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0,
+        ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), ImageData))
+
+    if (m_MipCount > 0)
+    {
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    UnBind(*this);
+}
+
 Texture2D::~Texture2D()
 {
     GLCall(glDeleteTextures(1, &m_Texture))
@@ -448,6 +478,35 @@ void Texture2D::Data(const Image& Image, bool UseMips)
     GLCall(glTexImage2D(GL_TEXTURE_2D, 0,
         ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0,
         ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), Image.Data()))
+
+    if (m_MipCount > 0)
+    {
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    UnBind(*this);
+}
+
+void Texture2D::Data( Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips)
+{
+    m_Type = Texture::ToTextureType(type);
+    m_Layout = Texture::ToTextureLayout(layout);
+    
+    AssertOrErrorCall(m_Width * m_Height * Image::PixelSize(type, layout) == ImageSize, return;, "Texture and image data size missmatch")
+    m_MipCount = UseMips ? miplevels(m_Width, m_Height) : 0;
+
+    Bind(*this);
+
+    // Texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, m_MipCount);
+
+    GLCall(glTexImage2D(GL_TEXTURE_2D, 0,
+        ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0,
+        ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), ImageData))
 
     if (m_MipCount > 0)
     {

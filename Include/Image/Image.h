@@ -30,20 +30,27 @@ struct Image
         ARGB,
         ABGR
     };
+    
+    static uint32_t ChannelSize(Type ComponentType);
+    static uint32_t ComponentCount(Layout ComponentLayout);
+    static uint32_t PixelSize(Type ComponentType, Layout ComponentLayout);
 
     enum FileType : uint8_t
     {
         JPG, PNG, TGA, BMP, HDR, _Count
     };
 
-    Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, void* Data = nullptr);
+    Image();
+    Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, const void* Data = nullptr);
     ~Image();
 
-    Image(const Image& other);
+    Image(const Image& Other);
 
-    Image(Image&& other) noexcept;
+    Image(Image&& Other) noexcept;
 
-    Image& operator=(Image other);
+    Image& operator=(const Image& Other);
+
+    Image& operator=(Image&& Other) noexcept;
 
     uint32_t Width() const { return m_Width; }
     uint32_t Height() const { return m_Height; }

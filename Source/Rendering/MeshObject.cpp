@@ -31,6 +31,6 @@ void MeshObject::Data(const Mesh& Mesh)
     if(Mesh.IsIndexedMesh())
     {
         m_IndexBuffer = IndexBuffer();
-        m_IndexBuffer.value().BufferData(Mesh.GetIndexes().data(), Mesh.GetIndexes().size());
+        m_IndexBuffer.value().BufferData(Mesh.GetIndices().data(), Mesh.GetIndices().size());
     }
 }

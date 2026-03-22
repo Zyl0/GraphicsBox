@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Shared/Annotations.h"
-#include "Math/Math.h"
+#include "Math/RMath.h"
 
 struct ColorState
 {

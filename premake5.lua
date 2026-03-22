@@ -71,6 +71,8 @@ solution "GraphicsBox"
 
     -- CPU Architecture
     architecture "x86_64"
+    
+    flags { "NoPCH" }
 
      -- Platforms specific setup
     filter "system:linux"
@@ -161,6 +163,23 @@ group "Dependencies"
         -- Project files
         files {
             path.join(gb_LibsImplementDir, "stb_image_write.cpp")
+        }
+    
+    project "CTTI"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
+        -- Project includes
+        includedirs {
+            path.join(gb_SourceDependencyDir, "ctti", "include")
+        }
+
+        -- Project files    
+        files {
+            path.join(gb_SourceDependencyDir, "ctti", "include", "**.hpp")
         }
     
     project "TinyGLTF"
@@ -336,6 +355,39 @@ group "Utilites"
             "stb_image",
             "stb_image_write"
         }
+    
+    project "Importers"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
+
+        -- Project includes
+        includedirs {
+            gb_IncludeDir,
+            path.join(gb_SourceDependencyDir, "TinyGLTF"),
+            path.join(gb_IncludeDir, "Importers"),
+            path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
+        }
+
+        -- Project files
+        files {
+            path.join(gb_IncludeDir, "Importers", "**.h"),
+            path.join(gb_IncludeDir, "Importers", "**.hpp"),
+            path.join(gb_SrcDir, "Importers", "**.h"),
+            path.join(gb_SrcDir, "Importers", "**.hpp"),
+            path.join(gb_SrcDir, "Importers", "**.c"),
+            path.join(gb_SrcDir, "Importers", "**.cpp"),
+        }
+
+        -- Dependencies
+        dependson {
+            "TinyGLTF",
+        }
+        links {
+            "TinyGLTF",
+        }
 
     project "Files"
         language "C++"
@@ -381,6 +433,29 @@ group "Utilites"
             path.join(gb_SrcDir, "Memory", "**.hpp"),
             path.join(gb_SrcDir, "Memory", "**.c"),
             path.join(gb_SrcDir, "Memory", "**.cpp"),
+        }
+    
+    project "Camera"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
+
+        -- Project includes
+        includedirs {
+            gb_IncludeDir,
+            path.join(gb_IncludeDir, "Camera")
+        }
+
+        -- Project files
+        files {
+            path.join(gb_IncludeDir, "Camera", "**.h"),
+            path.join(gb_IncludeDir, "Camera", "**.hpp"),
+            path.join(gb_SrcDir, "Camera", "**.h"),
+            path.join(gb_SrcDir, "Camera", "**.hpp"),
+            path.join(gb_SrcDir, "Camera", "**.c"),
+            path.join(gb_SrcDir, "Camera", "**.cpp"),
         }
 
     project "Rendering"
@@ -439,7 +514,10 @@ group "Samples"
         includedirs {
             gb_IncludeDir,
             path.join(gb_SamplesDir, "MiniEngine", "Include"),
-            path.join(gb_SourceDependencyDir, "TinyGLTF")
+            path.join(gb_SourceDependencyDir, "TinyGLTF"),
+            path.join(gb_SourceDependencyDir, "imgui"),
+            path.join(gb_SourceDependencyDir, "ctti", "include"),
+            path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
         }
 
         -- Project files
@@ -455,25 +533,31 @@ group "Samples"
         }
 
         links {
+            "Camera",
             "Shared",
             "Files",
             "Image",
+            "Importers",
             "Math",
             "Memory",
             "Modeling",
             "Rendering",
-            "TinyGLTF"
+            "TinyGLTF",
+            "ImGUI"
         }
 
         dependson {
+            "Camera",
             "Shared",
             "Files",
             "Image",
+            "Importers",
             "Math",
             "Memory",
             "Modeling",
             "Rendering",
-            "TinyGLTF"
+            "TinyGLTF",
+            "ImGUI"
         }
 
         -- Window specific 
@@ -562,6 +646,8 @@ group "Samples"
                 gb_IncludeDir,
                 path.join(gb_SamplesDir, "MiniEngine", "Include"),
                 path.join(gb_SamplesDir, name),
+                path.join(gb_SourceDependencyDir, "imgui"),
+                path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
             }
 
             -- Project files
@@ -571,7 +657,7 @@ group "Samples"
                 path.join(gb_SamplesDir, name, "**.c"),
                 path.join(gb_SamplesDir, name, "**.cpp"),
 
-                path.join(gb_SamplesDir, "MiniEngine", "Shaders", "**.glsl"),
+                --path.join(gb_SamplesDir, "MiniEngine", "Shaders", "**.glsl"),
                 path.join(gb_SamplesDir, name, "**.glsl"),
             }
 

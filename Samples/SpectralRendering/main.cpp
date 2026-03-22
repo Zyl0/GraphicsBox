@@ -1,13 +1,25 @@
 #include "Shared/Assertion.h"
-#include "Math/Math.h"
+#include "Math/RMath.h"
 #include "Files/Files.h"
 #include "Modeling/Mesh.h"
 #include "Rendering/Rendering.h"
 
+#include <imgui.h>
+
+// Implementation using the mini engine
+// #define USE_MINI_ENGINE
+
+#ifdef USE_MINI_ENGINE
+#else // USE_MINI_ENGINE
+
+#include "backends/imgui_impl_opengl3.h"
+
 #ifdef WINDOW_GLFW
 #include <GLFW/glfw3.h>
 #include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_glfw.h"
 #endif // WINDOW_GLFW
+
 
 using namespace Math;
 
@@ -78,25 +90,22 @@ void GLAPIENTRY MessageCallback(GLenum source,
 
 int main(void)
 {
+    int RC = EXIT_SUCCESS; // Ok
+    
 #ifdef WINDOW_GLFW
     glfwSetErrorCallback(error_callback);
-
-    if (!glfwInit())
-        exit(EXIT_FAILURE);
+    AssertOrErrorCall(glfwInit(), RC = EXIT_FAILURE; goto terminate_main, "Failed to initialise GLFW")
+    
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
     GLFWwindow* window = glfwCreateWindow(kBaseWidth, kBaseHeight, "ColorBox", monitor, share);
-    if (!window)
-    {
-        glfwTerminate();
-        exit(EXIT_FAILURE);
-    }
+    AssertOrErrorCall(window, RC = EXIT_FAILURE; goto terminate_glfw_window, "Failed to create GLFW window")
     
     glfwSetKeyCallback(CurrentWindow, key_callback);
 #endif // WINDOW_GLFW
 
-    AssertOrError(glewInit() == GLEW_OK, "Failed to initialize GLEW")
+    AssertOrErrorCall(glewInit() == GLEW_OK, RC = EXIT_FAILURE; goto terminate_context, "Failed to initialize GLEW")
 
 #ifdef CONFIG_DEBUG
     glEnable(GL_DEBUG_OUTPUT);
@@ -104,11 +113,37 @@ int main(void)
     glDebugMessageCallback(MessageCallback, 0);
 #endif // CONFIG_DEBUG
 
-    {}
+    ImGui::CreateContext();
+#ifdef WINDOW_GLFW
+    AssertOrErrorCall(ImGui_ImplGlfw_InitForOpenGL(CurrentWindow, true), RC = EXIT_FAILURE; goto terminate_glfw_ui, "Could not initialize ImGUI")
+#endif // WINDOW_GLFW
+    AssertOrErrorCall(ImGui_ImplOpenGL3_Init("#version 430"), RC = EXIT_FAILURE; goto terminate_ui, "Could not initialize ImGUI")
+    
+    // App content
+    {
+        
+        
+    }
+    
+terminate_ui:
+    ImGui_ImplOpenGL3_Shutdown();
+#ifdef WINDOW_GLFW
+terminate_glfw_ui:
+    ImGui_ImplGlfw_Shutdown();
+#endif // WINDOW_GLFW
+    
+    ImGui::DestroyContext();
 
+terminate_context:
 #ifdef WINDOW_GLFW
     glfwDestroyWindow(window);
-
+    
+terminate_glfw_window:
     glfwTerminate();
 #endif // WINDOW_GLFW
+    
+terminate_main:
+    return RC;
 }
+
+#endif // !USE_MINI_ENGINE
