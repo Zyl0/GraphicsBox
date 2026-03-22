@@ -3,6 +3,7 @@
 #include "Files/Files.h"
 #include "Modeling/Mesh.h"
 #include "Rendering/Rendering.h"
+#include "Importers/GLTF/SceneLoader.h"
 
 #include <imgui.h>
 
@@ -20,6 +21,8 @@
 #include "backends/imgui_impl_glfw.h"
 #endif // WINDOW_GLFW
 
+constexpr size_t kBaseWidth = 1280;
+constexpr size_t kBaseHeight = 720;
 
 using namespace Math;
 
@@ -86,23 +89,42 @@ void GLAPIENTRY MessageCallback(GLenum source,
     }
 }
 
+/* ____________________________________ Window ____________________________________ */
+
+#ifdef WINDOW_GLFW
+static void error_callback(int error, const char* description)
+{
+    fprintf(stderr, "Error: %s\n", description);
+}
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
+#endif // WINDOW_GLFW
+
 /* ____________________________________ Process ____________________________________ */
 
 int main(void)
 {
     int RC = EXIT_SUCCESS; // Ok
-    
+
 #ifdef WINDOW_GLFW
+    GLFWwindow* window = nullptr;
+    
     glfwSetErrorCallback(error_callback);
     AssertOrErrorCall(glfwInit(), RC = EXIT_FAILURE; goto terminate_main, "Failed to initialise GLFW")
     
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-    GLFWwindow* window = glfwCreateWindow(kBaseWidth, kBaseHeight, "ColorBox", monitor, share);
+    window = glfwCreateWindow(kBaseWidth, kBaseHeight, "ColorBox", nullptr, nullptr);
     AssertOrErrorCall(window, RC = EXIT_FAILURE; goto terminate_glfw_window, "Failed to create GLFW window")
+    EngineLoggerLog("Initialized GLFW window");
     
-    glfwSetKeyCallback(CurrentWindow, key_callback);
+    glfwSetKeyCallback(window, key_callback);
+    glfwMakeContextCurrent(window);
 #endif // WINDOW_GLFW
 
     AssertOrErrorCall(glewInit() == GLEW_OK, RC = EXIT_FAILURE; goto terminate_context, "Failed to initialize GLEW")
@@ -115,14 +137,27 @@ int main(void)
 
     ImGui::CreateContext();
 #ifdef WINDOW_GLFW
-    AssertOrErrorCall(ImGui_ImplGlfw_InitForOpenGL(CurrentWindow, true), RC = EXIT_FAILURE; goto terminate_glfw_ui, "Could not initialize ImGUI")
+    AssertOrErrorCall(ImGui_ImplGlfw_InitForOpenGL(window, true), RC = EXIT_FAILURE; goto terminate_glfw_ui, "Could not initialize ImGUI")
 #endif // WINDOW_GLFW
     AssertOrErrorCall(ImGui_ImplOpenGL3_Init("#version 430"), RC = EXIT_FAILURE; goto terminate_ui, "Could not initialize ImGUI")
     
     // App content
     {
+        GLTF::GPUScene Scene;
+        {
+            std::filesystem::path path;
+            if(engine::files::GetAbsoluteFilePath(std::filesystem::path("Scenes") / "GLTFImportTestScene" / "gltfLoaderTest.glb" ,path))
+                // if(engine::files::GetAbsoluteFilePath(std::filesystem::path("Scenes") / "BistroGLTF" / "exterior.glb" ,path))
+            {
+                auto code = engine::Importer::GLTF::LoadScene(path, scene);
+                AssertOrErrorF( code == engine::Importer::GLTF::LoadSceneOk, "Load scene failed with error code %d", code);
+            }
+        }
         
-        
+        while (!glfwWindowShouldClose(window))
+        {
+            glfwPollEvents();
+        }
     }
     
 terminate_ui:

@@ -3,18 +3,13 @@
 #include <vector>
 
 #include "Math/RMath.h"
-#include "Core/Types.h"
+#include "Scene.h"
 
 namespace Engine::World
 {
-    static constexpr Handle NullActor = std::numeric_limits<Handle>::max();
+    INLINE Handle SpawnActor(const Math::WorldTransformF& WorldTransform, Handle OwningActor = NullActor) {return _World::g_Scene.SpawnActor(WorldTransform, OwningActor);}
     
-    struct Actor
-    {
-        Handle Parent;
-        Math::WorldTransformF LocalTransform;
-        Math::WorldTransformF WorldTransform;
-        std::vector<Handle> Components;
-        std::vector<Handle> Children;
-    };
+    INLINE bool IsValidActor(Handle Actor) {return _World::g_Scene.IsValidActor(Actor);}
+    
+    void DestroyActor(Handle Actor);
 }

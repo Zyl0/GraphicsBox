@@ -18,6 +18,8 @@ Solution
 *.vs2026
 Makefile
 *.make
+*.cmake
+CMakeLists.txt
 
 # Generated
 Temp

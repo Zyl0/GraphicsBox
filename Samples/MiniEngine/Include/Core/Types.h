@@ -5,5 +5,5 @@
 namespace Engine
 {
     using Handle = size_t;
-    using TypeHash = ctti::type_id_t;
+    using TypeHash = ctti::detail::hash_t;
 }

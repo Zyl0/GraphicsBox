@@ -638,6 +638,13 @@ group "Samples"
             language "C++"
             kind "ConsoleApp"
             
+            defines {
+                "RESOURCES_GLOBAL=\"" .. path.join(gb_SolutionProjectDir, "samples", "MiniEngine") .. "\"",
+                "SHADERS_GLOBAL=\"" .. path.join(gb_SolutionProjectDir, "samples", "MiniEngine", "Shaders") .. "\"",
+                "RESOURCES_PROJECT=\"" .. path.join(SolutionDir, "samples", name) .. "\"",
+                "SHADERS_PROJECT=\"" .. path.join(SolutionDir, "samples", name, "Shaders") .. "\""
+            }
+            
             -- Solution file
             location (path.join(gb_SolutionProjectDir, "samples"))
 
@@ -660,6 +667,20 @@ group "Samples"
                 --path.join(gb_SamplesDir, "MiniEngine", "Shaders", "**.glsl"),
                 path.join(gb_SamplesDir, name, "**.glsl"),
             }
+        
+            -- Window specific 
+            if _OPTIONS["window"] == "glfw" then
+                defines ("WINDOW_GLFW")
+                includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
+            end
+            if _OPTIONS["window"] == "sdl2" then
+                defines ("WINDOW_SDL2")
+                includedirs (path.join(gb_CompiledDependencyDir, "SDL2", "include"))
+            end
+            if _OPTIONS["window"] == "sdl3" then
+                defines ("WINDOW_SDL3")
+                includedirs (path.join(gb_CompiledDependencyDir, "SDL3", "include"))
+            end
 
             links {
                 "MiniEngine"
