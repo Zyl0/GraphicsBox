@@ -639,10 +639,10 @@ group "Samples"
             kind "ConsoleApp"
             
             defines {
-                "RESOURCES_GLOBAL=\"" .. path.join(gb_SolutionProjectDir, "samples", "MiniEngine") .. "\"",
-                "SHADERS_GLOBAL=\"" .. path.join(gb_SolutionProjectDir, "samples", "MiniEngine", "Shaders") .. "\"",
-                "RESOURCES_PROJECT=\"" .. path.join(SolutionDir, "samples", name) .. "\"",
-                "SHADERS_PROJECT=\"" .. path.join(SolutionDir, "samples", name, "Shaders") .. "\""
+                "RESOURCES_GLOBAL=\"" .. path.join(gb_SamplesDir, "MiniEngine", "Resources") .. "\"",
+                "SHADERS_GLOBAL=\"" .. path.join(gb_SamplesDir, "MiniEngine", "Shaders") .. "\"",
+                "RESOURCES_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Resources") .. "\"",
+                "SHADERS_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Shaders") .. "\""
             }
             
             -- Solution file

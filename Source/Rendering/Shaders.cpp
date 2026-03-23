@@ -6,6 +6,7 @@
 #include "Files/Files.h"
 #include "Shaders.h"
 #include <list>
+#include <set>
 
 class StringPtr
 {
@@ -115,6 +116,13 @@ private:
 #endif // CONFIG_DEBUG
 };
 
+static std::set<std::filesystem::path> SearchPaths{};
+
+void ShaderAddSearchPath(const std::filesystem::path& path)
+{
+    SearchPaths.insert(path);
+}
+
 // Basic preprocessor ifdef unaware
 std::string ShaderFileToString(const std::filesystem::path& filename)
 {
@@ -132,41 +140,51 @@ std::string ShaderFileToString(const std::filesystem::path& filename)
     std::list<IncludeFile> FileStack;
 
     auto Erase = [&buff, &FileStack, &End](StringPtr& At, size_t Count) -> void
+    {
+        // Update EOFs
+        End -= Count; End.Refresh();
+        for (auto& fileInStack : FileStack)
         {
-            // Update EOFs
-            End -= Count; End.Refresh();
-            for (auto& fileInStack : FileStack)
-            {
-                fileInStack.EndInBuffer -= Count;
-                fileInStack.EndInBuffer.Refresh();
-            }
+            fileInStack.EndInBuffer -= Count;
+            fileInStack.EndInBuffer.Refresh();
+        }
 
-            At.Refresh();
-            buff.erase(At.Offset(), Count);
-        };
+        At.Refresh();
+        buff.erase(At.Offset(), Count);
+    };
 
     auto PushFile = [&buff, &FileStack, &At, &End](const std::filesystem::path& AbsolutePath) -> void
+    {
+        // Read file
+        std::string file = FileToString(AbsolutePath);
+        if (file.empty()) return;
+
+        buff.insert(At.Offset(), file);
+        At.Refresh();
+
+        // Update EOFs
+        End += file.size(); End.Refresh();
+        for (auto& fileInStack : FileStack)
         {
-            // Read file
-            std::string file = FileToString(AbsolutePath);
-            if (file.empty()) return;
+            fileInStack.EndInBuffer += file.size();
+            fileInStack.EndInBuffer.Refresh();
+        }
 
-            buff.insert(At.Offset(), file);
-            At.Refresh();
+        // Add file in stack
+        FileStack.emplace_back(IncludeFile{ .ParentPath = AbsolutePath.parent_path(), .EndInBuffer = At + file.size() });
+    };
 
-            // Update EOFs
-            End += file.size(); End.Refresh();
-            for (auto& fileInStack : FileStack)
-            {
-                fileInStack.EndInBuffer += file.size();
-                fileInStack.EndInBuffer.Refresh();
-            }
-
-            // Add file in stack
-            FileStack.emplace_back(IncludeFile{ .ParentPath = AbsolutePath.parent_path(), .EndInBuffer = At + file.size() });
-        };
-
-    PushFile(filename);
+    bool HasFound = false;
+    for (const auto & search_path : SearchPaths)
+    {
+        if (exists(search_path / filename ))
+        {
+            PushFile(search_path / filename);
+            HasFound = true;
+            break;
+        }
+    }
+    AssertOrErrorCallF(HasFound, return buff, "Could not find main shader file \"%s\"", filename.generic_string().c_str())
 
     bool SkipLineComment = false;
     bool SkipComment = false;
@@ -212,7 +230,31 @@ std::string ShaderFileToString(const std::filesystem::path& filename)
                 if (*At != '"' && *At != '>') goto exit_preporcessor;
                 StringPtr IncludeEnd = At;
 
-                Path = FileStack.back().ParentPath / std::string_view(IncludeBegin.At(), IncludeEnd.At());
+                std::string_view IncludeName = std::string_view(IncludeBegin.At(), IncludeEnd.At());
+                if (exists(FileStack.back().ParentPath / IncludeName))
+                {
+                    Path = FileStack.back().ParentPath / IncludeName;
+                }
+                else
+                {
+                    bool HasFound = false;
+                    for (const auto & search_path : SearchPaths)
+                    {
+                        if (exists(search_path / IncludeName))
+                        {
+                            Path = search_path /IncludeName;
+                            HasFound = true;
+                            break;
+                        }
+                    }
+
+                    if (!HasFound)
+                    {
+                        std::string sample = std::string(IncludeBegin.At(), IncludeEnd.At());
+                        EngineLoggerErrorF("Could not find file \"%s\"", sample.c_str());
+                        goto exit_preporcessor;
+                    }
+                }
 
                 // Skip to the end
                 while (At < End && *At != '\n') ++At;

@@ -2,8 +2,11 @@
 
 #include <fstream>
 #include <sstream>
+#include <set>
 
 #include "Shared/Logger.h"
+
+static std::set<std::filesystem::path> SearchPaths{};
 
 std::string FileToString(const std::filesystem::path& filename, bool binary)
 {
@@ -47,4 +50,23 @@ std::string FileToString(const std::filesystem::path& filename, bool binary)
         EngineLoggerErrorF("Impossible to load file %s. No such file or directory", filename.string().c_str());
     }
     return source;
+}
+
+void AddSearchPath(const std::filesystem::path& path)
+{
+    SearchPaths.insert(path);
+}
+
+bool GetAbsoluteFilePath(const std::filesystem::path& RelativePath, std::filesystem::path& absolutePath)
+{
+    for (const auto & search_path : SearchPaths)
+    {
+        std::filesystem::path path = search_path / RelativePath;
+        if (exists(path))
+        {
+            absolutePath = path;
+            return true;
+        }
+    }
+    return false;
 }

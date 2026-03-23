@@ -8,6 +8,8 @@
 #include "GLHelper.h"
 #include "Shared/Annotations.h"
 
+void ShaderAddSearchPath(const std::filesystem::path& path);
+
 std::string ShaderFileToString(const std::filesystem::path& filename);
 
 class Shader

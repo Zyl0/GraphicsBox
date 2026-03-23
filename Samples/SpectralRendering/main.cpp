@@ -14,6 +14,7 @@
 #else // USE_MINI_ENGINE
 
 #include "backends/imgui_impl_opengl3.h"
+#include "Camera/FlyCamera.h"
 
 #ifdef WINDOW_GLFW
 #include <GLFW/glfw3.h>
@@ -102,6 +103,48 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
+
+bool GetKey(GLFWwindow* window, unsigned code)
+{
+    int state = glfwGetKey(window, code);
+    
+    if (state == GLFW_PRESS)
+    {
+        return true;
+    }
+    
+    return false;
+}
+
+void UpdateCamera(GLFWwindow* window, double deltaTime, FlyCamera& camera)
+{
+    Vector3f PositionDir(0, 0, 0);
+    float rotateDir = 0.0f;
+    const float speed = 1000.0f;
+
+    if (GetKey(window, GLFW_KEY_LEFT_SHIFT))
+        PositionDir.y += 1;
+    if (GetKey(window, GLFW_KEY_LEFT_CONTROL))
+        PositionDir.y -= 1;
+    if (GetKey(window, GLFW_KEY_W))
+        PositionDir.x += 1;
+    if (GetKey(window, GLFW_KEY_S))
+        PositionDir.x -= 1;
+    if (GetKey(window, GLFW_KEY_A))
+        PositionDir.z += 1;
+    if (GetKey(window, GLFW_KEY_D))
+        PositionDir.z -= 1;
+    
+    PositionDir = PositionDir * static_cast<float>(deltaTime) * speed * 2.0f;
+    camera.Translate(Transpose(camera.GetWorldRotation().GetRotationMatrix()) * PositionDir);
+        
+    if (GetKey(window, GLFW_KEY_Q))
+        rotateDir += 1;
+    if (GetKey(window, GLFW_KEY_E))
+        rotateDir -= 1;
+    
+    camera.RotateRadians(0, rotateDir * Pi * deltaTime * speed / 5);
+}
 #endif // WINDOW_GLFW
 
 /* ____________________________________ Process ____________________________________ */
@@ -112,6 +155,12 @@ int main(void)
 
 #ifdef WINDOW_GLFW
     GLFWwindow* window = nullptr;
+
+    AddSearchPath(RESOURCES_GLOBAL);
+    AddSearchPath(RESOURCES_PROJECT);
+
+    ShaderAddSearchPath(SHADERS_GLOBAL);
+    ShaderAddSearchPath(SHADERS_PROJECT);
     
     glfwSetErrorCallback(error_callback);
     AssertOrErrorCall(glfwInit(), RC = EXIT_FAILURE; goto terminate_main, "Failed to initialise GLFW")
@@ -141,22 +190,138 @@ int main(void)
 #endif // WINDOW_GLFW
     AssertOrErrorCall(ImGui_ImplOpenGL3_Init("#version 430"), RC = EXIT_FAILURE; goto terminate_ui, "Could not initialize ImGUI")
     
-    // App content
+    // Application resources lifetime
     {
+        uint32_t CurrentWidth = kBaseWidth, CurrentHeight = kBaseHeight;
+
+        std::string sRGBShaderCode = ShaderFileToString("MeshTosRGBRadiance.glsl");
+        
+        Shader sRGBMeshToRadianceVS(Shader::VERTEX_SHADER, sRGBShaderCode);
+        Shader sRGBMeshToRadianceFS(Shader::FRAGMENT_SHADER, sRGBShaderCode);
+
+        std::array sRGBMeshToRadianceShaders
+        {
+            Pipeline::ShaderPair{Shader::VERTEX_SHADER, sRGBMeshToRadianceVS},
+            Pipeline::ShaderPair{Shader::FRAGMENT_SHADER, sRGBMeshToRadianceFS},
+        };
+        Pipeline sRGBMeshToRadiance(sRGBMeshToRadianceShaders, "sRGBMeshToRadiance");
+        
         GLTF::GPUScene Scene;
         {
             std::filesystem::path path;
-            if(engine::files::GetAbsoluteFilePath(std::filesystem::path("Scenes") / "GLTFImportTestScene" / "gltfLoaderTest.glb" ,path))
-                // if(engine::files::GetAbsoluteFilePath(std::filesystem::path("Scenes") / "BistroGLTF" / "exterior.glb" ,path))
+            if (GetAbsoluteFilePath(std::filesystem::path("Meshes") / "Sphere.glb" ,path))
+            // if(engine::files::GetAbsoluteFilePath(std::filesystem::path("Scenes") / "BistroGLTF" / "exterior.glb" ,path))
             {
-                auto code = engine::Importer::GLTF::LoadScene(path, scene);
-                AssertOrErrorF( code == engine::Importer::GLTF::LoadSceneOk, "Load scene failed with error code %d", code);
+                AssertOrError( GLTF::LoadGPUScene(path, Scene), "Failed to load scene")
             }
         }
+
+        FlyCamera camera;
+        camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f));
+
+        // Material Properties
+        Math::Vector3f BaseColorRGB = {1.0f};
+        float Roughness = 1.0f;
+        float Metalness = 0.0f;
+
+        // Directional Light
+        Math::Vector3f LightDir = {0.0f, -1.0f, 0.0f};
+        Math::Vector3f LightColorRGB = {1.0f, 1.0f, 1.0f};
+        float LightIntensity = 1.0f;
+
+        // keep track of time during the execution
+        clock_t prev_clock = clock();
+        clock_t curr_clock;
         
+#ifdef WINDOW_GLFW
         while (!glfwWindowShouldClose(window))
         {
             glfwPollEvents();
+
+            int width, height;
+            glfwGetFramebufferSize(window, &width, &height);
+#endif // WINDOW_GLFW
+
+            // Handle resizing
+            if (CurrentWidth != width || CurrentHeight != height)
+            {
+                const float ratio = width / (float)height;
+                CurrentWidth = width; CurrentHeight = height;
+
+                glViewport(0, 0, CurrentWidth, CurrentHeight);
+
+                camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f));
+            }
+
+            // Update scene
+            {
+                curr_clock = clock();
+                clock_t dcl = curr_clock - prev_clock;
+                double deltaTime = static_cast<double>(dcl) / 1000000.0;
+                prev_clock = curr_clock;
+                
+                UpdateCamera(window, deltaTime, camera);
+            }
+
+            glClear(GL_COLOR_BUFFER_BIT );
+
+            // Draw scene
+            {
+                Bind(sRGBMeshToRadiance);
+
+                // Vertex Shader data
+                SetUniform(sRGBMeshToRadiance, "ViewProjection", camera.Projection() * camera.View());
+                SetUniform(sRGBMeshToRadiance, "InverseViewProjection", camera.InverseView() * camera.InverseProjection());
+                SetUniform(sRGBMeshToRadiance, "Model", MakeHomogeneousIdentity<float>());
+                SetUniform(sRGBMeshToRadiance, "InverseModel", MakeHomogeneousIdentity<float>());
+
+                // Material
+                SetUniform(sRGBMeshToRadiance, "BaseColorRGB", BaseColorRGB);
+                SetUniform(sRGBMeshToRadiance, "Roughness", Roughness);
+                SetUniform(sRGBMeshToRadiance, "Metalness", Metalness);
+
+                // Directional Light
+                SetUniform(sRGBMeshToRadiance, "LightDir", Normalize(LightDir));
+                SetUniform(sRGBMeshToRadiance, "LightColor", LightColorRGB);
+                SetUniform(sRGBMeshToRadiance, "LightIntensity", LightIntensity);
+
+                SetUniform(sRGBMeshToRadiance, "CameraPosition", camera.GetWorldPosition());
+
+                UnBind(sRGBMeshToRadiance);
+            }
+
+            // Draw UI
+            {
+#ifdef WINDOW_GLFW
+                ImGui_ImplGlfw_NewFrame();
+#endif // WINDOW_GLFW
+#ifdef WINDOW_SDL3
+                ImGui_ImplSDL3_NewFrame();
+#endif // WINDOW_SDL3
+                ImGui_ImplOpenGL3_NewFrame();
+                ImGui::NewFrame();
+
+                ImGui::Begin("Settings");
+                
+                // Material
+                ImGui::ColorEdit3("Surface Color RGB", BaseColorRGB.data());
+                ImGui::SliderFloat("Surface Roughness", &Roughness, 0.0f, 1.0f);
+                ImGui::SliderFloat("Surface Metalness", &Metalness, 0.0f, 1.0f);
+
+                // Directional Light
+                ImGui::DragFloat3("Light Direction", LightDir.data());
+                ImGui::ColorEdit3("Light Color RGB", LightColorRGB.data());
+                ImGui::SliderFloat("Light Intensity", &LightIntensity, 0.1f, 10.0f);
+                ImGui::End();
+
+                ImGui::Render();
+                ImGui::EndFrame();
+                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            }
+
+#ifdef WINDOW_GLFW
+            glfwSwapBuffers(window);
+#endif // WINDOW_GLFW
         }
     }
     

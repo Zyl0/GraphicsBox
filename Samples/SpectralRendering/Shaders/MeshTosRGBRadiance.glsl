@@ -1,6 +1,6 @@
 #version 450
 
-#include "FesnelSchlick.glsl"
+#include "FresnelSchlick.glsl"
 #include "GGX.glsl"
 
 #ifdef VERTEX_SHADER
@@ -74,36 +74,50 @@ in vec3 FragBiTangent;
 in vec2 UV0;
 
 // Material
-uniform vec3 BaseColorsRGB;
+uniform vec3 BaseColorRGB;
 uniform float Roughness;
 uniform float Metalness;
 
-// Directionnal Light
+// Directional Light
 uniform vec3 LightDir;
-uniform vec3 LightColor;
+uniform vec3 LightColorRGB;
 uniform float LightIntensity;
+
+uniform vec3 CameraPosition;
+
+out vec4 fragColor;
+
+vec3 fDielectrical( vec3 DiffuseColor, float DGNormalized, vec3 F )
+{
+    return ((1 - F) * DiffuseColor / M_PI) + (F * DGNormalized);
+}
+
+vec3 fMetallic(float DGNormalized, vec3 F )
+{
+    return ((1 - F) * vec3(0)) + (F * DGNormalized);
+}
 
 void main( )
 {
     mat3 TBN = mat3(FragTangent, FragBiTangent, FragNormal);
 
     // Hit point Material settings
-    vec3 DiffuseColor = mix(BaseColorsRGB, vec3(0), Metalness);
-    vec3 F0 = mix(vec3(0.04), BaseColorsRGB, Metalness);
+    vec3 DiffuseColor = mix(BaseColorRGB, vec3(0), Metalness);
+    vec3 F0 = mix(vec3(0.04), BaseColorRGB, Metalness);
     float Alpha = Roughness * Roughness;
 
     // TODO base color / normal / etc... textures
     // vec3 Normal = normalize(TBN * MaterialGetNormal());
     vec3 Normal =  FragNormal;
 
-    vec3 finalColor = vec4(0);
+    vec3 finalColor = vec3(0);
 
     // Direct lighting
     {
         vec3 n = Normal;
-        vec3 v = normalize(CameraPosition - position);
-        vec3 l = normalize(LightDir);
-        vec3 h = normalize(V + H);
+        vec3 v = normalize(CameraPosition - FragWorldPosition);
+        vec3 l = normalize(-LightDir);
+        vec3 h = normalize(v + l);
         
         float CosThetaL = dot(n, l);
         float CosThetaV = dot(n, v);
@@ -111,25 +125,26 @@ void main( )
         if(CosThetaV > 0 && CosThetaL > 0)
         {
             float VdotH = dot(h, v);
-            vec3 F = Fresnel(VdotH, v, F0);
+            vec3 F = Fresnel(VdotH, F0);
 
-            float D = D_GGX_Heitz2014_EQ71(h, n, alpha);
+            float D = D_GGX_Heitz2014_EQ71(h, n, Alpha);
 
-            float G = G2_GeometrySmith(n, v, l, roughness);
+            float G = G2_Heitz2014_EQ99(h, n, v, l, Alpha);
 
             float DGNormalized = (D * G) / max(4 * CosThetaL * CosThetaV , 0.0001);
 
             vec3 ReflectanceDielectrical = fDielectrical(DiffuseColor, DGNormalized, F);
             vec3 ReflectanceMetallic = fMetallic(DGNormalized, F);
 
-            vec3 Reflectance = clamp(mix(ReflectanceDielectrical, ReflectanceMetallic, metallic), 0, 1);
+            vec3 Reflectance = clamp(mix(ReflectanceDielectrical, ReflectanceMetallic, Metalness), 0, 1);
 
-            vec3 Light = LightColor * CosThetaL * RecievedIntensity;
+            vec3 Light = LightColorRGB * CosThetaL * LightIntensity;
 
             finalColor += vec4(Reflectance * Light, 1.0);
         }
     }
 
-    gl_FragColor = finalColor;
+    fragColor.xyz = finalColor;
+    fragColor.w = 1.0;
 }
 #endif // FRAGMENT_SHADER

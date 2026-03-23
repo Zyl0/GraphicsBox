@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include <span>
+#include <vector>
 
 #include "Math/RMath.h"
 #include "Core/Types.h"
