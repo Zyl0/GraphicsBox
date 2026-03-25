@@ -880,18 +880,18 @@ namespace  GLTF
         for (const auto & mesh : model.meshes)
         {
             scene.meshes.emplace_back();
-            MeshData& MeshObject = scene.meshes.back();
+            MeshObject& MeshObject = scene.meshes.back();
             
             const int MainPrimitiveType = mesh.primitives[0].mode;
             switch (MainPrimitiveType)
             {
-            case TINYGLTF_MODE_POINTS:          MeshObject.VertexType = Mesh::VertexType::POINTS; break;
-            case TINYGLTF_MODE_LINE:            MeshObject.VertexType = Mesh::VertexType::LINES; break;
-            case TINYGLTF_MODE_LINE_LOOP:       MeshObject.VertexType = Mesh::VertexType::LINE_LOOP; break;
-            case TINYGLTF_MODE_LINE_STRIP:      MeshObject.VertexType = Mesh::VertexType::LINE_STRIP; break;
-            case TINYGLTF_MODE_TRIANGLES:       MeshObject.VertexType = Mesh::VertexType::TRIANGLES; break;
-            case TINYGLTF_MODE_TRIANGLE_STRIP:  MeshObject.VertexType = Mesh::VertexType::TRIANGLE_STRIP; break;
-            case TINYGLTF_MODE_TRIANGLE_FAN:    MeshObject.VertexType = Mesh::VertexType::TRIANGLE_FAN; break;
+            case TINYGLTF_MODE_POINTS:          MeshObject.BeginMesh(Mesh::VertexType::POINTS); break;
+            case TINYGLTF_MODE_LINE:            MeshObject.BeginMesh(Mesh::VertexType::LINES); break;
+            case TINYGLTF_MODE_LINE_LOOP:       MeshObject.BeginMesh(Mesh::VertexType::LINE_LOOP); break;
+            case TINYGLTF_MODE_LINE_STRIP:      MeshObject.BeginMesh(Mesh::VertexType::LINE_STRIP); break;
+            case TINYGLTF_MODE_TRIANGLES:       MeshObject.BeginMesh(Mesh::VertexType::TRIANGLES); break;
+            case TINYGLTF_MODE_TRIANGLE_STRIP:  MeshObject.BeginMesh(Mesh::VertexType::TRIANGLE_STRIP); break;
+            case TINYGLTF_MODE_TRIANGLE_FAN:    MeshObject.BeginMesh(Mesh::VertexType::TRIANGLE_FAN); break;
                 
             default:
             EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", MainPrimitiveType);
@@ -935,9 +935,21 @@ namespace  GLTF
                     
                     // TODO support fully indexes of size lower than unsigned int
                     
-                    MeshObject.IndexBuffer = scene.indexBuffers.size();
-                    scene.indexBuffers.emplace_back();
-                    scene.indexBuffers.back().BufferData(CurrentView.data(), CurrentView.size());
+                    IndexBuffer::IndexType Type;
+                    switch(model.accessors[primitive.indices].componentType)
+                    {
+                    case TINYGLTF_COMPONENT_TYPE_BYTE:          Type = IndexBuffer::Byte; break;
+                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: Type = IndexBuffer::UnsignedByte; break;
+                    case TINYGLTF_COMPONENT_TYPE_SHORT:         Type = IndexBuffer::Short; break;
+                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:Type = IndexBuffer::UnsignedShort; break;
+                    case TINYGLTF_COMPONENT_TYPE_INT:           Type = IndexBuffer::Int; break;
+                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:  Type = IndexBuffer::UnsignedInt; break;
+                        
+                    default:
+                    UNREACHABLE;
+                    }
+                    
+                    MeshObject.SetIndexBuffer(Type, CurrentView.data(), CurrentView.size());
                 }
                 
                 if(primitive.attributes.contains("POSITION"))
@@ -956,9 +968,17 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    MeshObject.Positions = scene.vertexBuffers.size();
-                    scene.vertexBuffers.emplace_back();
-                    scene.vertexBuffers.back().Data(CurrentView.data(), CurrentView.size());
+                    VertexArrayObject::Layout Layout{}; 
+                    switch (model.accessors[AccessorIndex].componentType)
+                    {
+                    case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Point3f>(1); break;
+                    case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Point3d>(1); break;
+                
+                    default:
+                    EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", model.accessors[AccessorIndex].componentType);
+                    }
+                    
+                    MeshObject.AddVertexBuffer(Layout, CurrentView.data(), CurrentView.size());
                     
                     FindBoundsInPositionBuffer(CurrentView, model.accessors[AccessorIndex].componentType, Min, Max);
                 }
@@ -979,9 +999,17 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    MeshObject.Normals = scene.vertexBuffers.size();
-                    scene.vertexBuffers.emplace_back();
-                    scene.vertexBuffers.back().Data(CurrentView.data(), CurrentView.size());
+                    VertexArrayObject::Layout Layout{}; 
+                    switch (model.accessors[AccessorIndex].componentType)
+                    {
+                    case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Vector3f>(1); break;
+                    case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Vector3d>(1); break;
+                
+                    default:
+                    EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", model.accessors[AccessorIndex].componentType);
+                    }
+                    
+                    MeshObject.AddVertexBuffer(Layout, CurrentView.data(), CurrentView.size());
                 }
                 if(primitive.attributes.contains("TEXCOORD_0"))
                 {
@@ -1000,15 +1028,24 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    MeshObject.TextureCoordinates = scene.vertexBuffers.size();
-                    scene.vertexBuffers.emplace_back();
-                    scene.vertexBuffers.back().Data(CurrentView.data(), CurrentView.size());
+                    VertexArrayObject::Layout Layout{}; 
+                    switch (model.accessors[AccessorIndex].componentType)
+                    {
+                    case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Vector2f>(1); break;
+                    case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Vector2d>(1); break;
+                
+                    default:
+                    EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", model.accessors[AccessorIndex].componentType);
+                    }
+                    
+                    MeshObject.AddVertexBuffer(Layout, CurrentView.data(), CurrentView.size());
                 }
 
                 // todo vertex color
-                
-                MeshObject.VertexGroups.emplace_back(PreviousVertexCount, CurrentVertexCount - PreviousVertexCount, Min, Max);
+                MeshObject.AddVertexGroup({(unsigned int)PreviousVertexCount, (unsigned int)CurrentVertexCount - (unsigned int)PreviousVertexCount, Min, Max});
             }
+        
+            MeshObject.EndMesh();
         }
 
         // Load Scene Tree

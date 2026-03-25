@@ -5,6 +5,7 @@
 #include "Math/RMath.h"
 #include "Modeling/Mesh.h"
 #include "Rendering/IndexBuffer.h"
+#include "Rendering/MeshObject.h"
 #include "Rendering/Textures.h"
 #include "Rendering/VertexArrayObject.h"
 #include "Rendering/VertexBuffer.h"
@@ -64,18 +65,6 @@ namespace GLTF
         Texture thicknessTexture = UINT64_MAX;
     };
     
-    struct MeshData
-    {
-        Mesh::VertexType VertexType;
-        std::vector<Mesh::VertexGroup> VertexGroups;
-        
-        size_t Positions = std::numeric_limits<size_t>::max();
-        size_t Normals = std::numeric_limits<size_t>::max();
-        size_t Tangents = std::numeric_limits<size_t>::max();
-        size_t TextureCoordinates = std::numeric_limits<size_t>::max();
-        size_t IndexBuffer = std::numeric_limits<size_t>::max();
-    };
-    
     struct MeshInstance
     {
         size_t mesh;
@@ -103,12 +92,7 @@ namespace GLTF
     {        
         std::vector<Texture2D> textures;
         
-        std::vector<VertexBuffer> vertexBuffers;
-        
-        std::vector<IndexBuffer> indexBuffers;
-        
-        std::vector<VertexArrayObject> vaos;
-        std::vector<MeshData> meshes;
+        std::vector<MeshObject> meshes;
 
         std::vector<Material> materials;
 
