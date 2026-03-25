@@ -65,6 +65,15 @@ void main( )
 }
 #endif // VERTEX_SHADER
 
+#ifdef FRAGMENT_SHADER
+
+#include "Include/ToneMapping.glsl"
+
+layout(location= 0) in vec3 FragWorldPosition;
+layout(location= 1) in vec3 FragNormal;
+layout(location= 2) in vec3 FragTangent;
+layout(location= 3) in vec3 FragBiTangent;
+layout(location= 4) in vec2 UV0;
 
 // Material
 uniform vec3 BaseColorRGB;
@@ -77,14 +86,6 @@ uniform vec3 LightColorRGB;
 uniform float LightIntensity;
 
 uniform vec3 CameraPosition;
-
-#ifdef FRAGMENT_SHADER
-
-layout(location= 0) in vec3 FragWorldPosition;
-layout(location= 1) in vec3 FragNormal;
-layout(location= 2) in vec3 FragTangent;
-layout(location= 3) in vec3 FragBiTangent;
-layout(location= 4) in vec2 UV0;
 
 out vec4 OutColor;
 
@@ -145,7 +146,7 @@ void main( )
         }
     }
 
-    OutColor.xyz = finalColor;
+    OutColor.xyz = SRGB_OETF(finalColor, 2.2);
     OutColor.w = 1.0;
 }
 #endif // FRAGMENT_SHADER
