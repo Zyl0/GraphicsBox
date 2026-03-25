@@ -24,6 +24,8 @@
 
 constexpr size_t kBaseWidth = 1280;
 constexpr size_t kBaseHeight = 720;
+constexpr float kZNear = 0.01f;
+constexpr float kZFar = 1000.0f;
 
 using namespace Math;
 
@@ -179,6 +181,12 @@ int main(void)
 
     AssertOrErrorCall(glewInit() == GLEW_OK, RC = EXIT_FAILURE; goto terminate_context, "Failed to initialize GLEW")
 
+    EngineLoggerLog("Initialized GLEW");
+    EngineLoggerLogF("OpenGL Version: %s", glGetString(GL_VERSION));
+    EngineLoggerLogF("GLSL Version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    EngineLoggerLogF("Vendor: %s", glGetString(GL_VENDOR));
+    EngineLoggerLogF("Renderer: %s", glGetString(GL_RENDERER));
+    
 #ifdef CONFIG_DEBUG
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // Makes sure errors are displayed synchronously
@@ -218,7 +226,8 @@ int main(void)
         }
 
         FlyCamera camera;
-        camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f));
+        camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f), kZNear, kZFar);
+        camera.SetTranslation(-4,0,0);
 
         // Material Properties
         Math::Vector3f BaseColorRGB = {1.0f};
@@ -251,7 +260,7 @@ int main(void)
 
                 glViewport(0, 0, CurrentWidth, CurrentHeight);
 
-                camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f));
+                camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f), kZNear, kZFar);
             }
 
             // Update scene
@@ -268,13 +277,19 @@ int main(void)
 
             // Draw scene
             {
+                DebugScopeMarker scope("Draw Radiance");
+                
+                GLTF::MeshInstance Instance = Scene.instances[0];
+                MeshObject& Mesh = Scene.meshes[Instance.mesh];
+                Mesh::VertexGroup Group = Mesh.GetGroups()[Instance.vertexGroup]; 
+                
                 Bind(sRGBMeshToRadiance);
 
                 // Vertex Shader data
                 SetUniform(sRGBMeshToRadiance, "ViewProjection", camera.Projection() * camera.View());
-                SetUniform(sRGBMeshToRadiance, "InverseViewProjection", camera.InverseView() * camera.InverseProjection());
+                // SetUniform(sRGBMeshToRadiance, "InverseViewProjection", camera.InverseView() * camera.InverseProjection());
                 SetUniform(sRGBMeshToRadiance, "Model", MakeHomogeneousIdentity<float>());
-                SetUniform(sRGBMeshToRadiance, "InverseModel", MakeHomogeneousIdentity<float>());
+                // SetUniform(sRGBMeshToRadiance, "InverseModel", MakeHomogeneousIdentity<float>());
 
                 // Material
                 SetUniform(sRGBMeshToRadiance, "BaseColorRGB", BaseColorRGB);
@@ -283,11 +298,28 @@ int main(void)
 
                 // Directional Light
                 SetUniform(sRGBMeshToRadiance, "LightDir", Normalize(LightDir));
-                SetUniform(sRGBMeshToRadiance, "LightColor", LightColorRGB);
+                SetUniform(sRGBMeshToRadiance, "LightColorRGB", LightColorRGB);
                 SetUniform(sRGBMeshToRadiance, "LightIntensity", LightIntensity);
 
                 SetUniform(sRGBMeshToRadiance, "CameraPosition", camera.GetWorldPosition());
 
+                Bind(Mesh.GetVAO());
+                
+                if (Mesh.GetIndexBuffer().has_value())
+                {
+                    const IndexBuffer& indexBuffer = Mesh.GetIndexBuffer().value();
+                    
+                    Bind(indexBuffer);
+                    glDrawElements(ToGLGeometryType(Mesh.GetVertexType()), Group.VertexCount, ToGLIndexType(indexBuffer.GetIndexType()), (void*)(Group.FirstVertex * ToGLIndexSize(indexBuffer.GetIndexType())));
+                    UnBind(indexBuffer);
+                }
+                else
+                {
+                    glDrawArrays(ToGLGeometryType(Mesh.GetVertexType()), Group.FirstVertex, Group.VertexCount);
+                }
+                
+                UnBind(Mesh.GetVAO());
+                
                 UnBind(sRGBMeshToRadiance);
             }
 
@@ -310,7 +342,7 @@ int main(void)
                 ImGui::SliderFloat("Surface Metalness", &Metalness, 0.0f, 1.0f);
 
                 // Directional Light
-                ImGui::DragFloat3("Light Direction", LightDir.data());
+                ImGui::DragFloat3("Light Direction", LightDir.data(), 0.1);
                 ImGui::ColorEdit3("Light Color RGB", LightColorRGB.data());
                 ImGui::SliderFloat("Light Intensity", &LightIntensity, 0.1f, 10.0f);
                 ImGui::End();
