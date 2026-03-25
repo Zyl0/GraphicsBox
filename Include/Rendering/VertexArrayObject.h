@@ -61,6 +61,13 @@ public:
 		 */
 		template<>
 		void Push<Math::Vector2f>(unsigned int count);
+		
+		/**
+		 * @brief Add a vector 2 double vertex buffer layout element.
+		 * @param count per vertex element count
+		 */
+		template<>
+		void Push<Math::Vector2d>(unsigned int count);
 
 		/**
 		 * @brief Add a point 3 float vertex buffer layout element.
@@ -68,6 +75,13 @@ public:
 		 */
 		template<>
 		void Push<Math::Point3f>(unsigned int count);
+		
+		/**
+		 * @brief Add a point 3 double vertex buffer layout element.
+		 * @param count per vertex element count
+		 */
+		template<>
+		void Push<Math::Point3d>(unsigned int count);
 
 		/**
 		 * @brief Add a vector 3 float vertex buffer layout element.
@@ -75,6 +89,13 @@ public:
 		 */
 		template<>
 		void Push<Math::Vector3f>(unsigned int count);
+		
+		/**
+		 * @brief Add a vector 3 double vertex buffer layout element.
+		 * @param count per vertex element count
+		 */
+		template<>
+		void Push<Math::Vector3d>(unsigned int count);
 
 		/**
 		 * @brief Add a vector 4 float vertex buffer layout element.
@@ -88,7 +109,7 @@ public:
 		
 	private:
 		std::vector<Element> m_elements;
-		unsigned int m_stride;
+		unsigned int m_stride = 0;
 	};
 	
 	// TODO complete implementation for geometry
@@ -114,6 +135,12 @@ public:
 	* @param vertex_buffer vertex buffer to link
 	*/
 	void BufferData(std::span<const VertexBuffer> vertex_buffers, const Layout& layout);
+	
+	/**
+	* @brief Add vertex buffer to the Vertex Array Object.
+	* @param vertex_buffer vertex buffer to link
+	*/
+	void BufferData(std::span<const VertexBuffer> vertex_buffers, std::span<const Layout> layouts);
 
 private:
 	GLuint m_VAO;

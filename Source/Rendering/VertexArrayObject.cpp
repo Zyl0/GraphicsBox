@@ -43,6 +43,13 @@ void VertexArrayObject::Layout::Push<Math::Vector2t<float>>(unsigned int count)
 }
 
 template <>
+void VertexArrayObject::Layout::Push<Math::Vector2t<double>>(unsigned int count)
+{
+	m_elements.push_back({count * 2, GL_DOUBLE, GL_FALSE});
+	m_stride += count * 2 * Element::GetSizeOfType(GL_DOUBLE);
+}
+
+template <>
 void VertexArrayObject::Layout::Push<Math::Point3t<float>>(unsigned int count)
 {
 	m_elements.push_back({count * 3, GL_FLOAT, GL_FALSE});
@@ -50,10 +57,24 @@ void VertexArrayObject::Layout::Push<Math::Point3t<float>>(unsigned int count)
 }
 
 template <>
+void VertexArrayObject::Layout::Push<Math::Point3t<double>>(unsigned int count)
+{
+	m_elements.push_back({count * 3, GL_DOUBLE, GL_FALSE});
+	m_stride += count * 3 * Element::GetSizeOfType(GL_DOUBLE);
+}
+
+template <>
 void VertexArrayObject::Layout::Push<Math::Vector3t<float>>(unsigned int count)
 {
 	m_elements.push_back({count * 3, GL_FLOAT, GL_FALSE});
 	m_stride += count * 3 * Element::GetSizeOfType(GL_FLOAT);
+}
+
+template <>
+void VertexArrayObject::Layout::Push<Math::Vector3t<double>>(unsigned int count)
+{
+	m_elements.push_back({count * 3, GL_DOUBLE, GL_FALSE});
+	m_stride += count * 3 * Element::GetSizeOfType(GL_DOUBLE);
 }
 
 template <>
@@ -108,6 +129,33 @@ void VertexArrayObject::BufferData(std::span<const VertexBuffer> vertex_buffers,
 			nullptr
 		))
 		GLCall(glEnableVertexAttribArray(i))
+		UnBind(buffer);
+	}
+	UnBind(*this);
+}
+
+void VertexArrayObject::BufferData(std::span<const VertexBuffer> vertex_buffers, std::span<const Layout> layouts)
+{
+	AssertOrErrorCall(vertex_buffers.size() == layouts.size(), return;, "VertexBuffers count and layout count missmatch")
+	
+	Bind(*this);
+
+	for (unsigned int i = 0, index = 0; i < vertex_buffers.size(); i++)
+	{
+		const auto &buffer = vertex_buffers[i];
+		const auto &layout = layouts[i];
+
+		Bind(buffer);
+		const auto& elements = layout.GetElements();
+		unsigned int offset = 0;
+		for (unsigned int j = 0; j < elements.size(); j++)
+		{
+			const auto &element = elements[j];
+			GLCall(glEnableVertexAttribArray(index))
+			GLCall(glVertexAttribPointer(index++,element.count,element.type, element.normalized, layout.GetStride(), reinterpret_cast<const void*>(offset)))
+        
+			offset += element.count * Layout::Element::GetSizeOfType(element.type);
+		}
 		UnBind(buffer);
 	}
 	UnBind(*this);
