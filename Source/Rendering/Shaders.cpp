@@ -445,15 +445,15 @@ Shader::Shader(Type type, std::string_view SourceCode, Shader::DefinesView Defin
     }
     shaderFinalSource.append(shaderCode);
     
-    m_Shader = glCreateShader(GetRawShaderType(type));
+    GLCall(m_Shader = glCreateShader(GetRawShaderType(type)))
     const char *sources = shaderFinalSource.data();
     const GLsizei size = static_cast<GLsizei>(shaderFinalSource.size());
-    glShaderSource(m_Shader, 1, &sources, &size);
-    glCompileShader(m_Shader);
+    GLCall(glShaderSource(m_Shader, 1, &sources, &size))
+    GLCall(glCompileShader(m_Shader))
 
     // Handles compilation error
     GLint value;
-    glGetShaderiv(m_Shader, GL_COMPILE_STATUS, &value);
+    GLCall(glGetShaderiv(m_Shader, GL_COMPILE_STATUS, &value))
     if(value == GL_FALSE)
     {
         // Gathering shader compiler errors

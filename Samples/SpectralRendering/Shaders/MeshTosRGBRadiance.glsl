@@ -141,7 +141,7 @@ void main( )
 
             vec3 Light = LightColorRGB * CosThetaL * LightIntensity;
 
-            finalColor += vec4(Reflectance * Light, 1.0);
+            finalColor += Reflectance * Light;
         }
     }
 

@@ -99,6 +99,10 @@ void Pipeline::Data(std::span<const ShaderPair> Shaders)
     // Attach new shaders
     for (const auto & shader : Shaders)
     {
+#ifdef CONFIG_DEBUG
+        AssertOrErrorCall(glIsShader(shader.second.Handle()), continue;, "Given shader handle does not refer to a valid shader")
+#endif // CONFIG_DEBUG
+        
         if (m_Type == _Count)
         {
             if (shader.first < Shader::__RasterEnd)
@@ -139,25 +143,27 @@ void Pipeline::Data(std::span<const ShaderPair> Shaders)
         SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported shader type")
         }
 
-        glAttachShader(m_Pipeline, shader.second.Handle());
+        GLCall(glAttachShader(m_Pipeline, shader.second.Handle()))
     }
-
-    glLinkProgram(m_Pipeline);
-    glValidateProgram(m_Pipeline);
+#ifdef CONFIG_DEBUG
+    AssertOrErrorCall(glIsProgram(m_Pipeline), return;, "Current program object is not a program")
+#endif // CONFIG_DEBUG
+    GLCall(glLinkProgram(m_Pipeline))
+    GLCall(glValidateProgram(m_Pipeline))
 
     // Verify
     GLint status;
-    glGetProgramiv(m_Pipeline, GL_LINK_STATUS, &status);
+    GLCall(glGetProgramiv(m_Pipeline, GL_LINK_STATUS, &status))
+    AssertOrErrorCall(status == GL_TRUE,, "Pipeline linkage failed.")
     if(status == GL_TRUE)
         return;
-    EngineLoggerError("Pipeline linkage failed.");
     
     int shaders_max= 0;
-    glGetProgramiv(m_Pipeline, GL_ATTACHED_SHADERS, &shaders_max);
+    GLCall(glGetProgramiv(m_Pipeline, GL_ATTACHED_SHADERS, &shaders_max))
     AssertOrErrorCall(shaders_max > 0, return, "No shader in Pipeline.")
 
     GLint value= 0;
-    glGetProgramiv(m_Pipeline, GL_INFO_LOG_LENGTH, &value);
+    GLCall(glGetProgramiv(m_Pipeline, GL_INFO_LOG_LENGTH, &value))
 
     if (value != 0)
     {

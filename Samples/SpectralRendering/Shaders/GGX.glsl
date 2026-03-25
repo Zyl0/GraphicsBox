@@ -23,7 +23,7 @@ float D_GGX_Heitz2014_EQ71(vec3 h, vec3 n, float alpha)
 float D_GGX_Heitz2014_EQ71_Simplified(vec3 h, vec3 n, float alpha)
 {
     float a2     = alpha*alpha;
-    float NdotH  = max(dot(h, h), 0.0);
+    float NdotH  = max(dot(n, h), 0.0);
     float NdotH2 = NdotH*NdotH;
 	
     float num   = a2;
