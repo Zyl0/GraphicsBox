@@ -195,8 +195,8 @@ void main( )
         
         // Integrate
         {
-            float Range = 780. - 380.;
-            float Offset = 380.;
+            float Range = 760. - 400.;
+            float Offset = 400.;
             
             // Simple inverse distribution
             // TODO customizable or better wavelenght sample distribution
@@ -205,21 +205,19 @@ void main( )
                 float WavePosition; vec3 XYZ;
                 
                 WavePosition = float(WaveID + 0) / float(SampleCount);
-                XYZ = WavelengthToXYZ(WavePosition * Range + Offset) * Reactions[WaveID / 4].x;
-                finalColor += CSXYZToCSRec709(XYZ);
+                finalColor += WavelengthToXYZ(WavePosition * Range + Offset) * Reactions[WaveID / 4].x;
                 
                 WavePosition = float(WaveID + 1) / float(SampleCount);
-                XYZ = WavelengthToXYZ(WavePosition * Range + Offset) * Reactions[WaveID / 4].y;
-                finalColor += CSXYZToCSRec709(XYZ);
+                finalColor += WavelengthToXYZ(WavePosition * Range + Offset) * Reactions[WaveID / 4].y;
                 
                 WavePosition = float(WaveID + 2) / float(SampleCount);
-                XYZ = WavelengthToXYZ(WavePosition * Range + Offset) * Reactions[WaveID / 4].z;
-                finalColor += CSXYZToCSRec709(XYZ);
+                finalColor += WavelengthToXYZ(WavePosition * Range + Offset) * Reactions[WaveID / 4].z;
                 
                 WavePosition = float(WaveID + 3) / float(SampleCount);
-                XYZ = WavelengthToXYZ(WavePosition * Range + Offset) * Reactions[WaveID / 4].w;
-                finalColor += CSXYZToCSRec709(XYZ);
+                finalColor += WavelengthToXYZ(WavePosition * Range + Offset) * Reactions[WaveID / 4].w;
+                
             }
+            finalColor = CSXYZToCSRec709(finalColor / float(SampleCount));
         }
     }
     

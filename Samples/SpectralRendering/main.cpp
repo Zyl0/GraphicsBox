@@ -457,14 +457,21 @@ int main(void)
                 }
                 if (Mode == 1)
                 {
-                    static std::string names[16]{};
+                    static std::string names[32]{};
                     for (size_t i = 0; i < SampleCount; i++)
                     {
-                        const size_t Range = (780 - 380) / SampleCount;
-                        const size_t Offset = 380;
+                        const size_t Range = (760 - 400) / SampleCount;
+                        const size_t Offset = 400;
                         
                         names[i].clear();
                         ImGui::SliderFloat(names[i].append("c ").append(std::to_string(i * Range + Offset)).append(" nm").c_str(), &BaseColorSpectralSlices[i], 0.0f, 1.0f);
+                        
+                        ImGui::SameLine();
+
+                        // Color preview
+                        Vector4f preview = Rec709::ToXYZ() * Vector4f(Spectral::WavelengthToXYZ((float)(i * Range + Offset)), 1.0f);
+                        ImVec4 color = ImVec4(preview.x, preview.y, preview.z, 1.0f);
+                        ImGui::ColorButton(names[16 + i].append("##c ").append(std::to_string(i * Range + Offset)).append(" nm").c_str(), color, ImGuiColorEditFlags_NoTooltip, ImVec2(40, 20));
                     }
                 }
                 ImGui::SliderFloat("Surface Roughness", &Roughness, 0.0f, 1.0f);
@@ -480,14 +487,21 @@ int main(void)
                 }
                 if (Mode == 1)
                 {
-                    static std::string names[16]{};
+                    static std::string names[32]{};
                     for (size_t i = 0; i < SampleCount; i++)
                     {
-                        const size_t Range = (780 - 380) / SampleCount;
-                        const size_t Offset = 380;
+                        const size_t Range = (760 - 400) / SampleCount;
+                        const size_t Offset = 400;
                         
                         names[i].clear();
                         ImGui::SliderFloat(names[i].append("l ").append(std::to_string(i * Range + Offset)).append(" nm").c_str(), &LightColorSpectralSliced[i], 0.0f, 1.0f);
+                        
+                        ImGui::SameLine();
+                        
+                        // Color preview
+                        Vector4f preview = Rec709::ToXYZ() * Vector4f(Spectral::WavelengthToXYZ((float)(i * Range + Offset)), 1.0f);
+                        ImVec4 color = ImVec4(preview.x, preview.y, preview.z, 1.0f);
+                        ImGui::ColorButton(names[16 + i].append("##l ").append(std::to_string(i * Range + Offset)).append(" nm").c_str(), color, ImGuiColorEditFlags_NoTooltip, ImVec2(40, 20));
                     }
                 }
                 ImGui::SliderFloat("Light Intensity", &LightIntensity, 0.1f, 10.0f);

@@ -209,3 +209,9 @@ namespace ArriLogC
         return (color > (EI::e * EI::cut + EI::f)) ? (pow(10, (color - EI::d) / EI::c) - 2) / EI::a : (color - EI::f) / EI::e;
     }
 }
+
+namespace Spectral
+{
+    // Given a wavelength λ in nanometers, return XYZ color
+    Math::Vector3f WavelengthToXYZ(float wavelength);
+}
