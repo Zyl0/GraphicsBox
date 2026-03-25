@@ -85,6 +85,7 @@ uniform vec3 LightDir;
 uniform vec3 LightColorRGB;
 uniform float LightIntensity;
 
+// Camera
 uniform vec3 CameraPosition;
 
 out vec4 OutColor;

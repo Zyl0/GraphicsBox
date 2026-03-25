@@ -187,24 +187,24 @@ namespace ArriLogC
     };
     
 
-    Math::Vector3f CSArriLogCToCSXYZ(Math::Vector3f color)
+    INLINE Math::Vector3f CSArriLogCToCSXYZ(Math::Vector3f color)
     {
         return CSArriLogCToCSXYZMat * color;
     }
 
-    Math::Vector3f CSXYZToCSArriLogC(Math::Vector3f color)
+    INLINE Math::Vector3f CSXYZToCSArriLogC(Math::Vector3f color)
     {
         return CSXYZToCSArriLogCMat * color;
     }
 
     template <typename EI = EI800>
-    Math::Vector3f GLinearToGArriLogC(Math::Vector3f color)
+    INLINE Math::Vector3f GLinearToGArriLogC(Math::Vector3f color)
     {
         return (color > EI::cut) ? EI::c * log10(EI::a * color + EI::b) + EI::d : EI::e * color + EI::f;
     }
 
     template <typename EI = EI800>
-    Math::Vector3f GArriLogCToGLinear(Math::Vector3f color)
+    INLINE Math::Vector3f GArriLogCToGLinear(Math::Vector3f color)
     {
         return (color > (EI::e * EI::cut + EI::f)) ? (pow(10, (color - EI::d) / EI::c) - 2) / EI::a : (color - EI::f) / EI::e;
     }

@@ -4,6 +4,7 @@
 #include "Modeling/Mesh.h"
 #include "Rendering/Rendering.h"
 #include "Importers/GLTF/SceneLoader.h"
+#include "Image/ColorSpaces.h"
 
 #include <imgui.h>
 
@@ -215,6 +216,18 @@ int main(void)
         };
         Pipeline sRGBMeshToRadiance(sRGBMeshToRadianceShaders, "sRGBMeshToRadiance");
         
+        std::string SpectralSlicedShaderCode = ShaderFileToString("MeshToRadianceSpectralSlices.glsl");
+        
+        Shader SpectralSlicedMeshToRadianceVS(Shader::VERTEX_SHADER, SpectralSlicedShaderCode);
+        Shader SpectralSlicedMeshToRadianceFS(Shader::FRAGMENT_SHADER, SpectralSlicedShaderCode);
+
+        std::array SpectralSlicedMeshToRadianceShaders
+        {
+            Pipeline::ShaderPair{Shader::VERTEX_SHADER, SpectralSlicedMeshToRadianceVS},
+            Pipeline::ShaderPair{Shader::FRAGMENT_SHADER, SpectralSlicedMeshToRadianceFS},
+        };
+        Pipeline SpectralSlicedMeshToRadiance(SpectralSlicedMeshToRadianceShaders, "SpectralSlicedMeshToRadiance");
+        
         GLTF::GPUScene Scene;
         {
             std::filesystem::path path;
@@ -231,13 +244,29 @@ int main(void)
 
         // Material Properties
         Math::Vector3f BaseColorRGB = {1.0f};
+        float BaseColorSpectralSlices[16] = {1.0f};
         float Roughness = 1.0f;
         float Metalness = 0.0f;
 
         // Directional Light
         Math::Vector3f LightDir = {0.0f, -1.0f, 0.0f};
         Math::Vector3f LightColorRGB = {1.0f, 1.0f, 1.0f};
+        float LightColorSpectralSliced[16] = {1.0f};
         float LightIntensity = 1.0f;
+        
+        // Sliced spectral rendering
+        uint32_t SampleCount = 8;
+        Math::Vector4f CurrentBaseColorSpectralSlices[4] = {1.0f};
+        Math::Vector4f CurrentLightColorSpectralSliced[4] = {1.0f};
+        
+        // Method
+        int Mode = 0;
+        
+        for (int i = 0; i < 16; ++i)
+        {
+            BaseColorSpectralSlices[i] = BaseColorSpectralSlices[0];
+            LightColorSpectralSliced[i] = LightColorSpectralSliced[0];
+        }
 
         // keep track of time during the execution
         clock_t prev_clock = clock();
@@ -275,9 +304,10 @@ int main(void)
 
             glClear(GL_COLOR_BUFFER_BIT );
 
-            // Draw scene
+            // Draw scene sRGB
+            if (Mode == 0)
             {
-                DebugScopeMarker scope("Draw Radiance");
+                DebugScopeMarker scope("Draw Radiance sRGB");
                 
                 GLTF::MeshInstance Instance = Scene.instances[0];
                 MeshObject& Mesh = Scene.meshes[Instance.mesh];
@@ -322,6 +352,74 @@ int main(void)
                 
                 UnBind(sRGBMeshToRadiance);
             }
+            
+            // Spectral Rendering Slices
+            if (Mode == 1)
+            {
+                DebugScopeMarker scope("Draw Radiance - Spectral Slices");
+                
+                GLTF::MeshInstance Instance = Scene.instances[0];
+                MeshObject& Mesh = Scene.meshes[Instance.mesh];
+                Mesh::VertexGroup Group = Mesh.GetGroups()[Instance.vertexGroup]; 
+                
+                for (size_t i = 0; i < 3; i++)
+                {
+                    CurrentBaseColorSpectralSlices[i].x = BaseColorSpectralSlices[i * 4 + 0];
+                    CurrentBaseColorSpectralSlices[i].y = BaseColorSpectralSlices[i * 4 + 1];
+                    CurrentBaseColorSpectralSlices[i].z = BaseColorSpectralSlices[i * 4 + 2];
+                    CurrentBaseColorSpectralSlices[i].w = BaseColorSpectralSlices[i * 4 + 3];
+                    CurrentLightColorSpectralSliced[i].x = LightColorSpectralSliced[i * 4 + 0];
+                    CurrentLightColorSpectralSliced[i].y = LightColorSpectralSliced[i * 4 + 1];
+                    CurrentLightColorSpectralSliced[i].z = LightColorSpectralSliced[i * 4 + 2];
+                    CurrentLightColorSpectralSliced[i].w = LightColorSpectralSliced[i * 4 + 3];
+                }
+                
+                Bind(SpectralSlicedMeshToRadiance);
+
+                // Vertex Shader data
+                SetUniform(SpectralSlicedMeshToRadiance, "ViewProjection", camera.Projection() * camera.View());
+                SetUniform(SpectralSlicedMeshToRadiance, "Model", MakeHomogeneousIdentity<float>());
+
+                // Material
+                SetUniform(SpectralSlicedMeshToRadiance, "BaseColorPack0", CurrentBaseColorSpectralSlices[0]);
+                SetUniform(SpectralSlicedMeshToRadiance, "BaseColorPack1", CurrentBaseColorSpectralSlices[1]);
+                SetUniform(SpectralSlicedMeshToRadiance, "BaseColorPack2", CurrentBaseColorSpectralSlices[2]);
+                SetUniform(SpectralSlicedMeshToRadiance, "BaseColorPack3", CurrentBaseColorSpectralSlices[3]);
+                SetUniform(SpectralSlicedMeshToRadiance, "Roughness", Roughness);
+                SetUniform(SpectralSlicedMeshToRadiance, "Metalness", Metalness);
+
+                // Directional Light
+                SetUniform(SpectralSlicedMeshToRadiance, "LightDir", Normalize(LightDir));
+                SetUniform(SpectralSlicedMeshToRadiance, "LightColorPack0", CurrentLightColorSpectralSliced[0]);
+                SetUniform(SpectralSlicedMeshToRadiance, "LightColorPack1", CurrentLightColorSpectralSliced[1]);
+                SetUniform(SpectralSlicedMeshToRadiance, "LightColorPack2", CurrentLightColorSpectralSliced[2]);
+                SetUniform(SpectralSlicedMeshToRadiance, "LightColorPack3", CurrentLightColorSpectralSliced[3]);
+                SetUniform(SpectralSlicedMeshToRadiance, "LightIntensity", LightIntensity);
+
+                SetUniform(SpectralSlicedMeshToRadiance, "CameraPosition", camera.GetWorldPosition());
+                
+                SetUniform(SpectralSlicedMeshToRadiance, "SampleCount", SampleCount);
+                SetUniform(SpectralSlicedMeshToRadiance, "XYZToRec709sRGB", Rec709::FromXYZ());
+
+                Bind(Mesh.GetVAO());
+                
+                if (Mesh.GetIndexBuffer().has_value())
+                {
+                    const IndexBuffer& indexBuffer = Mesh.GetIndexBuffer().value();
+                    
+                    Bind(indexBuffer);
+                    glDrawElements(ToGLGeometryType(Mesh.GetVertexType()), Group.VertexCount, ToGLIndexType(indexBuffer.GetIndexType()), (void*)(Group.FirstVertex * ToGLIndexSize(indexBuffer.GetIndexType())));
+                    UnBind(indexBuffer);
+                }
+                else
+                {
+                    glDrawArrays(ToGLGeometryType(Mesh.GetVertexType()), Group.FirstVertex, Group.VertexCount);
+                }
+                
+                UnBind(Mesh.GetVAO());
+                
+                UnBind(SpectralSlicedMeshToRadiance);
+            }
 
             // Draw UI
             {
@@ -336,14 +434,62 @@ int main(void)
 
                 ImGui::Begin("Settings");
                 
+                static const char* MethodsNames[2] = {"sRGB", "Spectral - Slices"};
+                ImGui::ListBox("Method", &Mode, MethodsNames, 2);
+                
+                ImGui::Separator();
+                
+                if (Mode == 1)
+                {
+                    ImGui::SliderInt("SampleCount", (int*)&SampleCount, 1, 16);
+                    
+                    // TODO
+                    // static const char* SliceMethodsNames[2] = {"From EQ", "From sRGB"}; // TODO
+                    // ImGui::ListBox("Colors From", &Mode, MethodsNames, 2);
+                    
+                    ImGui::Separator();
+                }
+                
                 // Material
-                ImGui::ColorEdit3("Surface Color RGB", BaseColorRGB.data());
+                if (Mode == 0)
+                {
+                    ImGui::ColorEdit3("Surface Color RGB", BaseColorRGB.data());
+                }
+                if (Mode == 1)
+                {
+                    static std::string names[16]{};
+                    for (size_t i = 0; i < SampleCount; i++)
+                    {
+                        const size_t Range = (780 - 380) / SampleCount;
+                        const size_t Offset = 380;
+                        
+                        names[i].clear();
+                        ImGui::SliderFloat(names[i].append("c ").append(std::to_string(i * Range + Offset)).append(" nm").c_str(), &BaseColorSpectralSlices[i], 0.0f, 1.0f);
+                    }
+                }
                 ImGui::SliderFloat("Surface Roughness", &Roughness, 0.0f, 1.0f);
                 ImGui::SliderFloat("Surface Metalness", &Metalness, 0.0f, 1.0f);
+                
+                ImGui::Separator();
 
                 // Directional Light
                 ImGui::DragFloat3("Light Direction", LightDir.data(), 0.1);
-                ImGui::ColorEdit3("Light Color RGB", LightColorRGB.data());
+                if (Mode == 0)
+                {
+                    ImGui::ColorEdit3("Light Color RGB", LightColorRGB.data());
+                }
+                if (Mode == 1)
+                {
+                    static std::string names[16]{};
+                    for (size_t i = 0; i < SampleCount; i++)
+                    {
+                        const size_t Range = (780 - 380) / SampleCount;
+                        const size_t Offset = 380;
+                        
+                        names[i].clear();
+                        ImGui::SliderFloat(names[i].append("l ").append(std::to_string(i * Range + Offset)).append(" nm").c_str(), &LightColorSpectralSliced[i], 0.0f, 1.0f);
+                    }
+                }
                 ImGui::SliderFloat("Light Intensity", &LightIntensity, 0.1f, 10.0f);
                 ImGui::End();
 
