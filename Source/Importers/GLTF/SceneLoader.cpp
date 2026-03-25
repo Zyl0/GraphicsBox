@@ -847,11 +847,11 @@ namespace  GLTF
         std::string WarningBuffer;
         bool status;
 
-        if (path.extension() == "glb")
+        if (path.extension().compare(".glb") == 0)
         {
             status = loader.LoadBinaryFromFile(&model, &ErrorBuffer, &WarningBuffer, path.string().c_str());
         }
-        else if (path.extension() == "gltf")
+        else if (path.extension().compare(".gltf") == 0)
         {
             status = loader.LoadASCIIFromFile(&model, &ErrorBuffer, &WarningBuffer, path.string().c_str());
         }
@@ -908,7 +908,7 @@ namespace  GLTF
                 std::span<const uint8_t> CurrentView{};
                 size_t CurrentVertexCount = 0, Dummy = 0; 
                 
-                Math::Point3f Min = {FLT_MAX}, Max = {FLT_MAX};
+                Math::Point3f Min = {FLT_MAX}, Max = {FLT_MIN};
 
                 if(IsIndexed)
                 {

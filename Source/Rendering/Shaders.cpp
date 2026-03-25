@@ -11,14 +11,20 @@
 class StringPtr
 {
 public:
-    StringPtr(const std::string* String, size_t Offset) : m_String(String), m_Offset(Offset), m_At(0)
+    StringPtr(const std::string* String, size_t Offset) : m_String(String), m_Offset(Offset)
+#ifdef CONFIG_DEBUG
+    , m_At(0)
+#endif // CONFIG_DEBUG
     {
         AssertOffset();
+        
+#ifdef CONFIG_DEBUG
         if (String != nullptr)
         {
             m_At = String->data();
             m_At += m_Offset;
         }
+#endif // CONFIG_DEBUG
     }
 
     char operator*() const { return *(At()); }
@@ -38,7 +44,10 @@ public:
 
         m_String = Other.m_String;
         m_Offset = Other.m_Offset;
+        
+#ifdef CONFIG_DEBUG
         m_At = Other.m_At;
+#endif // CONFIG_DEBUG
 
         AssertOffset();
 

@@ -7,7 +7,10 @@ VertexBuffer::VertexBuffer()
 
 VertexBuffer::~VertexBuffer()
 {
-    GLCall(glDeleteBuffers(1, &m_VertexBuffer))
+    if (m_VertexBuffer != 0)
+    {
+        GLCall(glDeleteBuffers(1, &m_VertexBuffer))
+    }
 }
 
 void VertexBuffer::Data(const void* data, size_t size)

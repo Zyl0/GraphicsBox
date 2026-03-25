@@ -628,7 +628,7 @@ group "Samples"
     filter { "" }
 
     SampleProjects = {
-        "GIMesh",
+        -- "GIMesh",
         "PBR",
         "SpectralRendering"
     }

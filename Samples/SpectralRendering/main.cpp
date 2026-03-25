@@ -73,7 +73,7 @@ void GLAPIENTRY MessageCallback(GLenum source,
     {
     case GL_DEBUG_SEVERITY_HIGH:
         EngineLoggerErrorF("OpenGL Validation Error High [%s] [%s]: %s", errSource, errType, message);
-        EngineRuntimeBREAKPOINT;
+        EngineRuntimeBREAKPOINT
         break;
 
     case GL_DEBUG_SEVERITY_MEDIUM:
@@ -168,6 +168,7 @@ int main(void)
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
     window = glfwCreateWindow(kBaseWidth, kBaseHeight, "ColorBox", nullptr, nullptr);
     AssertOrErrorCall(window, RC = EXIT_FAILURE; goto terminate_glfw_window, "Failed to create GLFW window")
     EngineLoggerLog("Initialized GLFW window");

@@ -1,7 +1,10 @@
-#version 450
+#version 430
 
 #include "FresnelSchlick.glsl"
 #include "GGX.glsl"
+
+uniform mat4 Model, InverseModel;
+uniform mat4 ViewProjection, InverseViewProjection;
 
 #ifdef VERTEX_SHADER
 layout(location= 0) in vec3 position;
@@ -9,14 +12,11 @@ layout(location= 1) in vec3 normal;
 layout(location= 2) in vec3 tangent;
 layout(location= 3) in vec2 coordinates;
 
-out vec3 FragWorldPosition;
-out vec3 FragNormal;
-out vec3 FragTangent;
-out vec3 FragBiTangent;
-out vec2 UV0;
-
-uniform mat4 Model, InverseModel;
-uniform mat4 ViewProjection, InverseViewProjection;
+layout(location= 0) out vec3 FragWorldPosition;
+layout(location= 1) out vec3 FragNormal;
+layout(location= 2) out vec3 FragTangent;
+layout(location= 3) out vec3 FragBiTangent;
+layout(location= 4) out vec2 UV0;
 
 vec4 VP(vec4 position)
 {
@@ -66,13 +66,6 @@ void main( )
 #endif // VERTEX_SHADER
 
 
-#ifdef FRAGMENT_SHADER
-in vec3 FragWorldPosition;
-in vec3 FragNormal;
-in vec3 FragTangent;
-in vec3 FragBiTangent;
-in vec2 UV0;
-
 // Material
 uniform vec3 BaseColorRGB;
 uniform float Roughness;
@@ -85,7 +78,15 @@ uniform float LightIntensity;
 
 uniform vec3 CameraPosition;
 
-out vec4 fragColor;
+#ifdef FRAGMENT_SHADER
+
+layout(location= 0) in vec3 FragWorldPosition;
+layout(location= 1) in vec3 FragNormal;
+layout(location= 2) in vec3 FragTangent;
+layout(location= 3) in vec3 FragBiTangent;
+layout(location= 4) in vec2 UV0;
+
+out vec4 OutColor;
 
 vec3 fDielectrical( vec3 DiffuseColor, float DGNormalized, vec3 F )
 {
@@ -144,7 +145,7 @@ void main( )
         }
     }
 
-    fragColor.xyz = finalColor;
-    fragColor.w = 1.0;
+    OutColor.xyz = finalColor;
+    OutColor.w = 1.0;
 }
 #endif // FRAGMENT_SHADER

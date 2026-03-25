@@ -168,81 +168,13 @@ void Pipeline::Data(std::span<const ShaderPair> Shaders)
 
         return;
     }
+    
+    char log[1024];
+    GLsizei length;
+    glGetProgramInfoLog(m_Pipeline, 1024, &length, log);
 
-    return;
-
-    std::vector<GLuint> shaders(shaders_max, 0);
-    glGetAttachedShaders(m_Pipeline, shaders_max, nullptr, &shaders.front());
-    for (int i = 0; i < shaders_max; i++)
-    {
-        GLint value;
-        glGetShaderiv(shaders[i], GL_COMPILE_STATUS, &value);
-        if (value == GL_FALSE)
-        {
-            GLuint Shader = shaders[i];
-
-            // Gathering shader compiler errors
-            glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, &value);
-            std::vector<char>log(value + 1, 0);
-            glGetShaderInfoLog(Shader, static_cast<GLsizei>(log.size()), nullptr, &log.front());
-
-            // Gathering source code
-            glGetShaderiv(Shader, GL_SHADER_SOURCE_LENGTH, &value);
-            std::vector<char> source(value + 1, 0);
-            glGetShaderSource(Shader, static_cast<GLsizei>(source.size()), nullptr, &source.front());
-
-            glGetShaderiv(Shader, GL_SHADER_TYPE, &value);
-            EngineLoggerErrorF("Failed to compile shader of type %s.", GetShaderTypeDefineName(value));
-
-            std::vector<char> errorLogBuffer;
-            unsigned int line = 0, srcIndex = 0;
-            for (unsigned int i = 0; log[i] != '\0'; i++)
-            {
-                unsigned int string_id = 0, line_id = 0, position = 0;
-#ifdef PLATFORM_WINDOWS
-                if (sscanf_s(&log[i], "%u ( %u ) : %n", &string_id, &line_id, &position) == 2  // nvidia syntax
-                    || sscanf_s(&log[i], "%u : %u (%*u) : %n", &string_id, &line_id, &position) == 2  // mesa syntax
-                    || sscanf_s(&log[i], "ERROR : %u : %u : %n", &string_id, &line_id, &position) == 2  // ati syntax
-                    || sscanf_s(&log[i], "WARNING : %u : %u : %n", &string_id, &line_id, &position) == 2)  // ati syntax
-#else // PLATFORM_WINDOWS
-                if (sscanf(&log[i], "%u ( %u ) : %n", &string_id, &line_id, &position) == 2  // nvidia syntax
-                    || sscanf(&log[i], "%u : %u (%*u) : %n", &string_id, &line_id, &position) == 2  // mesa syntax
-                    || sscanf(&log[i], "ERROR : %u : %u : %n", &string_id, &line_id, &position) == 2  // ati syntax
-                    || sscanf(&log[i], "WARNING : %u : %u : %n", &string_id, &line_id, &position) == 2)  // ati syntax
-#endif // !PLATFORM_WINDOWS
-                {
-                    if (line_id > line)
-                        for (; source[srcIndex] != '\0'; srcIndex++)
-                        {
-                            errorLogBuffer.push_back(source[srcIndex]);
-                            if (source[srcIndex] == '\n')
-                                line++;
-
-                            if (line_id == line)
-                            {
-                                srcIndex++;
-                                break;
-                            }
-                        }
-
-                    errorLogBuffer.push_back('-');
-                    errorLogBuffer.push_back('>');
-                    for (; log[i] != '\n' && log[i] != '\0'; i++)
-                    {
-                        errorLogBuffer.push_back(log[i]);
-                    }
-                    errorLogBuffer.push_back('\n');
-                }
-            }
-            for (; source[srcIndex] != '\0'; srcIndex++)
-            {
-                errorLogBuffer.push_back(source[srcIndex]);
-                if (source[srcIndex] == '\n')
-                    line++;
-            }
-            errorLogBuffer.push_back('\0');
-            printf("%s\n", errorLogBuffer.data());
-        }
+    if (length > 0) {
+        printf("Link log:\n%s\n", log);
     }
 }
 
