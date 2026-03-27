@@ -32,7 +32,7 @@ public:
     Pipeline(std::span<const ShaderPair> Shaders, std::string_view Label);
     ~Pipeline();
 
-    Pipeline(Pipeline&& other) : m_Pipeline(other.m_Pipeline), m_Shaders(other.m_Shaders), m_Type(other.m_Type)
+    Pipeline(Pipeline&& other) noexcept : m_Pipeline(other.m_Pipeline), m_Shaders(other.m_Shaders), m_Type(other.m_Type)
     { 
         other.m_Pipeline = 0;
         other.m_Shaders = None;
@@ -76,3 +76,21 @@ INLINE Pipeline::Shaders operator^(Pipeline::Shaders a, Pipeline::Shaders b)
 
 void Bind(const Pipeline& shader);
 void UnBind(const Pipeline& shader);
+
+Pipeline PipelineFromString(std::string_view label, Pipeline::Shaders shaders, std::string_view source, Shader::DefinesView Defines = {});
+
+INLINE Pipeline PipelineFromFile(std::string_view label,  Pipeline::Shaders shaders, const std::filesystem::path& filename, Shader::DefinesView Defines = {})
+{
+    std::string Source = ShaderFileToString(filename);
+    
+    return PipelineFromString(label, shaders, Source, Defines);
+}
+
+bool PipelineUpdateFromString(Pipeline& pipeline, std::string_view source, Shader::DefinesView Defines = {});
+
+INLINE void PipelineUpdateFromFile(Pipeline& pipeline, const std::filesystem::path& filename, Shader::DefinesView Defines = {})
+{
+    std::string Source = ShaderFileToString(filename);
+    
+    return PipelineUpdateFromFile(pipeline, Source, Defines);
+}

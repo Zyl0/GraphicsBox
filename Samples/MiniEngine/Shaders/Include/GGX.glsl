@@ -1,7 +1,7 @@
 #ifndef INCLUDE_GUARD_GLSL_GGX
 #define INCLUDE_GUARD_GLSL_GGX
 
-#include "Include/Math.glsl"
+#include "Math.glsl"
 
 #define Activation(x) ((x) < 0 ? 0 : 1)
 
@@ -12,7 +12,7 @@ float D_GGX_Heitz2014_EQ71(vec3 h, vec3 n, float alpha)
     float alpha2 = alpha * alpha;
 
     //todo name
-	float t = ( 1 + ( Tan2Theta / alpha2 ) );
+    float t = ( 1 + ( Tan2Theta / alpha2 ) );
 
     float numerator = Activation(dot(h, n));
     float denominator = M_PI * alpha2 * Cos2Theta * Cos2Theta * t * t;
@@ -25,11 +25,11 @@ float D_GGX_Heitz2014_EQ71_Simplified(vec3 h, vec3 n, float alpha)
     float a2     = alpha*alpha;
     float NdotH  = max(dot(n, h), 0.0);
     float NdotH2 = NdotH*NdotH;
-	
+
     float num   = a2;
     float denom = (NdotH2 * (a2 - 1.0) + 1.0);
     denom = M_PI * denom * denom;
-	
+
     return num / denom;
 }
 

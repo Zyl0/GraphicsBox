@@ -65,8 +65,8 @@ void main( )
 #ifdef FRAGMENT_SHADER
 
 #include "Include/ToneMapping.glsl"
-#include "FresnelSchlick.glsl"
-#include "GGX.glsl"
+#include "Include/FresnelSchlick.glsl"
+#include "Include/GGX.glsl"
 #include "SpectralRendering.glsl"
 
 layout(location= 0) in vec3 FragWorldPosition;

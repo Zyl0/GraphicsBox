@@ -1,8 +1,5 @@
 #version 430
 
-#include "FresnelSchlick.glsl"
-#include "GGX.glsl"
-
 uniform mat4 Model, InverseModel;
 uniform mat4 ViewProjection, InverseViewProjection;
 
@@ -68,6 +65,8 @@ void main( )
 #ifdef FRAGMENT_SHADER
 
 #include "Include/ToneMapping.glsl"
+#include "Include/FresnelSchlick.glsl"
+#include "Include/GGX.glsl"
 
 layout(location= 0) in vec3 FragWorldPosition;
 layout(location= 1) in vec3 FragNormal;

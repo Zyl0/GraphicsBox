@@ -203,30 +203,9 @@ int main(void)
     // Application resources lifetime
     {
         uint32_t CurrentWidth = kBaseWidth, CurrentHeight = kBaseHeight;
-
-        std::string sRGBShaderCode = ShaderFileToString("MeshTosRGBRadiance.glsl");
         
-        Shader sRGBMeshToRadianceVS(Shader::VERTEX_SHADER, sRGBShaderCode);
-        Shader sRGBMeshToRadianceFS(Shader::FRAGMENT_SHADER, sRGBShaderCode);
-
-        std::array sRGBMeshToRadianceShaders
-        {
-            Pipeline::ShaderPair{Shader::VERTEX_SHADER, sRGBMeshToRadianceVS},
-            Pipeline::ShaderPair{Shader::FRAGMENT_SHADER, sRGBMeshToRadianceFS},
-        };
-        Pipeline sRGBMeshToRadiance(sRGBMeshToRadianceShaders, "sRGBMeshToRadiance");
-        
-        std::string SpectralSlicedShaderCode = ShaderFileToString("MeshToRadianceSpectralSlices.glsl");
-        
-        Shader SpectralSlicedMeshToRadianceVS(Shader::VERTEX_SHADER, SpectralSlicedShaderCode);
-        Shader SpectralSlicedMeshToRadianceFS(Shader::FRAGMENT_SHADER, SpectralSlicedShaderCode);
-
-        std::array SpectralSlicedMeshToRadianceShaders
-        {
-            Pipeline::ShaderPair{Shader::VERTEX_SHADER, SpectralSlicedMeshToRadianceVS},
-            Pipeline::ShaderPair{Shader::FRAGMENT_SHADER, SpectralSlicedMeshToRadianceFS},
-        };
-        Pipeline SpectralSlicedMeshToRadiance(SpectralSlicedMeshToRadianceShaders, "SpectralSlicedMeshToRadiance");
+        Pipeline sRGBMeshToRadiance = PipelineFromFile("sRGBMeshToRadiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshTosRGBRadiance.glsl"); 
+        Pipeline SpectralSlicedMeshToRadiance = PipelineFromFile("SpectralSlicedMeshToRadiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToRadianceSpectralSlices.glsl"); 
         
         GLTF::GPUScene Scene;
         {
