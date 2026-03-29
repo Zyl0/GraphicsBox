@@ -1,5 +1,10 @@
 ﻿#include "UniformBuffer.h"
 
+UniformBuffer::UniformBuffer() : m_Size(0)
+{
+    glGenBuffers(1, &m_UBO);
+}
+
 UniformBuffer::UniformBuffer(uint32_t Size, const void* data):
     m_Size(Size)
 {
@@ -12,6 +17,8 @@ UniformBuffer::UniformBuffer(uint32_t Size, const void* data):
 
 UniformBuffer::~UniformBuffer()
 {
+    if (m_UBO == 0) return;
+    
     glDeleteBuffers(1, &m_UBO);
 }
 

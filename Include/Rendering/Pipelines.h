@@ -88,7 +88,7 @@ INLINE Pipeline PipelineFromFile(std::string_view label,  Pipeline::Shaders shad
 
 bool PipelineUpdateFromString(Pipeline& pipeline, std::string_view source, Shader::DefinesView Defines = {});
 
-INLINE void PipelineUpdateFromFile(Pipeline& pipeline, const std::filesystem::path& filename, Shader::DefinesView Defines = {})
+INLINE bool PipelineUpdateFromFile(Pipeline& pipeline, const std::filesystem::path& filename, Shader::DefinesView Defines = {})
 {
     std::string Source = ShaderFileToString(filename);
     

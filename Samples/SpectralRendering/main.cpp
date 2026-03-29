@@ -200,6 +200,10 @@ int main(void)
 #endif // WINDOW_GLFW
     AssertOrErrorCall(ImGui_ImplOpenGL3_Init("#version 430"), RC = EXIT_FAILURE; goto terminate_ui, "Could not initialize ImGUI")
     
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CW);
+    
     // Application resources lifetime
     {
         uint32_t CurrentWidth = kBaseWidth, CurrentHeight = kBaseHeight;
@@ -283,6 +287,8 @@ int main(void)
 
             glClear(GL_COLOR_BUFFER_BIT );
 
+            glEnable(GL_CULL_FACE);
+            
             // Draw scene sRGB
             if (Mode == 0)
             {
@@ -400,6 +406,8 @@ int main(void)
                 UnBind(SpectralSlicedMeshToRadiance);
             }
 
+            glDisable(GL_CULL_FACE);
+            
             // Draw UI
             {
 #ifdef WINDOW_GLFW
