@@ -49,7 +49,17 @@ void main( )
 #include "Include/GGX.glsl"
 #include "LightSources.glsl"
 #include "LightingModel.glsl"
+
+// Skylight method switch
+#ifdef USE_PROCEDURAL_SKYLIGHT
 #include "ProceduralSkylight.glsl"
+#endif // USE_PROCEDURAL_SKYLIGHT
+#ifdef USE_CUBEMAP_SKYLIGHT
+#include "CubemapSkylight.glsl"
+#endif // USE_CUBEMAP_SKYLIGHT
+#ifdef USE_HDRI_SKYLIGHT
+#include "HDRISkylight.glsl"
+#endif // USE_HDRI_SKYLIGHT
 
 float RadicalInverse_VdC(uint bits)
 {
@@ -67,26 +77,26 @@ vec2 Hammersley(uint i, uint N)
 }
 
 // Derived from the sample GGX function assuming the surface is rough to get the most diffused samples
-vec3 SampleHemisphere(vec3 n, float U1, float U2)
-{
-    float phi = 2.0 * M_PI * U2;
-    float cosTheta = sqrt( 1.0 - U1 );
-    float sinTheta = sqrt( 1.0 - cosTheta * cosTheta );
-
-    // from spherical coordinates to cartesian coordinates
-    vec3 H;
-    H.x = cos(phi) * sinTheta;
-    H.y = sin(phi) * sinTheta;
-    H.z = cosTheta;
-
-    // from tangent-space vector to world-space sample vector
-    vec3 up        = abs(n.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-    vec3 tangent   = normalize(cross(up, n));
-    vec3 bitangent = cross(n, tangent);
-
-    vec3 sampleVec = tangent * H.x + bitangent * H.y + n * H.z;
-    return normalize(sampleVec);
-}
+// vec3 SampleHemisphere(vec3 n, float U1, float U2)
+// {
+//     float phi = 2.0 * M_PI * U2;
+//     float cosTheta = sqrt( 1.0 - U1 );
+//     float sinTheta = sqrt( 1.0 - cosTheta * cosTheta );
+// 
+//     // from spherical coordinates to cartesian coordinates
+//     vec3 H;
+//     H.x = cos(phi) * sinTheta;
+//     H.y = sin(phi) * sinTheta;
+//     H.z = cosTheta;
+// 
+//     // from tangent-space vector to world-space sample vector
+//     vec3 up        = abs(n.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+//     vec3 tangent   = normalize(cross(up, n));
+//     vec3 bitangent = cross(n, tangent);
+// 
+//     vec3 sampleVec = tangent * H.x + bitangent * H.y + n * H.z;
+//     return normalize(sampleVec);
+// }
 
 layout(location= 0) in vec3 FragWorldPosition;
 layout(location= 1) in vec3 FragNormal;
@@ -163,7 +173,7 @@ void main( )
                 vec2 u = Hammersley(i, IndirectLightingSampleCount);
 
                 // Ne
-                vec3 SampledDirection = SampleGGXVNDF_Heitz2018(Normal, Alpha, Alpha, u.x, u.y);
+                vec3 SampledDirection = SampleGGXVNDF_Intel2023(Normal, Alpha, Alpha, u.x, u.y);
 
                 vec3 n = SampledDirection;
                 vec3 l = reflect(v, n);
@@ -188,7 +198,8 @@ void main( )
 
                 sum += Reflectance * SkyLight;
             }
-            sum /= float(IndirectLightingSampleCount);
+
+            finalColor += sum / float(IndirectLightingSampleCount);
         }
     }
 

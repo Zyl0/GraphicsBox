@@ -119,11 +119,23 @@ void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t Texture
 {
     SetUniform(GetUniformLocation(Pipeline, name), TextureUnit, texture);
 }
+
+void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const TextureCube& texture)
+{
+    SetUniform(GetUniformLocation(Pipeline, name), TextureUnit, texture);
+}
+
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const Texture2D& texture, const Sampler& sampler)
 {
     SetUniform(GetUniformLocation(Pipeline, name), TextureUnit, texture, sampler);
 }
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const Texture3D& texture, const Sampler& sampler)
+{
+    SetUniform(GetUniformLocation(Pipeline, name), TextureUnit, texture, sampler);
+}
+
+void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const TextureCube& texture,
+    const Sampler& sampler)
 {
     SetUniform(GetUniformLocation(Pipeline, name), TextureUnit, texture, sampler);
 }
@@ -234,6 +246,15 @@ void SetUniform(GLint Location, uint8_t TextureUnit, const Texture3D& texture)
 
     GLCall(glUniform1i(Location, TextureUnit))
 }
+
+void SetUniform(GLint Location, uint8_t TextureUnit, const TextureCube& texture)
+{
+    GLCall(glActiveTexture(GL_TEXTURE0 + TextureUnit))
+    Bind(texture);
+
+    GLCall(glUniform1i(Location, TextureUnit))
+}
+
 void SetUniform(GLint Location, uint8_t TextureUnit, const Texture2D& texture, const Sampler& sampler)
 {
     GLCall(glActiveTexture(GL_TEXTURE0 + TextureUnit))
@@ -243,6 +264,15 @@ void SetUniform(GLint Location, uint8_t TextureUnit, const Texture2D& texture, c
     GLCall(glUniform1i(Location, TextureUnit))
 }
 void SetUniform(GLint Location, uint8_t TextureUnit, const Texture3D& texture, const Sampler& sampler)
+{
+    GLCall(glActiveTexture(GL_TEXTURE0 + TextureUnit))
+    Bind(texture);
+    GLCall(glBindSampler(TextureUnit, sampler.Handle()))
+
+    GLCall(glUniform1i(Location, TextureUnit))
+}
+
+void SetUniform(GLint Location, uint8_t TextureUnit, const TextureCube& texture, const Sampler& sampler)
 {
     GLCall(glActiveTexture(GL_TEXTURE0 + TextureUnit))
     Bind(texture);

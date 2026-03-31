@@ -37,6 +37,14 @@ const float zBarSamples[21] = float[]
     0.0021, 0.0017, 0.0011, 0.0008, 0.0003, 0.0000
 );
 
+vec3 PhysicalToHumanEyeLuminance(vec3 color)
+{
+    color.x /= 0.3086;
+    color.y /= 0.6094;
+    color.z /= 0.0820;
+    return color;
+}
+
 // Given a wavelength λ in nanometers, return XYZ color
 vec3 WavelengthToXYZ(float wavelength) 
 {
@@ -56,7 +64,8 @@ vec3 WavelengthToXYZ(float wavelength)
     float X = mix(xBarSamples[index], xBarSamples[index+1], t);
     float Y = mix(yBarSamples[index], yBarSamples[index+1], t);
     float Z = mix(zBarSamples[index], zBarSamples[index+1], t);
-    return vec3(X, Y, Z);
+
+    return PhysicalToHumanEyeLuminance(vec3(X, Y, Z));
 }
 
 #endif // INCLUDE_GUARD_SPECTRAL_RENDERING

@@ -1,4 +1,7 @@
 ﻿#include "Textures.h"
+#include "Textures.h"
+
+#include <array>
 
 #include "Shared/Annotations.h"
 
@@ -689,4 +692,124 @@ void Bind(const Texture3D& texture)
 void UnBind(const Texture3D& texture)
 {
     GLCall(glBindTexture(GL_TEXTURE_3D, 0))
+}
+
+TextureCube::TextureCube(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout):
+    m_Width(width), m_Height(height),
+    m_MipCount(0), m_UseMips(false /*todo*/), m_Type(type),
+    m_Layout(layout)
+{
+    GLCall(glGenTextures(1, &m_Texture))
+
+    Bind(*this);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+    
+    UnBind(*this);
+}
+
+GLenum ToGLFace(TextureCube::Face Face)
+{
+    switch (Face)
+    {
+    case TextureCube::Right:    return GL_TEXTURE_CUBE_MAP_POSITIVE_X;
+    case TextureCube::Left:     return GL_TEXTURE_CUBE_MAP_NEGATIVE_X;
+    case TextureCube::Up:       return GL_TEXTURE_CUBE_MAP_POSITIVE_Y;
+    case TextureCube::Down:     return GL_TEXTURE_CUBE_MAP_NEGATIVE_Y;
+    case TextureCube::Back:     return GL_TEXTURE_CUBE_MAP_POSITIVE_Z;
+    case TextureCube::Front:    return GL_TEXTURE_CUBE_MAP_NEGATIVE_Z;
+
+    case TextureCube::_Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported face type")
+    }
+}
+
+TextureCube::TextureCube(std::span<const FacePair> Faces, bool UseMips):
+    m_Width(0), m_Height(0),
+    m_MipCount(0), m_UseMips(UseMips), m_Type(Texture::Byte),
+    m_Layout(Texture::R)
+{
+    GLCall(glGenTextures(1, &m_Texture))
+    
+    Data(Faces);
+}
+
+TextureCube::~TextureCube()
+{
+    GLCall(glDeleteTextures(1, &m_Texture))
+}
+
+void TextureCube::Data(std::span<const FacePair> Faces)
+{
+    AssertOrErrorCall(!Faces.empty(), return;, "Faces is empty")
+
+    const Image& First = Faces[0].second;
+
+    m_Width = First.Width();
+    m_Height = First.Height();
+    m_MipCount = m_MipCount > 0 ? miplevels(Width(), Height()) : 0;
+    
+    m_Type = Texture::ToTextureType(First.ComponentType());
+    m_Layout = Texture::ToTextureLayout(First.ComponentLayout());
+    
+    Bind(*this);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+#ifdef CONFIG_DEBUG
+    auto CurrentType = First.ComponentType();
+    auto CurrentLayout = First.ComponentLayout();
+    
+    std::array<bool, _Count> ValidFaces = {false};
+#endif // CONFIG_DEBUG
+    for (const auto & face : Faces)
+    {
+        AssertOrErrorCall(face.second.Width() == Width() && face.second.Height() == Height(), return;, "Face texture size missmatch")
+#ifdef CONFIG_DEBUG
+        AssertOrErrorCall(face.second.ComponentType() == CurrentType && face.second.ComponentLayout() == CurrentLayout, return;, "Face texture type missmatch");
+        AssertOrErrorCall(ValidFaces[face.first] == false, return;, "Face already exist")
+        ValidFaces[face.first] = true;
+#endif // CONFIG_DEBUG
+        
+        GLCall(glTexImage2D(ToGLFace(face.first), 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), face.second.Data() ))
+    }
+#ifdef CONFIG_DEBUG
+    bool IsValid = true;
+    for (size_t i = 0; i < _Count; i++)
+    {
+        IsValid &= ValidFaces[i];
+    }
+    AssertOrErrorCall(IsValid, return;, "Not all faces where adressed")
+#endif // CONFIG_DEBUG
+    
+    if (m_MipCount > 0)
+    {
+        glGenerateMipmap(GL_TEXTURE_3D);
+    }
+
+    UnBind(*this);
+}
+
+void Bind(const TextureCube& texture)
+{
+    GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, texture.Handle()))
+}
+
+void UnBind(const TextureCube& texture)
+{
+    GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, 0))
 }

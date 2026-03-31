@@ -59,9 +59,10 @@ void AddSearchPath(const std::filesystem::path& path)
 
 bool GetAbsoluteFilePath(const std::filesystem::path& RelativePath, std::filesystem::path& absolutePath)
 {
+    std::filesystem::path path;
     for (const auto & search_path : SearchPaths)
     {
-        std::filesystem::path path = search_path / RelativePath;
+        path = search_path / RelativePath;
         if (exists(path))
         {
             absolutePath = path;
@@ -69,4 +70,19 @@ bool GetAbsoluteFilePath(const std::filesystem::path& RelativePath, std::filesys
         }
     }
     return false;
+}
+
+std::filesystem::path GetAbsoluteFilePath(const std::filesystem::path& RelativePath)
+{
+    std::filesystem::path path;
+    
+    for (const auto & search_path : SearchPaths)
+    {
+        path = search_path / RelativePath;
+        if (exists(path))
+        {
+            return path;
+        }
+    }
+    return "";
 }

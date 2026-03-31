@@ -15,7 +15,10 @@ std::string ShaderFileToString(const std::filesystem::path& filename);
 class Shader
 {
 public:
-    using DefinesView = std::span < const std::pair<std::string_view, std::string_view> >;
+    using Define = std::pair<std::string_view, std::string_view>;
+    using DefinesView = std::span < const Define >;
+    template <size_t Count>
+    using DefineArray = std::array<Define, Count>;
 
     enum Type : uint8_t
     {

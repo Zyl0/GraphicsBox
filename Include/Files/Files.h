@@ -8,3 +8,5 @@ std::string FileToString(const std::filesystem::path& filename, bool binary = fa
 void AddSearchPath(const std::filesystem::path& path);
 
 bool GetAbsoluteFilePath(const std::filesystem::path& RelativePath, std::filesystem::path& absolutePath);
+
+std::filesystem::path GetAbsoluteFilePath(const std::filesystem::path& RelativePath);

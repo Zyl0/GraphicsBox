@@ -36,8 +36,10 @@ void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Transform
 void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Transform4d value);
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const Texture2D& texture);
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const Texture3D& texture);
+void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const TextureCube& texture);
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const Texture2D& texture, const Sampler& sampler);
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const Texture3D& texture, const Sampler& sampler);
+void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const TextureCube& texture, const Sampler& sampler);
 
 void SetUniform(GLint Location, bool value);
 void SetUniform(GLint Location, int value);
@@ -64,6 +66,8 @@ void SetUniform(GLint Location, Math::Transform4f value);
 void SetUniform(GLint Location, Math::Transform4d value);
 void SetUniform(GLint Location, uint8_t TextureUnit, const Texture2D& texture);
 void SetUniform(GLint Location, uint8_t TextureUnit, const Texture3D& texture);
+void SetUniform(GLint Location, uint8_t TextureUnit, const TextureCube& texture);
 void SetUniform(GLint Location, uint8_t TextureUnit, const Texture2D& texture, const Sampler& sampler);
 void SetUniform(GLint Location, uint8_t TextureUnit, const Texture3D& texture, const Sampler& sampler);
+void SetUniform(GLint Location, uint8_t TextureUnit, const TextureCube& texture, const Sampler& sampler);
 void SetUniform(GLint Binding, const UniformBuffer& buffer);

@@ -235,9 +235,15 @@ struct ProceduralSkylight
 struct SceneBuffers
 {
     GLTF::GPUScene Scene;
-    UniformBuffer ProceduralSkyParameters;
     UniformBuffer Lights;
     UniformBuffer Camera;
+
+    UniformBuffer ProceduralSkyParameters;
+    TextureCube SkylightCube{0, 0, Texture::Byte, Texture::R};
+    Texture2D SkylightHDRI{0, 0, Texture::Byte, Texture::R};
+    uint8_t SkylightMethod = 0;
+    
+    Sampler BaseSampler{{}};
     
     SceneBuffers() = default;
 };
@@ -246,31 +252,70 @@ class DrawSky
 {
 public:    
     DrawSky() : 
-        m_Pipeline(PipelineFromFile("Background sky", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "SkylightToRadiance.glsl"))
+        m_PipelineProcedural(PipelineFromFile("Background sky", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "SkylightToRadiance.glsl", m_PipelineProceduralDefines)),
+        m_PipelineCubemap(PipelineFromFile("Background sky", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "SkylightToRadiance.glsl", m_PipelineCubemapDefines)),
+        m_PipelineHDRI(PipelineFromFile("Background sky", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "SkylightToRadiance.glsl", m_PipelineHDRIDefines))
     {}
     
     // void Update(double DeltaTime);
     void Draw(const SceneBuffers& SceneObjects)
     {
         DebugScopeMarker scope("Draw Sky");
+
+        switch (SceneObjects.SkylightMethod)
+        {
+        case 0: // Procedural
+            Bind(m_PipelineProcedural);
+                
+            // Scene buffers
+            SetUniform(0, SceneObjects.Camera);
+            SetUniform(1, SceneObjects.Lights);
+            SetUniform(2, SceneObjects.ProceduralSkyParameters);
         
-        Bind(m_Pipeline);
+            // Draw screen quad
+            glDrawArrays(GL_TRIANGLES, 0, 3);
         
-        // glDisable(GL_DEPTH_TEST);
+            UnBind(m_PipelineProcedural);
+            break;
+            
+        case 1: // Cubemap Sampling
+            Bind(m_PipelineCubemap);
+                
+            // Scene buffers
+            SetUniform(0, SceneObjects.Camera);
+            SetUniform(1, SceneObjects.Lights);
+            SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
         
-        // Scene buffers
-        SetUniform(0, SceneObjects.Camera);
-        SetUniform(1, SceneObjects.Lights);
-        SetUniform(2, SceneObjects.ProceduralSkyParameters);
+            // Draw screen quad
+            glDrawArrays(GL_TRIANGLES, 0, 3);
         
-        // Draw screen quad
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+            UnBind(m_PipelineCubemap);
+            break;
+            
+        case 2: // HDRI Sampling
+            Bind(m_PipelineHDRI);
+                
+            // Scene buffers
+            SetUniform(0, SceneObjects.Camera);
+            SetUniform(1, SceneObjects.Lights);
+            SetUniform(m_PipelineHDRI, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
         
-        UnBind(m_Pipeline);
+            // Draw screen quad
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+        
+            UnBind(m_PipelineHDRI);
+            break;
+        }
     }
     
 private:
-    Pipeline m_Pipeline;
+    Shader::DefineArray<1> m_PipelineProceduralDefines = {Shader::Define("USE_PROCEDURAL_SKYLIGHT", "")};
+    Shader::DefineArray<1> m_PipelineCubemapDefines = {Shader::Define("USE_CUBEMAP_SKYLIGHT", "")};
+    Shader::DefineArray<1> m_PipelineHDRIDefines = {Shader::Define("USE_HDRI_SKYLIGHT", "")};
+    
+    Pipeline m_PipelineProcedural;
+    Pipeline m_PipelineCubemap;
+    Pipeline m_PipelineHDRI;
 };
 
 class DrawScene
@@ -284,51 +329,111 @@ public:
     };
     
     DrawScene() : 
-        m_Pipeline(PipelineFromFile("Mesh To Radiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToRadiance.glsl"))
+        m_PipelineProcedural(PipelineFromFile("Mesh To Radiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToRadiance.glsl", m_PipelineProceduralDefines)),
+        m_PipelineCubemap(PipelineFromFile("Mesh To Radiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToRadiance.glsl", m_PipelineCubemapDefines)),
+        m_PipelineHDRI(PipelineFromFile("Mesh To Radiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToRadiance.glsl", m_PipelineHDRIDefines))
     {}
     
     // void Update(double DeltaTime);
     void Draw(const SceneBuffers& SceneObjects)
     {
         DebugScopeMarker scope("Draw Scene");
-        
-        Bind(m_Pipeline);
-        
-        // Scene buffers
-        SetUniform(0, SceneObjects.Camera);
-        SetUniform(1, SceneObjects.Lights);
-        SetUniform(2, SceneObjects.ProceduralSkyParameters);
-        
-        SetUniform(m_Pipeline, "Model", MakeHomogeneousIdentity<float>());
 
-        // Material
-        SetUniform(m_Pipeline, "BaseColor", m_Material.BaseColor);
-        SetUniform(m_Pipeline, "Roughness", m_Material.Roughness);
-        SetUniform(m_Pipeline, "Metalness", m_Material.Metalness);
-        
-        SetUniform(m_Pipeline, "IndirectLightingSampleCount", m_SkyLightSampleCount);
-        
         GLTF::MeshInstance Instance = SceneObjects.Scene.instances[0];
         const MeshObject& Mesh = SceneObjects.Scene.meshes[Instance.mesh];
-        const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup]; 
-
+        const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
+        
         Bind(Mesh.GetVAO());
+        if (Mesh.GetIndexBuffer().has_value())
+        {
+            const IndexBuffer& indexBuffer = Mesh.GetIndexBuffer().value();
+            Bind(indexBuffer);
+        }
+
+        switch (SceneObjects.SkylightMethod)
+        {
+        case 0: // Procedural
+            Bind(m_PipelineProcedural);
+                
+            // Scene buffers
+            SetUniform(0, SceneObjects.Camera);
+            SetUniform(1, SceneObjects.Lights);
+            SetUniform(2, SceneObjects.ProceduralSkyParameters);
+
+            SetUniform(m_PipelineProcedural, "Model", MakeHomogeneousIdentity<float>());
+
+            // Material
+            SetUniform(m_PipelineProcedural, "BaseColor", m_Material.BaseColor);
+            SetUniform(m_PipelineProcedural, "Roughness", m_Material.Roughness);
+            SetUniform(m_PipelineProcedural, "Metalness", m_Material.Metalness);
+        
+            SetUniform(m_PipelineProcedural, "IndirectLightingSampleCount", m_SkyLightSampleCount);
+            break;
+            
+        case 1: // Cubemap Sampling
+            Bind(m_PipelineCubemap);
+                
+            // Scene buffers
+            SetUniform(0, SceneObjects.Camera);
+            SetUniform(1, SceneObjects.Lights);
+            SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
+
+            SetUniform(m_PipelineCubemap, "Model", MakeHomogeneousIdentity<float>());
+
+            // Material
+            SetUniform(m_PipelineCubemap, "BaseColor", m_Material.BaseColor);
+            SetUniform(m_PipelineCubemap, "Roughness", m_Material.Roughness);
+            SetUniform(m_PipelineCubemap, "Metalness", m_Material.Metalness);
+        
+            SetUniform(m_PipelineCubemap, "IndirectLightingSampleCount", m_SkyLightSampleCount);
+            break;
+            
+        case 2: // HDRI Sampling
+            Bind(m_PipelineHDRI);
+                
+            // Scene buffers
+            SetUniform(0, SceneObjects.Camera);
+            SetUniform(1, SceneObjects.Lights);
+            SetUniform(m_PipelineHDRI, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
+
+            SetUniform(m_PipelineHDRI, "Model", MakeHomogeneousIdentity<float>());
+
+            // Material
+            SetUniform(m_PipelineHDRI, "BaseColor", m_Material.BaseColor);
+            SetUniform(m_PipelineHDRI, "Roughness", m_Material.Roughness);
+            SetUniform(m_PipelineHDRI, "Metalness", m_Material.Metalness);
+        
+            SetUniform(m_PipelineHDRI, "IndirectLightingSampleCount", m_SkyLightSampleCount);
+            break;
+        }
                 
         if (Mesh.GetIndexBuffer().has_value())
         {
             const IndexBuffer& indexBuffer = Mesh.GetIndexBuffer().value();
-                    
-            Bind(indexBuffer);
+            
             glDrawElements(ToGLGeometryType(Mesh.GetVertexType()), Group.VertexCount, ToGLIndexType(indexBuffer.GetIndexType()), (void*)(Group.FirstVertex * ToGLIndexSize(indexBuffer.GetIndexType())));
-            UnBind(indexBuffer);
         }
         else
         {
             glDrawArrays(ToGLGeometryType(Mesh.GetVertexType()), Group.FirstVertex, Group.VertexCount);
         }
-                
+
+        switch (SceneObjects.SkylightMethod)
+        {
+        case 0: // Procedural
+            UnBind(m_PipelineProcedural);
+            break;
+            
+        case 1: // Cubemap Sampling
+            UnBind(m_PipelineCubemap);
+            break;
+            
+        case 2: // HDRI Sampling
+            UnBind(m_PipelineHDRI);
+            break;
+        }
+        
         UnBind(Mesh.GetVAO());
-        UnBind(m_Pipeline);
     }
     
     MaterialParams& Material() { return m_Material; }
@@ -336,7 +441,14 @@ public:
     uint32_t& SkyLightSampleCount() {return m_SkyLightSampleCount;}
     
 private:
-    Pipeline m_Pipeline;
+    Shader::DefineArray<1> m_PipelineProceduralDefines = {Shader::Define("USE_PROCEDURAL_SKYLIGHT", "")};
+    Shader::DefineArray<1> m_PipelineCubemapDefines = {Shader::Define("USE_CUBEMAP_SKYLIGHT", "")};
+    Shader::DefineArray<1> m_PipelineHDRIDefines = {Shader::Define("USE_HDRI_SKYLIGHT", "")};
+    
+    Pipeline m_PipelineProcedural;
+    Pipeline m_PipelineCubemap;
+    Pipeline m_PipelineHDRI;
+    
     MaterialParams m_Material{};
     uint32_t m_SkyLightSampleCount = 64;
 };
@@ -443,13 +555,46 @@ int main(void)
         
         Texture2D SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB);
         FrameBuffer SceneRadianceFB(FrameBuffer::ExternalAttachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)));
-        
+
         SceneBuffers GPUScene;
+        
+        // Load scene data
         {
             std::filesystem::path path;
             if (GetAbsoluteFilePath(std::filesystem::path("Meshes") / "Sphere.glb" ,path))
             {
                 AssertOrError( GLTF::LoadGPUScene(path, GPUScene.Scene), "Failed to load scene")
+            }
+        }
+
+        // Load cubemap
+        {
+            const std::filesystem::path folder = std::filesystem::path("Textures") / "CubeMaps" / "LearnOpenGL";
+            Image Front = ImageLoad(GetAbsoluteFilePath(folder / "front.jpg"), Image::UnsignedByte);
+            Image Back = ImageLoad(GetAbsoluteFilePath(folder / "back.jpg"), Image::UnsignedByte);
+            Image Left = ImageLoad(GetAbsoluteFilePath(folder / "left.jpg"), Image::UnsignedByte);
+            Image Right = ImageLoad(GetAbsoluteFilePath(folder / "right.jpg"), Image::UnsignedByte);
+            Image Top = ImageLoad(GetAbsoluteFilePath(folder / "top.jpg"), Image::UnsignedByte);
+            Image Bottom = ImageLoad(GetAbsoluteFilePath(folder / "bottom.jpg"), Image::UnsignedByte);
+            
+            std::array faces{
+                TextureCube::FacePair(TextureCube::Front, Front),
+                TextureCube::FacePair(TextureCube::Back, Back),
+                TextureCube::FacePair(TextureCube::Left, Left),
+                TextureCube::FacePair(TextureCube::Right, Right),
+                TextureCube::FacePair(TextureCube::Up, Top),
+                TextureCube::FacePair(TextureCube::Down, Bottom),
+            };
+
+            GPUScene.SkylightCube.Data(faces);
+        }
+        
+        // Load HDRi
+        {
+            std::filesystem::path path;
+            if (GetAbsoluteFilePath(std::filesystem::path("Textures") / "HDRi" / "san_giuseppe_bridge_4k.hdr" ,path))
+            {
+                GPUScene.SkylightHDRI.Data(ImageLoad(path, Image::Float));
             }
         }
 
@@ -549,27 +694,37 @@ int main(void)
                 ImGui::SliderFloat("Light Intensity", &lightsData.LightIntensity, 0.1f, 10.0f);
                 
                 ImGui::Separator();
-                
-                // Procedural sky Light
-                ImGui::ColorEdit4("Atmosphere Day Color", proceduralSkylightData.AtmosphereDayColor.data());
-                ImGui::ColorEdit4("Atmosphere Night Color", proceduralSkylightData.AtmosphereNightColor.data());
-                ImGui::ColorEdit4("Atmosphere Sunset High Color", proceduralSkylightData.SunSetHighEnergy.data());
-                ImGui::ColorEdit4("Atmosphere Sunset Low Color", proceduralSkylightData.SunSetLowEnergy.data());
-                ImGui::ColorEdit4("Atmosphere Occlusion Color", proceduralSkylightData.AtmosphericOcclusion.data());
-                ImGui::SliderFloat("Atmosphere Angle Day", &proceduralSkylightData.AngleDayTime, 0, 1);
-                ImGui::SliderFloat("Atmosphere Angle Sunset High", &proceduralSkylightData.AngleSunSetHigh, 0, 1);
-                ImGui::SliderFloat("Atmosphere Angle Sunset Low", &proceduralSkylightData.AngleSunSetLow, 0, 1);
-                ImGui::SliderFloat("Atmosphere Angle Night", &proceduralSkylightData.AngleNight, 0, 1);
-                
-                ImGui::ColorEdit3("Ground Color", proceduralSkylightData.AverageGroundColor.data());
-                ImGui::SliderFloat("Ground Roughness", &proceduralSkylightData.AverageGroundRoughness, 0, 1);
-                ImGui::SliderFloat("Ground Metalness", &proceduralSkylightData.AverageGroundMetalness, 0, 1);
-                
-                ImGui::SliderFloat("Atmosphere Occlusion Fog Height", &proceduralSkylightData.FogHeight, 0, 0.5);
-                
-                ImGui::Separator();
+
+                static const char* SkyLightMethodNames[] =
+                {
+                    "Procedural", "Cubemap", "HDRi"
+                };
+                ImGui::ListBox("Sky Light Method", (int*)&GPUScene.SkylightMethod, SkyLightMethodNames, 3);
+                GPUScene.SkylightMethod = Math::Clamp(GPUScene.SkylightMethod, 0, 2);
                 
                 ImGui::SliderInt("Sky light Sample Count", (int*)&DrawScenePass.SkyLightSampleCount(), 1, 1024);
+
+                ImGui::Separator();
+
+                if (GPUScene.SkylightMethod == 0)
+                {
+                    // Procedural sky Light
+                    ImGui::ColorEdit4("Atmosphere Day Color", proceduralSkylightData.AtmosphereDayColor.data());
+                    ImGui::ColorEdit4("Atmosphere Night Color", proceduralSkylightData.AtmosphereNightColor.data());
+                    ImGui::ColorEdit4("Atmosphere Sunset High Color", proceduralSkylightData.SunSetHighEnergy.data());
+                    ImGui::ColorEdit4("Atmosphere Sunset Low Color", proceduralSkylightData.SunSetLowEnergy.data());
+                    ImGui::ColorEdit4("Atmosphere Occlusion Color", proceduralSkylightData.AtmosphericOcclusion.data());
+                    ImGui::SliderFloat("Atmosphere Angle Day", &proceduralSkylightData.AngleDayTime, 0, 1);
+                    ImGui::SliderFloat("Atmosphere Angle Sunset High", &proceduralSkylightData.AngleSunSetHigh, 0, 1);
+                    ImGui::SliderFloat("Atmosphere Angle Sunset Low", &proceduralSkylightData.AngleSunSetLow, 0, 1);
+                    ImGui::SliderFloat("Atmosphere Angle Night", &proceduralSkylightData.AngleNight, 0, 1);
+                
+                    ImGui::ColorEdit3("Ground Color", proceduralSkylightData.AverageGroundColor.data());
+                    ImGui::SliderFloat("Ground Roughness", &proceduralSkylightData.AverageGroundRoughness, 0, 1);
+                    ImGui::SliderFloat("Ground Metalness", &proceduralSkylightData.AverageGroundMetalness, 0, 1);
+                
+                    ImGui::SliderFloat("Atmosphere Occlusion Fog Height", &proceduralSkylightData.FogHeight, 0, 0.5);        
+                }        
                 
                 ImGui::End();
 

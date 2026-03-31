@@ -517,6 +517,8 @@ Shader::Shader(Type type, std::string_view SourceCode, Shader::DefinesView Defin
         }
         errorLogBuffer.push_back('\0');
         printf("%s\n", errorLogBuffer.data());
+
+        EngineRuntimeBREAKPOINT
     }
     else
     {

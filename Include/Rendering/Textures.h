@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <span>
+
 #include "GLHelper.h"
 
 #include "Shared/Annotations.h"
@@ -126,3 +128,50 @@ private:
 
 void Bind(const Texture3D& texture);
 void UnBind(const Texture3D& texture);
+
+class TextureCube
+{
+public:
+    enum Face : uint8_t
+    {
+        Right = 0,
+        Left,
+        Up,
+        Down,
+        Back,
+        Front,
+        _Count
+    };
+
+    using FacePair = std::pair<Face, const Image&>;
+    
+    TextureCube(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout);
+    TextureCube(std::span<const FacePair> Faces, bool UseMips = true);
+    ~TextureCube();
+
+    void Data(std::span<const FacePair> Faces);
+
+    INLINE GLuint Handle() const                    { return m_Texture; }
+    INLINE uint32_t Width() const                   { return m_Width;}
+    INLINE uint32_t Height() const                  { return m_Height;}
+    INLINE uint32_t MipCount() const                { return m_MipCount;}
+    INLINE Texture::Type ComponentType() const      { return m_Type;}
+    INLINE Texture::Layout ComponentLayout() const  { return m_Layout;}
+    INLINE GLenum GLType() const { return ToGLTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    INLINE GLenum GLFormat() const { return ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    INLINE GLenum GPUType() const { return ToGPUTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+
+private:
+    GLuint m_Texture;
+
+    uint32_t m_Width;
+    uint32_t m_Height;
+    uint32_t m_MipCount;
+
+    Texture::Type m_Type;
+    Texture::Layout m_Layout;
+    bool m_UseMips;
+};
+
+void Bind(const TextureCube& texture);
+void UnBind(const TextureCube& texture);
