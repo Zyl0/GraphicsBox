@@ -23,12 +23,18 @@
 #include "backends/imgui_impl_glfw.h"
 #endif // WINDOW_GLFW
 
+using namespace Math;
+
+/* ____________________________________ Constants ____________________________________ */
+
 constexpr size_t kBaseWidth = 1280;
 constexpr size_t kBaseHeight = 720;
 constexpr float kZNear = 0.01f;
 constexpr float kZFar = 1000.0f;
 
-using namespace Math;
+/* ____________________________________ States ____________________________________ */
+
+bool RequestShaderReload = false;
 
 /* ____________________________________ Debug ____________________________________ */
 
@@ -105,6 +111,9 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+    
+    if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
+        RequestShaderReload = true;
 }
 
 bool GetKey(GLFWwindow* window, unsigned code)
@@ -308,6 +317,13 @@ public:
         }
     }
     
+    void Reload()
+    {
+        PipelineUpdateFromFile(m_PipelineProcedural, "SkylightToRadiance.glsl", m_PipelineProceduralDefines);
+        PipelineUpdateFromFile(m_PipelineCubemap, "SkylightToRadiance.glsl", m_PipelineCubemapDefines);
+        PipelineUpdateFromFile(m_PipelineHDRI, "SkylightToRadiance.glsl", m_PipelineHDRIDefines);
+    }
+
 private:
     Shader::DefineArray<1> m_PipelineProceduralDefines = {Shader::Define("USE_PROCEDURAL_SKYLIGHT", "")};
     Shader::DefineArray<1> m_PipelineCubemapDefines = {Shader::Define("USE_CUBEMAP_SKYLIGHT", "")};
@@ -436,6 +452,13 @@ public:
         UnBind(Mesh.GetVAO());
     }
     
+    void Reload()
+    {
+        PipelineUpdateFromFile(m_PipelineProcedural, "MeshToRadiance.glsl", m_PipelineProceduralDefines);
+        PipelineUpdateFromFile(m_PipelineCubemap, "MeshToRadiance.glsl", m_PipelineCubemapDefines);
+        PipelineUpdateFromFile(m_PipelineHDRI, "MeshToRadiance.glsl", m_PipelineHDRIDefines);
+    }
+    
     MaterialParams& Material() { return m_Material; }
     
     uint32_t& SkyLightSampleCount() {return m_SkyLightSampleCount;}
@@ -484,6 +507,12 @@ public:
         
         UnBind(m_Pipeline);
     }
+    
+    void Reload()
+    {
+        PipelineUpdateFromFile(m_Pipeline, "PostProcess.glsl");
+    }
+    
     
 private:
     Pipeline m_Pipeline;
@@ -632,6 +661,16 @@ int main(void)
                 
                 SceneRadianceRT.Data(CurrentWidth, CurrentHeight);
                 SceneRadianceFB.Resize(CurrentWidth, CurrentHeight);
+            }
+            
+            // Handle shader reload
+            if (RequestShaderReload)
+            {
+                DrawSkyPass.Reload();
+                DrawScenePass.Reload();
+                DrawPostProcessPass.Reload();
+                
+                RequestShaderReload = false;
             }
 
             // Update scene

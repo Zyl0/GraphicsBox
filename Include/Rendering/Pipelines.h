@@ -92,5 +92,5 @@ INLINE bool PipelineUpdateFromFile(Pipeline& pipeline, const std::filesystem::pa
 {
     std::string Source = ShaderFileToString(filename);
     
-    return PipelineUpdateFromFile(pipeline, Source, Defines);
+    return PipelineUpdateFromString(pipeline, Source, Defines);
 }
