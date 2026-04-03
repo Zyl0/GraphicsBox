@@ -35,6 +35,7 @@ constexpr float kZFar = 1000.0f;
 /* ____________________________________ States ____________________________________ */
 
 bool RequestShaderReload = false;
+bool RequestRebake = true;
 
 /* ____________________________________ Debug ____________________________________ */
 
@@ -159,7 +160,7 @@ void UpdateCamera(GLFWwindow* window, double deltaTime, FlyCamera& camera)
 }
 #endif // WINDOW_GLFW
 
-/* ____________________________________ Passes ____________________________________ */
+/* ____________________________________ Render Data ____________________________________ */
 
 struct CameraData
 {
@@ -250,16 +251,150 @@ struct SceneBuffers
     UniformBuffer ProceduralSkyParameters;
     TextureCube SkylightCube{0, 0, Texture::Byte, Texture::R};
     Texture2D SkylightHDRI{0, 0, Texture::Byte, Texture::R};
-    uint8_t SkylightMethod = 0;
+    
+    TextureCube BakedSkylightCube{2048, 2048, Texture::Packed_R11F_G11F_B10F, Texture::RGB, true};
     
     Sampler BaseSampler{{}};
+    
+    // States
+    uint32_t SkylightMethod = 3;
+    
     
     SceneBuffers() = default;
 };
 
+/* ____________________________________ Helpers ____________________________________ */
+
+void BakingRenderToCubeMap(FrameBuffer& framebuffer, const Pipeline& pipeline, const TextureCube& TargetCubeMap, uint8_t targetMip, bool GenerateMips)
+{
+    Bind(pipeline);
+    
+    FlyCamera Camera;
+    Camera.SetProjection(1, Math::Radians(50.f));
+    Camera.SetTranslation(Math::Vector3f{0.0f, 0.0f, 0.0f});
+    
+    GLint location = GetUniformLocation(pipeline, "CameraProjToWorld");
+    AssertOrErrorCall(location >= 0, return;, "Cannot upload transform matrices")
+      
+    // Right, +x
+    {
+        framebuffer.Retarget(FrameBuffer::RetargetAttachment(TargetCubeMap, TextureCube::Right, targetMip));
+        
+        Camera.SetRotationDegrees( 0, -90);
+        SetUniform(location, Inverse(Camera.Projection() * Camera.View()));
+        Bind(framebuffer);
+            
+        // Draw screen quad
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
+    
+    // Left, -x
+    {
+        framebuffer.Retarget(FrameBuffer::RetargetAttachment(TargetCubeMap, TextureCube::Left, targetMip));
+        
+        Camera.SetRotationDegrees( 0, 90);
+        SetUniform(location, Inverse(Camera.Projection() * Camera.View()));
+        Bind(framebuffer);
+            
+        // Draw screen quad
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
+    
+    // Up, +y
+    {
+        framebuffer.Retarget(FrameBuffer::RetargetAttachment(TargetCubeMap, TextureCube::Up, targetMip));
+        
+        Camera.SetRotationDegrees( 90, 180);
+        SetUniform(location, Inverse(Camera.Projection() * Camera.View()));
+        Bind(framebuffer);
+            
+        // Draw screen quad
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
+    
+    // Down, -y
+    {
+        framebuffer.Retarget(FrameBuffer::RetargetAttachment(TargetCubeMap, TextureCube::Down, targetMip));
+        
+        Camera.SetRotationDegrees( -90, 180);
+        SetUniform(location, Inverse(Camera.Projection() * Camera.View()));
+        Bind(framebuffer);
+            
+        // Draw screen quad
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
+    
+    // Back, +z
+    {
+        framebuffer.Retarget(FrameBuffer::RetargetAttachment(TargetCubeMap, TextureCube::Back, targetMip));
+        
+        Camera.SetRotationDegrees(0, 0);
+        SetUniform(location, Inverse(Camera.Projection() * Camera.View()));
+        Bind(framebuffer);
+            
+        // Draw screen quad
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
+    
+    // Front, -z
+    {
+        framebuffer.Retarget(FrameBuffer::RetargetAttachment(TargetCubeMap, TextureCube::Front, targetMip));
+        
+        Camera.SetRotationDegrees(0, 180);
+        SetUniform(location, Inverse(Camera.Projection() * Camera.View()));
+        Bind(framebuffer);
+            
+        // Draw screen quad
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
+    
+    UnBind(pipeline);
+    
+    if (GenerateMips && TargetCubeMap.HasMips())
+    {
+        Bind(TargetCubeMap);
+        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+        UnBind(TargetCubeMap);
+    }
+}
+
+/* ____________________________________ Baking Passes ____________________________________ */
+
+class HDRiToCubemap
+{
+public:
+    HDRiToCubemap(const SceneBuffers& SceneObjects):
+        m_Pipeline(PipelineFromFile("Baking HDRiToCubeMap", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "HDRIToCubeMap.glsl")),
+        m_FrameBuffer(FrameBuffer::Attachment(SceneObjects.BakedSkylightCube.Width(), SceneObjects.BakedSkylightCube.Height(), 1u, FrameBuffer::ClearColor{0.0f}))
+    {}
+    
+    void Draw(const SceneBuffers& SceneObjects)
+    {
+        DebugScopeMarker scope ("HDRi texture to Cubemap");
+        
+        Bind(m_Pipeline);
+        SetUniform(m_Pipeline, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
+        
+        BakingRenderToCubeMap(m_FrameBuffer, m_Pipeline, SceneObjects.BakedSkylightCube, 0, true);
+        
+        UnBind(m_Pipeline);
+    }
+    
+    void Reload()
+    {
+        PipelineUpdateFromFile(m_Pipeline, "HDRIToCubeMap.glsl");
+    }
+    
+private:
+    Pipeline m_Pipeline;
+    FrameBuffer m_FrameBuffer;
+};
+
+/* ____________________________________ Real time Passes ____________________________________ */
+
 class DrawSky
 {
-public:    
+public:
     DrawSky() : 
         m_PipelineProcedural(PipelineFromFile("Background sky", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "SkylightToRadiance.glsl", m_PipelineProceduralDefines)),
         m_PipelineCubemap(PipelineFromFile("Background sky", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "SkylightToRadiance.glsl", m_PipelineCubemapDefines)),
@@ -288,12 +423,20 @@ public:
             break;
             
         case 1: // Cubemap Sampling
+        case 3: // Baked Cubemap Sampling
             Bind(m_PipelineCubemap);
                 
             // Scene buffers
             SetUniform(0, SceneObjects.Camera);
             SetUniform(1, SceneObjects.Lights);
-            SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
+            if (SceneObjects.SkylightMethod == 1)
+            {
+                SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
+            }
+            if (SceneObjects.SkylightMethod == 3)
+            {
+                SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.BakedSkylightCube, SceneObjects.BaseSampler);
+            }
         
             // Draw screen quad
             glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -387,13 +530,21 @@ public:
             break;
             
         case 1: // Cubemap Sampling
+        case 3: // Baked Cubemap Sampling
             Bind(m_PipelineCubemap);
                 
             // Scene buffers
             SetUniform(0, SceneObjects.Camera);
             SetUniform(1, SceneObjects.Lights);
-            SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
-
+            if (SceneObjects.SkylightMethod == 1)
+            {
+                SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
+            }
+            if (SceneObjects.SkylightMethod == 3)
+            {
+                SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.BakedSkylightCube, SceneObjects.BaseSampler);
+            }
+            
             SetUniform(m_PipelineCubemap, "Model", MakeHomogeneousIdentity<float>());
 
             // Material
@@ -512,8 +663,7 @@ public:
     {
         PipelineUpdateFromFile(m_Pipeline, "PostProcess.glsl");
     }
-    
-    
+
 private:
     Pipeline m_Pipeline;
     Sampler m_Sampler;
@@ -583,7 +733,7 @@ int main(void)
         ProceduralSkylight proceduralSkylightData{};
         
         Texture2D SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB);
-        FrameBuffer SceneRadianceFB(FrameBuffer::ExternalAttachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)));
+        FrameBuffer SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)));
 
         SceneBuffers GPUScene;
         
@@ -632,6 +782,7 @@ int main(void)
         camera.SetTranslation(-4,0,0);
         
         // Passes
+        HDRiToCubemap HDRiToCubemapPass(GPUScene);
         DrawSky DrawSkyPass{};
         DrawScene DrawScenePass{};
         PostProcess DrawPostProcessPass{};
@@ -669,6 +820,9 @@ int main(void)
                 DrawSkyPass.Reload();
                 DrawScenePass.Reload();
                 DrawPostProcessPass.Reload();
+                HDRiToCubemapPass.Reload();
+                
+                RequestRebake = true;
                 
                 RequestShaderReload = false;
             }
@@ -686,6 +840,14 @@ int main(void)
                 GPUScene.Camera.Data(&cameraData, sizeof(cameraData));
                 GPUScene.Lights.Data(&lightsData, sizeof(lightsData));
                 GPUScene.ProceduralSkyParameters.Data(&proceduralSkylightData, sizeof(proceduralSkylightData));
+            }
+            
+            // Bake non real time data
+            if (RequestRebake)
+            {
+                HDRiToCubemapPass.Draw(GPUScene);
+                
+                // RequestRebake = false;
             }
 
             glClear(GL_COLOR_BUFFER_BIT );
@@ -736,10 +898,10 @@ int main(void)
 
                 static const char* SkyLightMethodNames[] =
                 {
-                    "Procedural", "Cubemap", "HDRi"
+                    "Procedural", "Cubemap", "HDRi", "Baked From HDRi"
                 };
-                ImGui::ListBox("Sky Light Method", (int*)&GPUScene.SkylightMethod, SkyLightMethodNames, 3);
-                GPUScene.SkylightMethod = Math::Clamp(GPUScene.SkylightMethod, 0, 2);
+                ImGui::ListBox("Sky Light Method", (int*)&GPUScene.SkylightMethod, SkyLightMethodNames, 4);
+                GPUScene.SkylightMethod = Math::Clamp(GPUScene.SkylightMethod, 0u, 3u);
                 
                 ImGui::SliderInt("Sky light Sample Count", (int*)&DrawScenePass.SkyLightSampleCount(), 1, 1024);
 

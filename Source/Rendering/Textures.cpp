@@ -694,9 +694,9 @@ void UnBind(const Texture3D& texture)
     GLCall(glBindTexture(GL_TEXTURE_3D, 0))
 }
 
-TextureCube::TextureCube(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout):
+TextureCube::TextureCube(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips):
     m_Width(width), m_Height(height),
-    m_MipCount(0), m_UseMips(false /*todo*/), m_Type(type),
+    m_MipCount(UseMips > 0 ? miplevels(Width(), Height()) : 0), m_UseMips(UseMips), m_Type(type),
     m_Layout(layout)
 {
     GLCall(glGenTextures(1, &m_Texture))
@@ -714,6 +714,11 @@ TextureCube::TextureCube(uint32_t width, uint32_t height, Texture::Type type, Te
     GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
     GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
     GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+    
+    if (m_UseMips)
+    {
+        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    }
     
     UnBind(*this);
 }
@@ -812,4 +817,39 @@ void Bind(const TextureCube& texture)
 void UnBind(const TextureCube& texture)
 {
     GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, 0))
+}
+
+TextureCubeView::TextureCubeView(const TextureCube& texture, uint32_t MipLevel, uint32_t MipCount)
+{
+    GLCall(glGenTextures(1, &m_Texture))
+    
+    Data(texture, MipLevel, MipCount);
+}
+
+TextureCubeView::~TextureCubeView()
+{
+    GLCall(glDeleteTextures(1, &m_Texture))
+}
+
+void TextureCubeView::Data(const TextureCube& texture, uint32_t MipLevel, uint32_t MipCount)
+{
+    AssertOrErrorCall(MipLevel + MipCount <= texture.MipCount(), return, "Too many Mip levels specified")
+    
+    m_Width = texture.Width();
+    m_Height = texture.Height();
+    m_BaseMip = MipLevel;
+    m_MipCount = MipCount;
+    
+    m_Type = texture.ComponentType();
+    m_Layout = texture.ComponentLayout();
+    
+    GLCall(glTextureView(m_Texture, GL_TEXTURE_CUBE_MAP, texture.Handle(), ToGPUTextureType(m_Type, m_Layout), MipLevel, MipCount, 0, 1))
+}
+
+void Bind(const TextureCubeView& texture)
+{
+}
+
+void UnBind(const TextureCubeView& texture)
+{
 }

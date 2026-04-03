@@ -145,7 +145,7 @@ public:
 
     using FacePair = std::pair<Face, const Image&>;
     
-    TextureCube(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout);
+    TextureCube(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips = false);
     TextureCube(std::span<const FacePair> Faces, bool UseMips = true);
     ~TextureCube();
 
@@ -154,6 +154,7 @@ public:
     INLINE GLuint Handle() const                    { return m_Texture; }
     INLINE uint32_t Width() const                   { return m_Width;}
     INLINE uint32_t Height() const                  { return m_Height;}
+    INLINE bool HasMips() const                     { return m_UseMips && m_MipCount > 0; }
     INLINE uint32_t MipCount() const                { return m_MipCount;}
     INLINE Texture::Type ComponentType() const      { return m_Type;}
     INLINE Texture::Layout ComponentLayout() const  { return m_Layout;}
@@ -175,3 +176,38 @@ private:
 
 void Bind(const TextureCube& texture);
 void UnBind(const TextureCube& texture);
+
+class TextureCubeView
+{
+public:
+    TextureCubeView(const TextureCube& texture, uint32_t MipLevel, uint32_t MipCount = 1);
+    ~TextureCubeView();
+    
+    // Retarget view
+    void Data(const TextureCube& texture, uint32_t MipLevel, uint32_t MipCount = 1);
+    
+    INLINE GLuint Handle() const                    { return m_Texture; }
+    INLINE uint32_t Width() const                   { return m_Width;}
+    INLINE uint32_t Height() const                  { return m_Height;}
+    INLINE bool HasMips() const                     { return m_MipCount > 1; }
+    INLINE uint32_t BaseMip() const                 { return m_BaseMip;}
+    INLINE uint32_t MipCount() const                { return m_MipCount;}
+    INLINE Texture::Type ComponentType() const      { return m_Type;}
+    INLINE Texture::Layout ComponentLayout() const  { return m_Layout;}
+    INLINE GLenum GLType() const { return ToGLTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    INLINE GLenum GLFormat() const { return ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    INLINE GLenum GPUType() const { return ToGPUTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    
+private:
+    uint32_t m_Width;
+    uint32_t m_Height;
+    uint32_t m_BaseMip;
+    uint32_t m_MipCount;
+
+    Texture::Type m_Type;
+    Texture::Layout m_Layout;
+    GLuint m_Texture;
+};
+
+void Bind(const TextureCubeView& texture);
+void UnBind(const TextureCubeView& texture);

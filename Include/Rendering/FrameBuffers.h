@@ -17,37 +17,59 @@ public:
     enum FrameType :uint8_t
     {
         Frame2D,
-        Frame3D
+        Frame3D,
+        FrameCubemapRight,
+        FrameCubemapLeft,
+        FrameCubemapUp,
+        FrameCubemapDown,
+        FrameCubemapBack,
+        FrameCubemapFront,
+        Unset
     };
 
-    struct ExternalAttachment
+    struct Attachment
     {
         uint32_t width; uint32_t height; uint32_t depth;
         GLuint Handle;
         ClearColor ClearColor;
         FrameType Type;
+        uint8_t TargetMip;
 
-        ExternalAttachment(const Texture2D& Texture, const FrameBuffer::ClearColor& Color):
-            width(Texture.Width()), height(Texture.Height()), depth(1),
-            Handle(Texture.Handle()),
-            ClearColor(Color),
-            Type(Frame2D)
-        {}
+        Attachment(const Texture2D& Texture, const FrameBuffer::ClearColor& Color, uint8_t TargetMip = 0);
 
-        ExternalAttachment(const Texture3D& Texture, const FrameBuffer::ClearColor& Color):
-            width(Texture.Width()), height(Texture.Height()), depth(Texture.Depth()),
-            Handle(Texture.Handle()),
-            ClearColor(Color),
-            Type(Frame3D)
-        {}
+        Attachment(const Texture3D& Texture, const FrameBuffer::ClearColor& Color, uint8_t TargetMip = 0);
+        
+        Attachment(const TextureCube& Texture, TextureCube::Face Face, const FrameBuffer::ClearColor& Color, uint8_t TargetMip = 0);
+        
+        Attachment(const TextureCubeView& Texture, TextureCube::Face Face, const FrameBuffer::ClearColor& Color, uint8_t TargetMip = 0);
+        
+        Attachment(uint32_t width, uint32_t height, uint32_t depth, const FrameBuffer::ClearColor& Color, uint8_t TargetMip = 0);
     };
     
-    FrameBuffer(const ExternalAttachment& Attachments);
-    FrameBuffer(std::span<const ExternalAttachment> Attachments);
+    struct RetargetAttachment
+    {
+        GLuint Handle;
+        FrameType Type;
+        uint8_t TargetMip;
+
+        RetargetAttachment(const Texture2D& Texture, uint8_t TargetMip = 0);
+
+        RetargetAttachment(const Texture3D& Texture, uint8_t TargetMip = 0);
+        
+        RetargetAttachment(const TextureCube& Texture, TextureCube::Face Face, uint8_t TargetMip = 0);
+        
+        RetargetAttachment(const TextureCubeView& Texture, TextureCube::Face Face, uint8_t TargetMip = 0);
+    };
+    
+    FrameBuffer(const Attachment& Attachments);
+    FrameBuffer(std::span<const Attachment> Attachments);
     ~FrameBuffer();
 
     void Clear();
     void Resize(uint32_t width = 1, uint32_t height = 1, uint32_t depth = 1);
+    
+    void Retarget(const RetargetAttachment& Attachment);
+    void Retarget(std::span<const RetargetAttachment> Attachments);
     
     INLINE GLuint Handle() const {return m_FrameBuffer;}
     INLINE uint32_t Width() const {return m_Width;}
