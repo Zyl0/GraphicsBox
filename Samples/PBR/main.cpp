@@ -36,6 +36,7 @@ constexpr float kZFar = 1000.0f;
 
 bool RequestShaderReload = false;
 bool RequestRebake = true;
+bool RebakeEveryFrame = false;
 
 /* ____________________________________ Debug ____________________________________ */
 
@@ -257,7 +258,7 @@ struct SceneBuffers
     Sampler BaseSampler{{}};
     
     // States
-    uint32_t SkylightMethod = 3;
+    uint32_t SkylightMethod = 2;
     
     
     SceneBuffers() = default;
@@ -539,10 +540,12 @@ public:
             if (SceneObjects.SkylightMethod == 1)
             {
                 SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
+                SetUniform(m_PipelineCubemap, "SkyLightMipCount",  SceneObjects.SkylightCube.MipCount());
             }
             if (SceneObjects.SkylightMethod == 3)
             {
                 SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.BakedSkylightCube, SceneObjects.BaseSampler);
+                SetUniform(m_PipelineCubemap, "SkyLightMipCount",  SceneObjects.BakedSkylightCube.MipCount());
             }
             
             SetUniform(m_PipelineCubemap, "Model", MakeHomogeneousIdentity<float>());
@@ -562,6 +565,7 @@ public:
             SetUniform(0, SceneObjects.Camera);
             SetUniform(1, SceneObjects.Lights);
             SetUniform(m_PipelineHDRI, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
+            SetUniform(m_PipelineCubemap, "SkyLightMipCount",  SceneObjects.SkylightHDRI.MipCount());
 
             SetUniform(m_PipelineHDRI, "Model", MakeHomogeneousIdentity<float>());
 
@@ -624,7 +628,7 @@ private:
     Pipeline m_PipelineHDRI;
     
     MaterialParams m_Material{};
-    uint32_t m_SkyLightSampleCount = 64;
+    uint32_t m_SkyLightSampleCount = 32;
 };
 
 class PostProcess
@@ -843,11 +847,11 @@ int main(void)
             }
             
             // Bake non real time data
-            if (RequestRebake)
+            if (RequestRebake || RebakeEveryFrame)
             {
                 HDRiToCubemapPass.Draw(GPUScene);
                 
-                // RequestRebake = false;
+                RequestRebake = false;
             }
 
             glClear(GL_COLOR_BUFFER_BIT );
@@ -906,6 +910,15 @@ int main(void)
                 ImGui::SliderInt("Sky light Sample Count", (int*)&DrawScenePass.SkyLightSampleCount(), 1, 1024);
 
                 ImGui::Separator();
+                
+                if (GPUScene.SkylightMethod == 3)
+                {
+                    ImGui::Checkbox("Rebake data every frame", &RebakeEveryFrame);
+                    if (ImGui::Button("Rebake data"))
+                    {
+                        RequestRebake = true;
+                    }
+                }
 
                 if (GPUScene.SkylightMethod == 0)
                 {

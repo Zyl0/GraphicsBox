@@ -240,8 +240,15 @@ void main( )
                 vec3 ReflectanceMetallic = fMetallicIndirect(DiffuseColor, G2 / G1, F);
 
                 vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, Metalness);
-                
+
+#ifdef USE_PROCEDURAL_SKYLIGHT
                 vec3 SkyLight = SampleSkylightColor(l);
+#endif // USE_PROCEDURAL_SKYLIGHT
+                
+#if defined(USE_CUBEMAP_SKYLIGHT) || defined(USE_HDRI_SKYLIGHT)
+                vec3 SkyLight = SampleSkylightColor(l, Roughness);
+#endif // defined(USE_CUBEMAP_SKYLIGHT) || defined(USE_HDRI_SKYLIGHT)
+                
 
                 sum += Reflectance * SkyLight;
             }
