@@ -39,6 +39,12 @@ newoption {
    description = "Generate sample projects. Download sample assets. Etc"
 }
 
+-- Sample projects
+newoption {
+   trigger = "sample-scenes",
+   description = "Download sample scene and content for demonstration"
+}
+
 solution "GraphicsBox"
     configurations { "Debug", "Development", "Release" }
     debugdir ( gb_SolutionDir )
@@ -628,7 +634,7 @@ group "Samples"
     filter { "" }
 
     SampleProjects = {
-        -- "GIMesh",
+        "GLTFViewer",
         "PBR",
         "SpectralRendering"
     }
@@ -644,6 +650,12 @@ group "Samples"
                 "RESOURCES_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Resources") .. "\"",
                 "SHADERS_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Shaders") .. "\""
             }
+        
+            if _OPTIONS["sample-scenes"] then
+                defines {
+                    "RESOURCES_SAMPLE_SCENES=\"" .. path.join(gb_SamplesDir, "Scenes") .. "\"",
+                }
+            end
             
             -- Solution file
             location (path.join(gb_SolutionProjectDir, "samples"))
@@ -691,4 +703,58 @@ group "Samples"
             }
     end
 
+end
+
+if _OPTIONS["sample-scenes"] then
+    SampleScencesRepos = {
+        {
+            name = "glTF-Sample-Assets",
+            url = "https://github.com/KhronosGroup/glTF-Sample-Assets.git"
+        },
+        {
+            name = "RTXDI-Assets",
+            url = "https://github.com/NVIDIA-RTX/RTXDI-Assets.git"
+        },
+    }
+    
+    local resourcesDir = path.join(gb_SamplesDir, "Scenes")
+    
+    print("[sample-assets] Checking Resources folder...")
+
+    if not os.isdir(resourcesDir) then
+        print("[sample-assets] Creating '" .. resourcesDir .. "' directory...")
+        os.mkdir(resourcesDir)
+    end
+
+    for _, repo in ipairs(SampleScencesRepos) do
+        local repoDir = resourcesDir .. "/" .. repo.name
+
+        print("\n[sample-assets] Processing: " .. repo.name)
+
+        if not os.isdir(repoDir .. "/.git") then
+            print("[sample-assets] Cloning " .. repo.url .. " into " .. repoDir .. " ...")
+            local result = os.execute("git clone " .. repo.url .. " " .. repoDir)
+            print(result)
+            if result ~= true then
+                error("[sample-assets] ERROR: git clone failed for " .. repo.name)
+            else
+                print("[sample-assets] Clone complete: " .. repo.name)
+            end
+        else
+            print("[sample-assets] Already cloned. Fetching updates for " .. repo.name .. "...")
+            local fetch = os.execute("git -C " .. repoDir .. " fetch")
+            if fetch ~= true then
+                error("[sample-assets] ERROR: git fetch failed for " .. repo.name)
+            end
+
+            local pull = os.execute("git -C " .. repoDir .. " pull")
+            if pull ~= true then
+                error("[sample-assets] ERROR: git pull failed for " .. repo.name)
+            end
+
+            print("[sample-assets] Updated: " .. repo.name)
+        end
+    end
+
+    print("\n[sample-assets] All repositories processed.")
 end

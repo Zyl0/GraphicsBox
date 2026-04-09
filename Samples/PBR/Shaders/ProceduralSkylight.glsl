@@ -5,8 +5,8 @@
 #include "Include/GGX.glsl"
 #include "Include/FresnelSchlick.glsl"
 #include "LightSources.glsl"
-#include "LightingModel.glsl"
-#include "Camera.glsl"
+#include "Include/PBRLightingModel.glsl"
+#include "Include/Camera.glsl"
 
 // Procedural sky parameters
 layout (binding = 2, std140)  uniform ProceduralSkySettings_t

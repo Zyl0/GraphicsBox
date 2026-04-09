@@ -61,15 +61,15 @@ public:
         RetargetAttachment(const TextureCubeView& Texture, TextureCube::Face Face, uint8_t TargetMip = 0);
     };
     
-    FrameBuffer(const Attachment& Attachments);
-    FrameBuffer(std::span<const Attachment> Attachments);
+    FrameBuffer(const Attachment& Attachments, const Texture2D* DepthStencilAttachment = nullptr);
+    FrameBuffer(std::span<const Attachment> Attachments, const Texture2D* DepthStencilAttachment = nullptr);
     ~FrameBuffer();
 
     void Clear();
     void Resize(uint32_t width = 1, uint32_t height = 1, uint32_t depth = 1);
     
-    void Retarget(const RetargetAttachment& Attachment);
-    void Retarget(std::span<const RetargetAttachment> Attachments);
+    void Retarget(const RetargetAttachment& Attachment, const Texture2D* DepthStencilAttachment = nullptr);
+    void Retarget(std::span<const RetargetAttachment> Attachments, const Texture2D* DepthStencilAttachment = nullptr);
     
     INLINE GLuint Handle() const {return m_FrameBuffer;}
     INLINE uint32_t Width() const {return m_Width;}

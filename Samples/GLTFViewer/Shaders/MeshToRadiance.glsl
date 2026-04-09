@@ -96,9 +96,6 @@ void main( )
 #include "Include/PBRLightingModel.glsl"
 
 // Skylight method switch
-#ifdef USE_PROCEDURAL_SKYLIGHT
-#include "ProceduralSkylight.glsl"
-#endif // USE_PROCEDURAL_SKYLIGHT
 #ifdef USE_CUBEMAP_SKYLIGHT
 #include "CubemapSkylight.glsl"
 #endif // USE_CUBEMAP_SKYLIGHT
@@ -121,28 +118,6 @@ vec2 Hammersley(uint i, uint N)
     return vec2(float(i)/float(N), RadicalInverse_VdC(i));
 }
 
-// Derived from the sample GGX function assuming the surface is rough to get the most diffused samples
-// vec3 SampleHemisphere(vec3 n, float U1, float U2)
-// {
-//     float phi = 2.0 * M_PI * U2;
-//     float cosTheta = sqrt( 1.0 - U1 );
-//     float sinTheta = sqrt( 1.0 - cosTheta * cosTheta );
-// 
-//     // from spherical coordinates to cartesian coordinates
-//     vec3 H;
-//     H.x = cos(phi) * sinTheta;
-//     H.y = sin(phi) * sinTheta;
-//     H.z = cosTheta;
-// 
-//     // from tangent-space vector to world-space sample vector
-//     vec3 up        = abs(n.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-//     vec3 tangent   = normalize(cross(up, n));
-//     vec3 bitangent = cross(n, tangent);
-// 
-//     vec3 sampleVec = tangent * H.x + bitangent * H.y + n * H.z;
-//     return normalize(sampleVec);
-// }
-
 layout(location= 0) in vec3 FragWorldPosition;
 layout(location= 1) in vec3 FragNormal;
 layout(location= 2) in vec3 FragTangent;
@@ -155,21 +130,53 @@ uniform vec3 BaseColor;
 uniform float Roughness;
 uniform float Metalness;
 
-// Uniform
+uniform bool UseColorTexture;
+uniform bool UseNormalTexture;
+uniform bool UseMRTexture;
+uniform bool UseAOTexture;
+
+uniform sampler2D texColor;
+uniform sampler2D texNormal;
+uniform sampler2D texMR;
+uniform sampler2D texAO;
+
+// Globals
 uniform uint IndirectLightingSampleCount;
 
 out vec4 OutColor;
 
 void main( )
 {
+    vec3 PixBaseColor = BaseColor;
+    float PixMetalness = Metalness;
+    float PixRoughness = Roughness;
+    float PixAmbiantOcclusion = 1.f;
+    
+    if (UseColorTexture == true)
+    {
+        PixBaseColor = texture(texColor, UV0).xyz;
+    }
+    if (UseMRTexture == true)
+    {
+        vec2 mr = texture(texMR, UV0).yz;
+        PixMetalness = mr.x;
+        PixRoughness = mr.y;
+    }
+    if (UseAOTexture == true)
+    {
+        PixAmbiantOcclusion = texture(texAO, UV0).x;
+    }
+    
     // Hit point Material settings
-    vec3 DiffuseColor = mix(BaseColor, vec3(0), Metalness);
-    vec3 F0 = mix(vec3(0.04), BaseColor, Metalness);
-    float Alpha = Roughness * Roughness;
-
-    // TODO base color / normal / etc... textures
-    // vec3 Normal = normalize(TBN * MaterialGetNormal());
+    vec3 DiffuseColor = mix(BaseColor, vec3(0), PixBaseColor);
+    vec3 F0 = mix(vec3(0.04), PixBaseColor, PixMetalness);
+    float Alpha = PixRoughness * PixRoughness;
+    
     vec3 Normal =  FragNormal;
+    if (UseNormalTexture == true)
+    {
+        Normal = normalize(FragTBN * (texture(texNormal, UV0).xyz * 2.f - 1.f));
+    }
 
     vec3 finalColor = vec3(0);
 
@@ -197,7 +204,7 @@ void main( )
             vec3 ReflectanceDielectrical = fDielectrical(DiffuseColor, DGNormalized, F);
             vec3 ReflectanceMetallic = fMetallic(DGNormalized, F);
 
-            vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, Metalness);
+            vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
 
             vec3 Light = LightSources.SunLight.LightColor * CosThetaL * LightSources.SunLight.LightIntensity;
 
@@ -239,21 +246,14 @@ void main( )
                 vec3 ReflectanceDielectrical = fDielectricalIndirect(DiffuseColor, G2 / G1, F);
                 vec3 ReflectanceMetallic = fMetallicIndirect(DiffuseColor, G2 / G1, F);
 
-                vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, Metalness);
-
-#ifdef USE_PROCEDURAL_SKYLIGHT
-                vec3 SkyLight = SampleSkylightColor(l);
-#endif // USE_PROCEDURAL_SKYLIGHT
+                vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
                 
-#if defined(USE_CUBEMAP_SKYLIGHT) || defined(USE_HDRI_SKYLIGHT)
-                vec3 SkyLight = SampleSkylightColor(l, Roughness);
-#endif // defined(USE_CUBEMAP_SKYLIGHT) || defined(USE_HDRI_SKYLIGHT)
+                vec3 SkyLight = SampleSkylightColor(l, PixRoughness);
                 
-
                 sum += Reflectance * SkyLight;
             }
 
-            finalColor += sum / float(IndirectLightingSampleCount);
+            finalColor += (sum * PixAmbiantOcclusion) / float(IndirectLightingSampleCount);
         }
     }
 

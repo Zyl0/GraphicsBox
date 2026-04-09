@@ -15,6 +15,7 @@ You will need Visual Studio, or any IDE that supports .sln projects (like JetBra
 
 - run: ```<premake-executable> vs<version>```. Graphics Box works well on Visual Studio 2022 solutions for example.
 - (optional) to generate the samples run: ```<premake-executable> vs<version> --samples```
+- (optional) to download samples assets and test scenes: ```<premake-executable> vs<version> <...> --sample-scenes```
 
 You can now open the generated ```GraphicsBox.sln``` file generated and build.
 
@@ -27,5 +28,6 @@ You can now open the generated ```GraphicsBox.sln``` file generated and build.
 
 - run ```<premake-executable> gmake```. Graphics Box works well on Visual Studio 2022 solutions for example.
 - (optional) to generate the samples run: ```<premake-executable> gmake --samples```
+- (optional) to download samples assets and test scenes: ```<premake-executable> gmake <...> --sample-scenes```
 - To build run: ```Make <project> config=<config>```
   - config - "Debug", "Development" or "Release"
