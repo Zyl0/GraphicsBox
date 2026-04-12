@@ -25,7 +25,10 @@ out vec4 OutColor;
 
 void main() 
 {
-    vec4 Direction = ProjToWorld(ViewportToProj(vec4(UVProj, 1.0, 0.0)));
+    vec4 ViewportDirection = vec4(UVProj, 1.0, 0.0);
+    ViewportDirection.x *= -1;
+    ViewportDirection.z *= -1;
+    vec4 Direction = ProjToWorld(ViewportToProj(ViewportDirection));
 
     OutColor.xyz = SampleSkylightColor(normalize(Direction.xyz));
     OutColor.w = 1.0;

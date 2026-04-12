@@ -158,14 +158,17 @@ void main( )
     }
     if (UseMRTexture == 1)
     {
-        vec2 mr = texture(texMR, UV0).yz;
-        PixMetalness = mr.x;
+        vec3 mr = texture(texMR, UV0).xyz;
+        PixMetalness = mr.z;
         PixRoughness = mr.y;
     }
     if (UseAOTexture == 1)
     {
         PixAmbiantOcclusion = texture(texAO, UV0).x;
     }
+    
+    // Clamp roughness
+    PixRoughness = max(PixRoughness, 0.004);
     
     // Hit point Material settings
     vec3 DiffuseColor = mix(BaseColor, vec3(0), PixBaseColor);

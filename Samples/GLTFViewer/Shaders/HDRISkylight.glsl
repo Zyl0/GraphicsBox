@@ -9,12 +9,14 @@ uniform uint SkyLightMipCount;
 
 vec3 SampleSkylightColor(vec3 Direction)
 {
-    return texture(SkyLightHDRi, SampleSphericalMap(Direction)).xyz;
+    vec2 uv = SampleSphericalMap(Direction);
+    return texture(SkyLightHDRi, uv).xyz;
 }
 
 vec3 SampleSkylightColor(vec3 Direction, float Alpha)
 {
-    return texture(SkyLightHDRi, SampleSphericalMap(Direction), Alpha * SkyLightMipCount).xyz;
+    vec2 uv = SampleSphericalMap(Direction);
+    return texture(SkyLightHDRi, uv, Alpha * SkyLightMipCount).xyz;
 }
 
 #endif // INCLUDE_GUARD_GLSL_HDRI_SKYLIGHT
