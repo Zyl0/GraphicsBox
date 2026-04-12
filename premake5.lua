@@ -417,10 +417,10 @@ group "Utilites"
 
         -- Dependencies
         dependson {
-            "TinyGLTF", "TinyGLTF3"
+            "TinyGLTF", -- "TinyGLTF3"
         }
         links {
-            "TinyGLTF", "TinyGLTF3"
+            "TinyGLTF", -- "TinyGLTF3"
         }
 
     project "Files"
