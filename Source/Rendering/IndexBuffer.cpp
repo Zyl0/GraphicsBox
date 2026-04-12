@@ -15,7 +15,7 @@ void IndexBuffer::BufferData(IndexType type, const void* data, unsigned int coun
     m_IndexType = type;
     
     Bind(*this);
-    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER,  count * sizeof(unsigned int), data, GL_STATIC_DRAW))
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER,  count * ToGLIndexSize(type), data, GL_STATIC_DRAW))
     UnBind(*this);
 }
 

@@ -73,6 +73,29 @@ namespace GLTF
         uint8_t vertexGroup;
     };
     
+    struct Transform
+    {
+        enum TransformType
+        {
+            Properties, Matrix
+        } Type;
+        union TransformData
+        {
+            Math::WorldTransformF asProperties;
+            Math::Transform4f asMatrix;
+        } Value;
+        
+        Transform() : Type(Properties), Value(Math::WorldTransformF{}) {}
+
+        Transform(const Transform& Other);
+
+        Transform(Transform&& Other) noexcept;
+
+        Transform& operator=(const Transform& Other);
+
+        Transform& operator=(Transform&& Other) noexcept;
+    };
+    
     struct CPUScene
     {        
         std::vector<Image> textures;
@@ -81,13 +104,13 @@ namespace GLTF
 
         std::vector<Material> materials;
 
-        std::vector<Math::WorldTransformF> transforms;
+        std::vector<Transform> transforms;
 
         std::vector<MeshInstance> instances;
     };
     
     bool LoadCPUScene(const std::filesystem::path& path, CPUScene& scene);
-    
+
     struct GPUScene
     {        
         std::vector<Texture2D> textures;
@@ -96,7 +119,7 @@ namespace GLTF
 
         std::vector<Material> materials;
 
-        std::vector<Math::WorldTransformF> transforms;
+        std::vector<Transform> transforms;
 
         std::vector<MeshInstance> instances;
     };

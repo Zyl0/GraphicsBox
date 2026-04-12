@@ -7,7 +7,7 @@
 #define _UNSUPPORTED_FEATURE static_assert(false, "Unsupported platform. You are most likely using the wrong platform header.")
 
 // TODO mode to premake
-#define BREAKPOINT_ENABLE 1
+#define BREAKPOINT_ENABLE 0
 
 #if BREAKPOINT_ENABLE == 0
 #define EngineRuntimeBREAKPOINT 

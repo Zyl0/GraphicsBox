@@ -7,7 +7,11 @@
 #define GL_CATCH_ERRORS 1
 
 #if GL_CATCH_ERRORS == 1
-//#define GL_NO_Breakpoint
+
+#ifndef CONFIG_DEBUG
+#define GL_NO_Breakpoint
+#endif // CONFIG_DEBUG
+
 #ifdef GL_NO_Breakpoint
 #define GLCall(x)                                                   \
 {                                                                   \

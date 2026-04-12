@@ -58,11 +58,11 @@ GLenum ToGLTextureLayout(Texture::Type type, Texture::Layout layout)
     case Texture::Int:
         switch (layout)
         {
-        case Texture::R:        return GL_RED_INTEGER;
-        case Texture::RG:       return GL_RED_INTEGER;
-        case Texture::RGB:      return GL_RED_INTEGER;
-        case Texture::BGR:      return GL_RED_INTEGER;
-        case Texture::RGBA:     return GL_RED_INTEGER;
+        case Texture::R:        return GL_RED;
+        case Texture::RG:       return GL_RG;
+        case Texture::RGB:      return GL_RGB;
+        case Texture::BGR:      return GL_BGR;
+        case Texture::RGBA:     return GL_RGBA;
             
         case Texture::ARGB:
         case Texture::ABGR:
@@ -133,13 +133,15 @@ GLenum ToGPUTextureType(Texture::Type type, Texture::Layout layout)
     case Texture::UnsignedByte:
         switch (layout)
         {
-        case Texture::R:        return GL_R8UI;
-        case Texture::RG:       return GL_RG8UI;
+        // Most likely unsigned int sampler have issues
+        // TODO integrate better
+        case Texture::R:        return GL_R8;
+        case Texture::RG:       return GL_RG8;
         case Texture::RGB:
-        case Texture::BGR:      return GL_RGB8UI;
+        case Texture::BGR:      return GL_RGB8;
         case Texture::RGBA:
-        case Texture::ARGB:     return GL_RGBA8UI;
-        case Texture::ABGR:     return GL_RGBA8UI;
+        case Texture::ARGB:     return GL_RGBA8;
+        case Texture::ABGR:     return GL_RGBA8;
                             
         case Texture::D:
         case Texture::S:
@@ -350,13 +352,16 @@ Texture2D::Texture2D(uint32_t width, uint32_t height, Texture::Type type, Textur
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, m_MipCount);
 
-    GLCall(glTexImage2D(GL_TEXTURE_2D, 0,
-        ToGPUTextureType(type, layout), Width(), Height(), 0,
-        ToGLTextureLayout(type, layout), ToGLTextureType(type, layout), nullptr))
-
-    if (m_MipCount > 0)
+    if (m_Width > 0 && m_Height > 0)
     {
-        glGenerateMipmap(GL_TEXTURE_2D);
+        GLCall(glTexImage2D(GL_TEXTURE_2D, 0,
+            ToGPUTextureType(type, layout), Width(), Height(), 0,
+            ToGLTextureLayout(type, layout), ToGLTextureType(type, layout), nullptr))
+
+        if (m_MipCount > 0)
+        {
+            glGenerateMipmap(GL_TEXTURE_2D);
+        }
     }
 
     UnBind(*this);
@@ -707,17 +712,20 @@ TextureCube::TextureCube(uint32_t width, uint32_t height, Texture::Type type, Te
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
-    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
-    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
-    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
-    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
-    GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
     
-    if (m_UseMips)
+    if (m_Width > 0 && m_Height > 0)
     {
-        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+        GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+        GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+        GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+        GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+        GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+        GLCall(glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0,ToGPUTextureType(m_Type, m_Layout), Width(), Height(), 0, ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), nullptr ))
+            
+        if (m_UseMips)
+        {
+            glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+        }
     }
     
     UnBind(*this);

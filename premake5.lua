@@ -211,6 +211,31 @@ group "Dependencies"
         }
     
         dependson {"stb_image"}
+        
+    project "TinyGLTF3"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
+        -- Project includes
+        includedirs {
+            path.join(gb_SourceDependencyDir, "stb"),
+            path.join(gb_SourceDependencyDir, "TinyGLTF"),
+            path.join(gb_IncludeDir, "Shared")
+        }
+
+        -- Project files    
+        files { 
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "*.cpp"),
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "*.c"), 
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "*.h"),
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "*.hpp"),
+            path.join(gb_LibsImplementDir, "tiny_gltf3.cpp")
+        }
+    
+        dependson {"stb_image"}
 
     project "ImGUI"
         language "C++"
@@ -386,13 +411,16 @@ group "Utilites"
             path.join(gb_SrcDir, "Importers", "**.c"),
             path.join(gb_SrcDir, "Importers", "**.cpp"),
         }
+    
+        defines {"USE_TINY_GLTF"}
+        -- defines {"USE_TINY_GLTF_3"}
 
         -- Dependencies
         dependson {
-            "TinyGLTF",
+            "TinyGLTF", "TinyGLTF3"
         }
         links {
-            "TinyGLTF",
+            "TinyGLTF", "TinyGLTF3"
         }
 
     project "Files"

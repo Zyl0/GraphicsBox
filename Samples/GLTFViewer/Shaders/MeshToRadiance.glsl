@@ -130,10 +130,10 @@ uniform vec3 BaseColor;
 uniform float Roughness;
 uniform float Metalness;
 
-uniform bool UseColorTexture;
-uniform bool UseNormalTexture;
-uniform bool UseMRTexture;
-uniform bool UseAOTexture;
+uniform uint UseColorTexture;
+uniform uint UseNormalTexture;
+uniform uint UseMRTexture;
+uniform uint UseAOTexture;
 
 uniform sampler2D texColor;
 uniform sampler2D texNormal;
@@ -152,17 +152,17 @@ void main( )
     float PixRoughness = Roughness;
     float PixAmbiantOcclusion = 1.f;
     
-    if (UseColorTexture == true)
+    if (UseColorTexture == 1)
     {
         PixBaseColor = texture(texColor, UV0).xyz;
     }
-    if (UseMRTexture == true)
+    if (UseMRTexture == 1)
     {
         vec2 mr = texture(texMR, UV0).yz;
         PixMetalness = mr.x;
         PixRoughness = mr.y;
     }
-    if (UseAOTexture == true)
+    if (UseAOTexture == 1)
     {
         PixAmbiantOcclusion = texture(texAO, UV0).x;
     }
@@ -173,7 +173,7 @@ void main( )
     float Alpha = PixRoughness * PixRoughness;
     
     vec3 Normal =  FragNormal;
-    if (UseNormalTexture == true)
+    if (UseNormalTexture == 1)
     {
         Normal = normalize(FragTBN * (texture(texNormal, UV0).xyz * 2.f - 1.f));
     }
@@ -250,7 +250,7 @@ void main( )
                 
                 vec3 SkyLight = SampleSkylightColor(l, PixRoughness);
                 
-                sum += Reflectance * SkyLight;
+                sum += (G1 > 0.0f && G2 > 0.0f) ? Reflectance * SkyLight : vec3(0.0f);
             }
 
             finalColor += (sum * PixAmbiantOcclusion) / float(IndirectLightingSampleCount);

@@ -38,6 +38,10 @@ bool RequestShaderReload = false;
 bool RequestRebake = true;
 bool RebakeEveryFrame = false;
 
+float CameraSpeed = 1.0f;
+
+bool UseFrustumCulling = false;
+
 /* ____________________________________ Debug ____________________________________ */
 
 void GLAPIENTRY MessageCallback(GLenum source,
@@ -84,7 +88,9 @@ void GLAPIENTRY MessageCallback(GLenum source,
     {
     case GL_DEBUG_SEVERITY_HIGH:
         EngineLoggerErrorF("OpenGL Validation Error High [%s] [%s]: %s", errSource, errType, message);
+#ifdef CONFIG_DEBUG
         EngineRuntimeBREAKPOINT
+#endif // CONFIG_DEBUG
         break;
 
     case GL_DEBUG_SEVERITY_MEDIUM:
@@ -134,7 +140,6 @@ void UpdateCamera(GLFWwindow* window, double deltaTime, FlyCamera& camera)
 {
     Vector3f PositionDir(0, 0, 0);
     float rotateDir = 0.0f;
-    const float speed = 1000.0f;
 
     if (GetKey(window, GLFW_KEY_LEFT_SHIFT))
         PositionDir.y += 1;
@@ -149,7 +154,7 @@ void UpdateCamera(GLFWwindow* window, double deltaTime, FlyCamera& camera)
     if (GetKey(window, GLFW_KEY_D))
         PositionDir.z -= 1;
     
-    PositionDir = PositionDir * static_cast<float>(deltaTime) * speed * 2.0f;
+    PositionDir = PositionDir * static_cast<float>(deltaTime) * (CameraSpeed * 100) * 2.0f;
     camera.Translate(Transpose(camera.GetWorldRotation().GetRotationMatrix()) * PositionDir);
         
     if (GetKey(window, GLFW_KEY_Q))
@@ -157,7 +162,7 @@ void UpdateCamera(GLFWwindow* window, double deltaTime, FlyCamera& camera)
     if (GetKey(window, GLFW_KEY_E))
         rotateDir -= 1;
     
-    camera.RotateRadians(0, rotateDir * Pi * deltaTime * speed / 5);
+    camera.RotateRadians(0, rotateDir * Pi * deltaTime * (CameraSpeed * 1000) / 5);
 }
 #endif // WINDOW_GLFW
 
@@ -429,14 +434,32 @@ public:
         {
             const MeshObject& Mesh = SceneObjects.Scene.meshes[Instance.mesh];
             const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
-            const WorldTransformF& Transform = SceneObjects.Scene.transforms[Instance.transform];
+            const GLTF::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
             const GLTF::Material& Material = SceneObjects.Scene.materials[Instance.material];
             
-            Transform4f TransformMatrix = Transform.GetTransform();
+            switch (Transform.Type)
+            {
+            case GLTF::Transform::Properties:
+                {
+                    Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
             
-            if (!frustumCullingTest(ViewProj, TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+                    if (UseFrustumCulling && !frustumCullingTest(ViewProj, TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
             
-            SetUniform(*pipeline, "Model", TransformMatrix);
+                    SetUniform(*pipeline, "Model", TransformMatrix);
+                }
+                break;
+                
+            case GLTF::Transform::Matrix:
+                {
+                    if (UseFrustumCulling && !frustumCullingTest(ViewProj, Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+            
+                    SetUniform(*pipeline, "Model", Transform.Value.asMatrix);
+                }
+                break;
+                
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
+            }
+
             
             // Material
             SetUniform(*pipeline, "BaseColor", Material.color.XYZ());
@@ -590,6 +613,10 @@ int main(void)
     glDepthFunc(GL_LESS);
     glClearDepth(1.0f);
     
+#ifndef CONFIG_DEBUG
+    UseFrustumCulling = true;
+#endif // CONFIG_DEBUG 
+    
     // Application resources lifetime
     {
         uint32_t CurrentWidth = kBaseWidth, CurrentHeight = kBaseHeight;
@@ -607,7 +634,9 @@ int main(void)
         // Load scene data
         {
             std::filesystem::path path;
-            if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.glb" ,path))
+            // if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.glb" ,path))
+            // if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "MetalRoughSpheres" / "glTF-Binary" /"MetalRoughSpheres.glb" ,path))
+            if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "MetalRoughSpheres" / "glTF" /"MetalRoughSpheres.gltf" ,path))
             {
                 AssertOrError( GLTF::LoadGPUScene(path, GPUScene.Scene), "Failed to load scene")
             }
@@ -774,7 +803,12 @@ int main(void)
                     {
                         RequestRebake = true;
                     }
+                    
+                    ImGui::Separator();
                 }
+                
+                ImGui::SliderFloat("Camera Speed", &CameraSpeed, 0.1f, 2.0f);
+                ImGui::Checkbox("Use Frustum Culling", &UseFrustumCulling);
                 
                 ImGui::End();
 
