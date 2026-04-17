@@ -1,11 +1,10 @@
 #pragma once
 
-#include <vector>
+#include "Shared/Assertion.h"
 
 #include "Core/Context.h"
 #include "Core/Types.h"
-#include "Core/Scene.h"
-#include "Shared/Assertion.h"
+#include "Runtime/Scene.h"
 
 namespace Engine::World
 {

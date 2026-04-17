@@ -2,6 +2,7 @@
 
 #include "Spec.h"
 #include "Scene.h"
+#include "Runtime/Scene.h"
 
 namespace Engine
 {

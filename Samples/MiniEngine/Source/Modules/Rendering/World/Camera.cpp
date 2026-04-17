@@ -2,7 +2,6 @@
 
 #include "World/Component.h"
 
-
 namespace Rendering::World
 {
     using namespace Engine::World;

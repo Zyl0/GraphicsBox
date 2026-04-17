@@ -2,6 +2,8 @@
 
 #include "Shared/Assertion.h"
 
+#include "Runtime/Scene.h"
+
 namespace Engine::World
 {
     Handle SpawnActor(Context& Context, const Transform& Transform, Handle OwningActor)
