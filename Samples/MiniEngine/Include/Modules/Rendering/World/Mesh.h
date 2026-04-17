@@ -17,25 +17,24 @@ namespace Rendering::World
         Engine::Handle DrawCall;
     };
 
-    class MeshComponentSystem
+    class MeshComponentSystem : public Engine::World::IComponentSystem
     {
     public:
         using Component = MeshComponent;
-        static constexpr Engine::World::ECSFeatureFlags Flags = Engine::World::ECS_RequireActorRef;
 
         void Initialize(Component& Component, Engine::Handle OwningActor);
 
-        void Update(Component& Component, double DeltaTime)
+        void Update(Component& Component, Engine::Handle OwningActor, double DeltaTime)
         {
             
         }
 
-        void Terminate(Component& Component);
+        void Terminate(Component& Component, Engine::Handle OwningActor);
 
         void InitializeSystem();
         void UpdateSystem(double DeltaTime)
         {
-            CameraComponent& Camera = Engine::World::GetComponentSystem<CameraComponentSystem>().GetCurrentCamera();
+            CameraComponent& Camera = Engine::World::GetComponentSystem<CameraComponentSystem>(GetContext()).GetCurrentCamera();
             
             CurrentVP = Camera.Camera.Projection() * Camera.Camera.View();
             CurrentInverseVP = Camera.Camera.InverseView() * Camera.Camera.InverseProjection();

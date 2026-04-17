@@ -1,7 +1,10 @@
 #pragma once
 
 #include "Camera/FlyCamera.h"
-#include "World/Component.h"
+
+#include "Core/Types.h"
+#include "Core/Scene.h"
+#include "World/Actor.h"
 
 namespace Rendering::World
 {
@@ -10,27 +13,47 @@ namespace Rendering::World
         FlyCamera Camera;
     };
 
-    class CameraComponentSystem
+    class CameraComponentSystem : public Engine::World::IComponentSystem
     {
     public:
+        COMPONENT_SYSTEM_EXPOSE_EVENTS(CameraComponentSystem);
         using Component = CameraComponent;
-        static constexpr Engine::World::ECSFeatureFlags Flags = Engine::World::ECS_RequireActorRef;
 
-        void Initialize(Component& Component, Engine::Handle OwningActor);
+        void SetCurrentCamera(Engine::Handle Camera);
 
-        void Update(Component& Component, double DeltaTime);
+        CameraComponent& GetCurrentCamera();
 
-        void Terminate(Component& Component);
-
-        void InitializeSystem();
-        void UpdateSystem(double DeltaTime)
+    private:
+        void Initialize(Component& Component, Engine::Handle OwningActor)
         {
             
         }
-        void TerminateSystem();
-        
-        CameraComponent& GetCurrentCamera();
 
+        void Update(Component& Component, Engine::Handle OwningActor, double DeltaTime)
+        {
+            GetContext();
+            Engine::World::IsValidActor(GetContext(), OwningActor);
+        }
+
+        void Terminate(Component& Component, Engine::Handle OwningActor)
+        {
+            
+        }
+
+        void InitializeSystem()
+        {
+            
+        }
+        
+        void UpdateSystem(double DeltaTime)
+        {
+        }
+        
+        void TerminateSystem()
+        {
+            
+        }
+        
     private:
         Engine::Handle m_CurrentCamera;
     };

@@ -1,4 +1,4 @@
-#include "World/Scene.h"
+#include "Core/Scene.h"
 
 #include "Math/RMath.h"
 #include "Shared/Assertion.h"
@@ -25,7 +25,7 @@ namespace Engine::World
         return ActorHandle;
     }
 
-    bool _World::Scene::IsValidActor(Handle Actor)
+    bool _World::Scene::IsValidActor(Handle Actor) const
     {
         return GetActor(Actor).IsValid;
     }
@@ -50,5 +50,26 @@ namespace Engine::World
         
         // Release actor object
         actor.IsValid = false;
+    }
+
+    Handle IComponentSystem::GetActor(Handle Component) const
+    {
+        return m_Array->GetActor(Component);
+    }
+
+    bool IComponentSystem::IsValidComponent(Handle Component) const
+    {
+        return m_Array->IsValidComponent(Component);
+    }
+
+    void* IComponentSystem::GetComponent(Handle Component) const
+    {
+        return m_Array->GetComponent(Component);
+    }
+
+    void IComponentSystem::Link(const Context& Context, _ECS::IComponentArray* Array)
+    {
+        m_Context = Context;
+        m_Array = Array;
     }
 }

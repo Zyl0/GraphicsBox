@@ -1,8 +1,8 @@
 #include "GLTF/SceneLoader.h"
 
+#ifdef USE_TINY_GLTF_3
 #include <tiny_gltf_v3.h>
 
-#ifdef USE_TINY_GLTF_3
 namespace GLTF
 {
     bool LoadCPUScene(const std::filesystem::path& path, CPUScene& scene)
