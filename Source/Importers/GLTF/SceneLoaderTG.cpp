@@ -395,8 +395,12 @@ namespace  GLTF
             case TINYGLTF_MODE_TRIANGLES:       MeshObject.BeginMesh(Mesh::VertexType::TRIANGLES); break;
             case TINYGLTF_MODE_TRIANGLE_STRIP:  MeshObject.BeginMesh(Mesh::VertexType::TRIANGLE_STRIP); break;
             case TINYGLTF_MODE_TRIANGLE_FAN:    MeshObject.BeginMesh(Mesh::VertexType::TRIANGLE_FAN); break;
+#ifdef CONFIG_DEBUG
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported glTF Primitive Mode %d", MainPrimitiveType)
+#else // CONFIG_DEBUG
             default:
-                EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", MainPrimitiveType);
+                EngineLoggerErrorF("Unsupported glTF Primitive Mode %d", MainPrimitiveType);
+#endif // !CONFIG_DEBUG
             }
             
             for (const auto & primitive : mesh.primitives)
@@ -915,8 +919,12 @@ namespace  GLTF
             }
             break;
                 
+#ifdef CONFIG_DEBUG
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported glTF Primitive Mode %d", GLTFComponentType)
+#else // CONFIG_DEBUG
         default:
-        EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", GLTFComponentType);
+            EngineLoggerErrorF("Unsupported glTF Primitive Mode %d", GLTFComponentType);
+#endif // !CONFIG_DEBUG
         }
     }
     
@@ -978,10 +986,25 @@ namespace  GLTF
             case TINYGLTF_MODE_TRIANGLE_STRIP:  MeshObject.BeginMesh(Mesh::VertexType::TRIANGLE_STRIP); break;
             case TINYGLTF_MODE_TRIANGLE_FAN:    MeshObject.BeginMesh(Mesh::VertexType::TRIANGLE_FAN); break;
                 
+#ifdef CONFIG_DEBUG
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported glTF Primitive Mode %d", MainPrimitiveType)
+#else // CONFIG_DEBUG
             default:
-            EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", MainPrimitiveType);
+                EngineLoggerErrorF("Unsupported glTF Primitive Mode %d", MainPrimitiveType);
+#endif // !CONFIG_DEBUG
             }
             
+            struct BufferDataView
+            {
+                int TinyGLTFComponentType;
+                std::span<const uint8_t> View;
+            };
+            
+            // states
+            std::vector<BufferDataView> Indexes;
+            std::vector<BufferDataView> Positions;
+            std::vector<BufferDataView> Normals;
+            std::vector<BufferDataView> TextCoords;
             size_t PreviousVertexCount = 0;
             
             for (const auto & primitive : mesh.primitives)
@@ -995,11 +1018,6 @@ namespace  GLTF
                 
                 // Bounds
                 Math::Point3f Min = {FLT_MAX}, Max = {FLT_MIN};
-                
-                // Tangent generation
-                std::span<const uint8_t> IndexesView{};
-                std::span<const uint8_t> NormalsView{};
-                std::span<const uint8_t> TextCoordsView{};
 
                 if(IsIndexed)
                 {
@@ -1024,23 +1042,9 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    // TODO support fully indexes of size lower than unsigned int
+                    AssertOrErrorCallF(Indexes.empty() || Indexes.front().TinyGLTFComponentType ==  model.accessors[primitive.indices].componentType, continue;, "Primitive index buffer type missmatch")
                     
-                    IndexBuffer::IndexType Type;
-                    switch(model.accessors[primitive.indices].componentType)
-                    {
-                    case TINYGLTF_COMPONENT_TYPE_BYTE:          Type = IndexBuffer::Byte; break;
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: Type = IndexBuffer::UnsignedByte; break;
-                    case TINYGLTF_COMPONENT_TYPE_SHORT:         Type = IndexBuffer::Short; break;
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:Type = IndexBuffer::UnsignedShort; break;
-                    case TINYGLTF_COMPONENT_TYPE_INT:           Type = IndexBuffer::Int; break;
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:  Type = IndexBuffer::UnsignedInt; break;
-                        
-                    default:
-                    UNREACHABLE;
-                    }
-                    
-                    MeshObject.SetIndexBuffer(Type, CurrentView.data(), (CurrentView.size()) / ToGLIndexSize(Type));
+                    Indexes.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[primitive.indices].componentType, .View = CurrentView});
                 }
                 
                 if(primitive.attributes.contains("POSITION"))
@@ -1059,17 +1063,9 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    VertexArrayObject::Layout Layout{}; 
-                    switch (model.accessors[AccessorIndex].componentType)
-                    {
-                    case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Point3f>(1); break;
-                    case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Point3d>(1); break;
-                
-                    default:
-                    EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", model.accessors[AccessorIndex].componentType);
-                    }
+                    AssertOrErrorCallF(Positions.empty() || Positions.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
-                    MeshObject.AddVertexBuffer(Layout, CurrentView.data(), CurrentView.size());
+                    Positions.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
                     
                     FindBoundsInPositionBuffer(CurrentView, model.accessors[AccessorIndex].componentType, Min, Max);
                 }
@@ -1090,17 +1086,9 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    VertexArrayObject::Layout Layout{}; 
-                    switch (model.accessors[AccessorIndex].componentType)
-                    {
-                    case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Vector3f>(1); break;
-                    case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Vector3d>(1); break;
-                
-                    default:
-                    EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", model.accessors[AccessorIndex].componentType);
-                    }
+                    AssertOrErrorCallF(Normals.empty() || Normals.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
-                    MeshObject.AddVertexBuffer(Layout, CurrentView.data(), CurrentView.size());
+                    Normals.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
                 }
                 if(primitive.attributes.contains("TEXCOORD_0"))
                 {
@@ -1119,28 +1107,143 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    VertexArrayObject::Layout Layout{}; 
-                    switch (model.accessors[AccessorIndex].componentType)
-                    {
-                    case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Vector2f>(1); break;
-                    case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Vector2d>(1); break;
-                
-                    default:
-                    EngineLoggerWarnF("Unsupported glTF Primitive Mode %d", model.accessors[AccessorIndex].componentType);
-                    }
+                    AssertOrErrorCallF(TextCoords.empty() || TextCoords.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
-                    MeshObject.AddVertexBuffer(Layout, CurrentView.data(), CurrentView.size());
+                    TextCoords.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
                 }
-
-                // if (GenerateTangents)
-                // {
-                //     Mesh TangentGeneratorMesh;
-                //     TangentGeneratorMesh.
-                // }
                 
                 // todo vertex color
                 MeshObject.AddVertexGroup({(unsigned int)PreviousVertexCount, (unsigned int)CurrentVertexCount - (unsigned int)PreviousVertexCount, Min, Max});
             }
+            
+            if (!Indexes.empty())
+            {
+                IndexBuffer::IndexType Type;
+                switch(Indexes.front().TinyGLTFComponentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_BYTE:          Type = IndexBuffer::Byte; break;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: Type = IndexBuffer::UnsignedByte; break;
+                case TINYGLTF_COMPONENT_TYPE_SHORT:         Type = IndexBuffer::Short; break;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:Type = IndexBuffer::UnsignedShort; break;
+                case TINYGLTF_COMPONENT_TYPE_INT:           Type = IndexBuffer::Int; break;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:  Type = IndexBuffer::UnsignedInt; break;
+                        
+                default:
+                    UNREACHABLE;
+                }
+                
+                size_t Size = 0;
+                
+                for (const auto& view : Indexes)
+                {
+                    Size += view.View.size();
+                }
+                
+                MeshObject.SetIndexBuffer(Type, (Size) / ToGLIndexSize(Type));
+                
+                size_t Offset = 0;
+                for (const auto& view : Indexes)
+                {
+                    MeshObject.SetIndexSubBuffer(view.View.data(), Offset, view.View.size());
+                    Offset += view.View.size();
+                }
+            }
+            if (!Positions.empty())
+            {
+                VertexArrayObject::Layout Layout{}; 
+                switch (Positions.front().TinyGLTFComponentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Point3f>(1); break;
+                case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Point3d>(1); break;
+                
+#ifdef CONFIG_DEBUG
+                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported glTF Primitive Mode %d", Positions.front().TinyGLTFComponentType)
+#else // CONFIG_DEBUG
+                default:
+                    EngineLoggerErrorF("Unsupported glTF Primitive Mode %d", Positions.front().TinyGLTFComponentType);
+#endif // !CONFIG_DEBUG
+                }
+                
+                size_t Size = 0;
+                
+                for (const auto& view : Positions)
+                {
+                    Size += view.View.size();
+                }
+                
+                size_t VBO = MeshObject.AddVertexBuffer(Layout, Size);
+                
+                size_t Offset = 0;
+                for (const auto& view : Positions)
+                {
+                    MeshObject.SetVertexSubBuffer(VBO, view.View.data(), Offset, view.View.size());
+                    Offset += view.View.size();
+                }
+            }
+            if (!Normals.empty())
+            {
+                VertexArrayObject::Layout Layout{}; 
+                switch (Normals.front().TinyGLTFComponentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Vector3f>(1); break;
+                case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Vector3d>(1); break;
+                
+#ifdef CONFIG_DEBUG
+                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported glTF Primitive Mode %d", Normals.front().TinyGLTFComponentType)
+#else // CONFIG_DEBUG
+                default:
+                    EngineLoggerErrorF("Unsupported glTF Primitive Mode %d", Normals.front().TinyGLTFComponentType);
+#endif // !CONFIG_DEBUG
+                }
+                
+                size_t Size = 0;
+                
+                for (const auto& view : Normals)
+                {
+                    Size += view.View.size();
+                }
+                
+                size_t VBO = MeshObject.AddVertexBuffer(Layout, Size);
+                
+                size_t Offset = 0;
+                for (const auto& view : Normals)
+                {
+                    MeshObject.SetVertexSubBuffer(VBO, view.View.data(), Offset, view.View.size());
+                    Offset += view.View.size();
+                }
+            }
+            if (!TextCoords.empty())
+            {
+                VertexArrayObject::Layout Layout{}; 
+                switch (TextCoords.front().TinyGLTFComponentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT: Layout.Push<Math::Vector2f>(1); break;
+                case TINYGLTF_COMPONENT_TYPE_DOUBLE:  Layout.Push<Math::Vector2d>(1); break;
+                
+#ifdef CONFIG_DEBUG
+                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported glTF Primitive Mode %d", TextCoords.front().TinyGLTFComponentType)
+#else // CONFIG_DEBUG
+                default:
+                    EngineLoggerErrorF("Unsupported glTF Primitive Mode %d", TextCoords.front().TinyGLTFComponentType);
+#endif // !CONFIG_DEBUG
+                }
+                
+                size_t Size = 0;
+                
+                for (const auto& view : TextCoords)
+                {
+                    Size += view.View.size();
+                }
+                
+                size_t VBO = MeshObject.AddVertexBuffer(Layout, Size);
+                
+                size_t Offset = 0;
+                for (const auto& view : TextCoords)
+                {
+                    MeshObject.SetVertexSubBuffer(VBO, view.View.data(), Offset, view.View.size());
+                    Offset += view.View.size();
+                }
+            }            
         
             MeshObject.EndMesh();
         }

@@ -34,6 +34,8 @@ public:
     void Data(const void* data, size_t size);
 
     void Data(const void** buffers, const size_t* bufferSizes, size_t numBuffers);
+    
+    void SubData(const void* data, size_t offset, size_t size);
 
 private:
     GLuint m_VertexBuffer;

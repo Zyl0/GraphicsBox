@@ -16,11 +16,15 @@ struct MeshObject
     
     void BeginMesh(Mesh::VertexType meshType);
     size_t AddVertexBuffer(const VertexArrayObject::Layout& layout, const void* data, size_t size);
+    size_t AddVertexBuffer(const VertexArrayObject::Layout& layout, size_t size);
     void SetVertexBuffer(size_t index, const void* data, size_t size);
     void SetVertexBuffer(size_t index, const VertexArrayObject::Layout& layout, const void* data, size_t size);
+    void SetVertexSubBuffer(size_t index, const void* data, size_t offset, size_t size);
     void PopVertexBuffer();
     void ClearVertexBuffers();
     void SetIndexBuffer(IndexBuffer::IndexType Type, const void* data, unsigned int count);
+    void SetIndexBuffer(IndexBuffer::IndexType Type, unsigned int count);
+    void SetIndexSubBuffer(const void* data, size_t offset, size_t size);
     void UnsetIndexBuffer();
     size_t AddVertexGroup(const Mesh::VertexGroup& VertexGroup);
     void SetVertexGroup(size_t index, const Mesh::VertexGroup& VertexGroup);

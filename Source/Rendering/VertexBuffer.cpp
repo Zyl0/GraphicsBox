@@ -37,6 +37,15 @@ void VertexBuffer::Data(const void** buffers, const size_t* bufferSizes, size_t 
     UnBind(*this);
 }
 
+void VertexBuffer::SubData(const void* data, size_t offset, size_t size)
+{
+    Bind(*this);
+    
+    GLCall(glBufferSubData(GL_ARRAY_BUFFER, offset, size, data))
+    
+    UnBind(*this);
+}
+
 void Bind(const VertexBuffer& VertexBuffer)
 {
     GLCall(glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer.Handle()))

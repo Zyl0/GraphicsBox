@@ -54,6 +54,18 @@ size_t MeshObject::AddVertexBuffer(const VertexArrayObject::Layout& layout, cons
     return index;
 }
 
+size_t MeshObject::AddVertexBuffer(const VertexArrayObject::Layout& layout, size_t size)
+{
+    AssertOrErrorCall(m_EditMode, return std::numeric_limits<size_t>::max();, "Could not perform AddVertexBuffer, Mesh Data object needs to be in edit mode to perform this operation")
+    
+    size_t index = m_VertexBuffers.size();
+    m_VertexBuffers.emplace_back();
+    m_VertexBuffers.back().Data(nullptr, size);
+    m_Layouts.push_back(layout);
+    
+    return index;
+}
+
 void MeshObject::SetVertexBuffer(size_t index, const void* data, size_t size)
 {
     AssertOrErrorCall(m_EditMode, return;, "Could not perform SetVertexBuffer, Mesh Data object needs to be in edit mode to perform this operation")
@@ -69,6 +81,14 @@ void MeshObject::SetVertexBuffer(size_t index, const VertexArrayObject::Layout& 
     
     m_VertexBuffers[index].Data(data, size);
     m_Layouts[index] = layout;
+}
+
+void MeshObject::SetVertexSubBuffer(size_t index, const void* data, size_t offset, size_t size)
+{
+    AssertOrErrorCall(m_EditMode, return;, "Could not perform SetVertexBuffer, Mesh Data object needs to be in edit mode to perform this operation")
+    AssertOrErrorCall(index < m_VertexBuffers.size(), return;, "Index out of bounds")
+    
+    m_VertexBuffers[index].SubData(data, offset, size);
 }
 
 void MeshObject::PopVertexBuffer()
@@ -98,6 +118,25 @@ void MeshObject::SetIndexBuffer(IndexBuffer::IndexType Type, const void* data, u
         m_IndexBuffer.emplace();
     }
     m_IndexBuffer.value().BufferData(Type, data, count);
+}
+
+void MeshObject::SetIndexBuffer(IndexBuffer::IndexType Type, unsigned int count)
+{
+    AssertOrErrorCall(m_EditMode, return;, "Could not perform SetIndexBuffer, Mesh Data object needs to be in edit mode to perform this operation")
+    
+    if (!m_IndexBuffer.has_value())
+    {
+        m_IndexBuffer.emplace();
+    }
+    m_IndexBuffer.value().BufferData(Type, count);
+}
+
+void MeshObject::SetIndexSubBuffer(const void* data, size_t offset, size_t size)
+{
+    AssertOrErrorCall(m_EditMode, return;, "Could not perform SetIndexBuffer, Mesh Data object needs to be in edit mode to perform this operation")
+    AssertOrErrorCall(m_IndexBuffer.has_value(), return;, "Could not perform SetIndexSubBuffer, index buffer is invalid")
+    
+    m_IndexBuffer.value().BufferSubData(data, offset, size);
 }
 
 void MeshObject::UnsetIndexBuffer()

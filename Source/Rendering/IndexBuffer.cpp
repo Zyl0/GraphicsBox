@@ -19,6 +19,22 @@ void IndexBuffer::BufferData(IndexType type, const void* data, unsigned int coun
     UnBind(*this);
 }
 
+void IndexBuffer::BufferData(IndexType type, unsigned int count)
+{
+    m_IndexType = type;
+    
+    Bind(*this);
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER,  count * ToGLIndexSize(type), nullptr, GL_STATIC_DRAW))
+    UnBind(*this);
+}
+
+void IndexBuffer::BufferSubData(const void* data, size_t offset, size_t size)
+{
+    Bind(*this);
+    GLCall(glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size, data))
+    UnBind(*this);
+}
+
 GLenum ToGLIndexType(IndexBuffer::IndexType Type)
 {
     switch (Type)

@@ -44,6 +44,10 @@ public:
 
     void BufferData(IndexType type, const void* data, unsigned int count);
     
+    void BufferData(IndexType type, unsigned int count);
+    
+    void BufferSubData(const void* data, size_t offset, size_t size);
+    
     INLINE IndexType GetIndexType() const {return m_IndexType;}
     
 private:
