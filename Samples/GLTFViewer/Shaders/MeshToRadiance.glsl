@@ -145,7 +145,17 @@ uniform uint IndirectLightingSampleCount;
 
 out vec4 OutColor;
 
-void main( )
+const mat3 RotationX = mat3(
+    1,0,0,
+    0,0,-1,
+    0,1,0
+
+ // 1,0,0,
+ // 0,cos (M_PI / 2.0), -sin(M_PI / 2.0),
+ // 0,sin(M_PI / 2.0),cos (M_PI / 2.0)
+);
+
+void main()
 {
     vec3 PixBaseColor = BaseColor;
     float PixMetalness = Metalness;
@@ -176,9 +186,13 @@ void main( )
     float Alpha = PixRoughness * PixRoughness;
     
     vec3 Normal =  FragNormal;
+    vec3 LocalNormal = vec3(0,0,1);
     if (UseNormalTexture == 1)
     {
-        Normal = normalize(FragTBN * (texture(texNormal, UV0).xyz * 2.f - 1.f));
+        LocalNormal = (texture(texNormal, UV0).xyz * 2.f - 1.f);
+        LocalNormal.x *= -1;
+        LocalNormal.y *= -1;
+        Normal = normalize(FragTBN * LocalNormal);
     }
 
     vec3 finalColor = vec3(0);
@@ -219,10 +233,15 @@ void main( )
     {
         // For now we only do a manual integration
         {
-            vec3 v = normalize(CameraWorldPosition() - FragWorldPosition);
-            mat3 InvFragTBN = transpose(FragTBN);
+            vec3 LocalTangent = (RotationX * LocalNormal);
+            vec3 LocalBiTangent = cross(LocalNormal, LocalTangent);
+            mat3 LocalTBN = mat3(LocalTangent, LocalBiTangent, LocalNormal);
             
-            vec3 vNormalSpace = InvFragTBN * v;
+            vec3 v = normalize(CameraWorldPosition() - FragWorldPosition);
+            mat3 TBN =  FragTBN * LocalTBN;
+            mat3 InvTBN = transpose(TBN);
+            
+            vec3 vNormalSpace = InvTBN * v;
             
             vec3 sum = vec3(0);
             for (uint i = 0u; i < IndirectLightingSampleCount; i++ )
@@ -232,7 +251,7 @@ void main( )
                 // Ne
                 vec3 SampledDirection = SampleGGXVNDF_Intel2023(vNormalSpace, Alpha, Alpha, u.x, u.y);
 
-                vec3 n = normalize(FragTBN * SampledDirection);
+                vec3 n = normalize(TBN * SampledDirection);
                 vec3 l = reflect(v, n);
                 vec3 h = normalize(v + l);
                 
