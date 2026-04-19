@@ -14,8 +14,9 @@ deprecated flag usage warnings depending on your version of Premake.)
 You will need Visual Studio, or any IDE that supports .sln projects (like JetBrains Rider).
 
 - run: ```<premake-executable> vs<version>```. Graphics Box works well on Visual Studio 2022 solutions for example.
-- (optional) to generate the samples run: ```<premake-executable> vs<version> --samples```
+- (optional) to generate the samples run: ```<premake-executable> vs<version> <...> --samples```
 - (optional) to download samples assets and test scenes: ```<premake-executable> vs<version> <...> --sample-scenes```
+- (optional) to enable assertions throwing breakpoints: ```<premake-executable> vs<version> <...> --breakpoints```
 
 You can now open the generated ```GraphicsBox.sln``` file generated and build.
 
@@ -27,7 +28,8 @@ You can now open the generated ```GraphicsBox.sln``` file generated and build.
 ### Using makefiles
 
 - run ```<premake-executable> gmake```. Graphics Box works well on Visual Studio 2022 solutions for example.
-- (optional) to generate the samples run: ```<premake-executable> gmake --samples```
+- (optional) to generate the samples run: ```<premake-executable> gmake <...> --samples```
 - (optional) to download samples assets and test scenes: ```<premake-executable> gmake <...> --sample-scenes```
+- (optional) to enable assertions throwing breakpoints: ```<premake-executable> gmake <...> --breakpoints```
 - To build run: ```Make <project> config=<config>```
   - config - "Debug", "Development" or "Release"

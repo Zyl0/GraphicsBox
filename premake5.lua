@@ -45,6 +45,12 @@ newoption {
    description = "Download sample scene and content for demonstration"
 }
 
+-- Sample projects
+newoption {
+   trigger = "breakpoints",
+   description = "Enable assertions throwing breakpoints"
+}
+
 solution "GraphicsBox"
     configurations { "Debug", "Development", "Release" }
     debugdir ( gb_SolutionDir )
@@ -77,6 +83,13 @@ solution "GraphicsBox"
 
     -- CPU Architecture
     architecture "x86_64"
+    
+    -- Debug settings
+    if _OPTIONS["breakpoints"] then
+        defines ("BREAKPOINT_ENABLE=1")
+    else
+        defines ("BREAKPOINT_ENABLE=0")
+    end
     
     flags { "NoPCH" }
 
