@@ -7,6 +7,10 @@
 
 #include "Include/Camera.glsl"
 
+layout (binding = 0, std140) uniform CameraBuffer{
+    CameraData Camera;
+};
+
 // Skylight method switch
 #ifdef USE_PROCEDURAL_SKYLIGHT
 #include "ProceduralSkylight.glsl"
@@ -28,7 +32,7 @@ void main()
     vec4 ViewportDirection = vec4(UVProj, 1.0, 0.0);
     ViewportDirection.x *= -1;
     ViewportDirection.z *= -1;
-    vec4 Direction = ProjToWorld(ViewportToProj(ViewportDirection));
+    vec4 Direction = ProjToWorld(Camera, ViewportToProj(Camera, ViewportDirection));
 
     OutColor.xyz = SampleSkylightColor(normalize(Direction.xyz));
     OutColor.w = 1.0;

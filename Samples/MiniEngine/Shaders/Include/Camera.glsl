@@ -1,8 +1,7 @@
 #ifndef INCLUDE_GUARD_GLSL_CAMERA
 #define INCLUDE_GUARD_GLSL_CAMERA
 
-
-layout (binding = 0, std140) uniform CameraData{
+struct CameraData{
 
     // Matrices
     mat4    Camera_WorldToView;
@@ -22,60 +21,60 @@ layout (binding = 0, std140) uniform CameraData{
     // Screen
     vec2    Camera_ProjToViewport;
     vec2    Camera_ViewportToProj;
-} Camera;
+};
 
-vec3 CameraWorldPosition()
+vec3 CameraWorldPosition(in CameraData Camera)
 {
     return Camera.Camera_WorldPosition;
 }
 
-vec4 WorldToView(vec4 Position)
+vec4 WorldToView(in CameraData Camera, vec4 Position)
 {
     return Camera.Camera_WorldToView * Position;
 }
 
-vec3 WorldToView(vec3 Vector)
+vec3 WorldToView(in CameraData Camera, vec3 Vector)
 {
     return (Camera.Camera_WorldToView * vec4(Vector, 0.0f)).xyz;
 }
 
-vec4 WorldToProj(vec4 Position)
+vec4 WorldToProj(in CameraData Camera, vec4 Position)
 {
     return Camera.Camera_WorldToProj * Position;
 }
 
-vec3 WorldToProj(vec3 Vector)
+vec3 WorldToProj(in CameraData Camera, vec3 Vector)
 {
     return (Camera.Camera_WorldToProj * vec4(Vector, 0.0f)).xyz;
 }
 
-vec4 ViewToWorld(vec4 Position)
+vec4 ViewToWorld(in CameraData Camera, vec4 Position)
 {
     return Camera.Camera_ViewToWorld * Position;
 }
 
-vec3 ViewToWorld(vec3 Vector)
+vec3 ViewToWorld(in CameraData Camera, vec3 Vector)
 {
     return (Camera.Camera_ViewToWorld * vec4(Vector, 0.0f)).xyz;
 }
 
-vec4 ProjToWorld(vec4 Position)
+vec4 ProjToWorld(in CameraData Camera, vec4 Position)
 {
     return Camera.Camera_ProjToWorld * Position;
 }
 
-vec3 ProjToWorld(vec3 Vector)
+vec3 ProjToWorld(in CameraData Camera, vec3 Vector)
 {
     return (Camera.Camera_ProjToWorld * vec4(Vector, 0.0f)).xyz;
 }
 
-vec4 ProjToViewport(vec4 Proj)
+vec4 ProjToViewport(in CameraData Camera, vec4 Proj)
 {
     Proj.xy = Proj.xy * Camera.Camera_ProjToViewport;
     return Proj;
 }
 
-vec4 ViewportToProj(vec4 Viewport)
+vec4 ViewportToProj(in CameraData Camera, vec4 Viewport)
 {
     Viewport.xy = Viewport.xy * Camera.Camera_ViewportToProj;
     return Viewport;

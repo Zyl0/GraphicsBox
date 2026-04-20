@@ -2,6 +2,10 @@
 
 #include "Include/Camera.glsl"
 
+layout (binding = 0, std140) uniform CameraBuffer{
+    CameraData Camera;
+};
+
 #ifdef VERTEX_SHADER
 layout(location= 0) in vec3 position;
 layout(location= 1) in vec3 normal;
@@ -37,7 +41,7 @@ vec3 gramSchmidt(vec3 T, vec3 N)
 
 void main( )
 {
-    gl_Position = WorldToProj(M(vec4(position, 1))); 
+    gl_Position = WorldToProj(Camera, M(vec4(position, 1))); 
 
     vec4 FragWorldPositionH  = M(vec4(position, 1));
     FragWorldPosition = FragWorldPositionH.xyz / FragWorldPositionH.w;
@@ -200,7 +204,7 @@ void main()
     // Direct lighting
     {
         vec3 n = Normal;
-        vec3 v = normalize(CameraWorldPosition() - FragWorldPosition);
+        vec3 v = normalize(CameraWorldPosition(Camera) - FragWorldPosition);
         vec3 l = normalize(-LightSources.SunLight.LightDir);
         vec3 h = normalize(v + l);
         
@@ -237,7 +241,7 @@ void main()
             vec3 LocalBiTangent = cross(LocalNormal, LocalTangent);
             mat3 LocalTBN = mat3(LocalTangent, LocalBiTangent, LocalNormal);
             
-            vec3 v = normalize(CameraWorldPosition() - FragWorldPosition);
+            vec3 v = normalize(CameraWorldPosition(Camera) - FragWorldPosition);
             mat3 TBN =  FragTBN * LocalTBN;
             mat3 InvTBN = transpose(TBN);
             
