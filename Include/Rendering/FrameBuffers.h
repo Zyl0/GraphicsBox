@@ -24,6 +24,7 @@ public:
         FrameCubemapDown,
         FrameCubemapBack,
         FrameCubemapFront,
+        Buffer2D,
         Unset
     };
 
@@ -34,8 +35,11 @@ public:
         ClearColor ClearColor;
         FrameType Type;
         uint8_t TargetMip;
+        bool Multisample;
 
         Attachment(const Texture2D& Texture, const FrameBuffer::ClearColor& Color, uint8_t TargetMip = 0);
+        
+        Attachment(const WriteOnlyTexture2D& Texture, const FrameBuffer::ClearColor& Color);
 
         Attachment(const Texture3D& Texture, const FrameBuffer::ClearColor& Color, uint8_t TargetMip = 0);
         
@@ -46,13 +50,28 @@ public:
         Attachment(uint32_t width, uint32_t height, uint32_t depth, const FrameBuffer::ClearColor& Color, uint8_t TargetMip = 0);
     };
     
+    struct DepthAttachment
+    {
+        GLuint Handle;
+        FrameType Type;
+        Texture::Layout Layout;
+        bool Multisample;
+        
+        DepthAttachment(const Texture2D& Texture): Handle(Texture.Handle()), Type(Frame2D), Layout(Texture.ComponentLayout()), Multisample(Texture.SampleCount() > 0) {}
+        
+        DepthAttachment(const WriteOnlyTexture2D& Texture): Handle(Texture.Handle()), Type(Buffer2D), Layout(Texture.ComponentLayout()), Multisample(Texture.SampleCount() > 0) {}
+    };
+    
     struct RetargetAttachment
     {
         GLuint Handle;
         FrameType Type;
         uint8_t TargetMip;
+        bool Multisample;
 
         RetargetAttachment(const Texture2D& Texture, uint8_t TargetMip = 0);
+        
+        RetargetAttachment(const WriteOnlyTexture2D& Texture);
 
         RetargetAttachment(const Texture3D& Texture, uint8_t TargetMip = 0);
         
@@ -61,15 +80,15 @@ public:
         RetargetAttachment(const TextureCubeView& Texture, TextureCube::Face Face, uint8_t TargetMip = 0);
     };
     
-    FrameBuffer(const Attachment& Attachments, const Texture2D* DepthStencilAttachment = nullptr);
-    FrameBuffer(std::span<const Attachment> Attachments, const Texture2D* DepthStencilAttachment = nullptr);
+    FrameBuffer(const Attachment& Attachments, const DepthAttachment* DepthStencilAttachment = nullptr);
+    FrameBuffer(std::span<const Attachment> Attachments, const DepthAttachment* DepthStencilAttachment = nullptr);
     ~FrameBuffer();
 
     void Clear();
     void Resize(uint32_t width = 1, uint32_t height = 1, uint32_t depth = 1);
     
-    void Retarget(const RetargetAttachment& Attachment, const Texture2D* DepthStencilAttachment = nullptr);
-    void Retarget(std::span<const RetargetAttachment> Attachments, const Texture2D* DepthStencilAttachment = nullptr);
+    void Retarget(const RetargetAttachment& Attachment, const DepthAttachment* DepthStencilAttachment = nullptr);
+    void Retarget(std::span<const RetargetAttachment> Attachments, const DepthAttachment* DepthStencilAttachment = nullptr);
     
     INLINE GLuint Handle() const {return m_FrameBuffer;}
     INLINE uint32_t Width() const {return m_Width;}
@@ -89,3 +108,6 @@ private:
 
 void Bind(const FrameBuffer& FrameBuffer);
 void UnBind(const FrameBuffer& FrameBuffer);
+
+void Bind(const FrameBuffer& Target, const FrameBuffer& Source);
+INLINE void UnBind(const FrameBuffer& Target, const FrameBuffer& Source) {UnBind(Target);}

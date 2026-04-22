@@ -675,6 +675,7 @@ group "Samples"
     filter { "" }
 
     SampleProjects = {
+        "AntiAliasing",
         "GLTFViewer",
         "PBR",
         "SpectralRendering"

@@ -56,15 +56,16 @@ GLenum ToGPUTextureType(Texture::Type type, Texture::Layout layout);
 class Texture2D
 {
 public:
-    Texture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout);
+    Texture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount = 0);
     Texture2D(const Image& Image, bool UseMips = true);
     Texture2D(uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips = true);
     ~Texture2D();
 
     void Data(uint32_t width, uint32_t height);
-    void Data(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout);
+    void Data(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount = 0);
     void Data(const Image& Image, bool UseMips = true);
     void Data(Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips = true);
+    void Data(uint8_t SampleCount);
     void Export(Image& Export);
 
     INLINE GLuint Handle() const                    { return m_Texture;}
@@ -73,6 +74,7 @@ public:
     INLINE uint32_t MipCount() const                { return m_MipCount;}
     INLINE Texture::Type ComponentType() const      { return m_Type;}
     INLINE Texture::Layout ComponentLayout() const  { return m_Layout;}
+    INLINE uint8_t SampleCount() const             { return m_SampleCount;}
     INLINE GLenum GLType() const                    { return ToGLTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
     INLINE GLenum GLFormat() const                  { return ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
     INLINE GLenum GPUType() const                   { return ToGPUTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
@@ -86,10 +88,45 @@ private:
 
     Texture::Type m_Type;
     Texture::Layout m_Layout;
+    uint8_t m_SampleCount = 1;
 };
 
 void Bind(const Texture2D& texture);
 void UnBind(const Texture2D& texture);
+
+class WriteOnlyTexture2D
+{
+public:
+    WriteOnlyTexture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount = 0);
+    ~WriteOnlyTexture2D();
+    
+    void Data(uint32_t width, uint32_t height);
+    void Data(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount = 0);
+    void Data(uint8_t SampleCount);
+    
+    INLINE GLuint Handle() const                    { return m_Texture;}
+    INLINE uint32_t Width() const                   { return m_Width;}
+    INLINE uint32_t Height() const                  { return m_Height;}
+    INLINE Texture::Type ComponentType() const      { return m_Type;}
+    INLINE Texture::Layout ComponentLayout() const  { return m_Layout;}
+    INLINE uint8_t SampleCount() const              { return m_SampleCount;}
+    INLINE GLenum GLType() const                    { return ToGLTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    INLINE GLenum GLFormat() const                  { return ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    INLINE GLenum GPUType() const                   { return ToGPUTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+        
+private:
+    GLuint m_Texture;
+
+    uint32_t m_Width;
+    uint32_t m_Height;
+
+    Texture::Type m_Type;
+    Texture::Layout m_Layout;
+    uint8_t m_SampleCount = 1;
+};
+
+void Bind(const WriteOnlyTexture2D& texture);
+void UnBind(const WriteOnlyTexture2D& texture);
 
 class Texture3D
 {

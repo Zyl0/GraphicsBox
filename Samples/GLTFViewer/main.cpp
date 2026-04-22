@@ -213,7 +213,7 @@ void UpdateCameraData(CameraData& Data, const Camera& camera)
 
 struct DirectionalLight
 {
-    AlignedVector3f LightDir = AlignedVector3f(Vector3f{0.0f, -1.0f, 0.0f});
+    AlignedVector3f LightDir = AlignedVector3f(Normalize(Vector3f{0.8f, -1.0f, 0.9f}));
     
     Vector3f LightColor = {1.0f, 1.0f, 1.0f};
     float LightIntensity = 1.0f;
@@ -320,6 +320,12 @@ bool frustumCullingTest(
 /* ____________________________________ Baking Passes ____________________________________ */
 
 /* ____________________________________ Real time Passes ____________________________________ */
+
+class DrawShadowMap
+{
+public:
+private:
+};
 
 class DrawSky
 {
@@ -627,7 +633,8 @@ int main(void)
         
         Texture2D SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB);
         Texture2D SceneDepthRT(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D);
-        FrameBuffer SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)), &SceneDepthRT);
+        FrameBuffer::DepthAttachment SceneDepthAttachment(SceneDepthRT);
+        FrameBuffer SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachment);
 
         SceneBuffers GPUScene;
         
@@ -637,6 +644,8 @@ int main(void)
             if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.glb" ,path))
             // if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "MetalRoughSpheres" / "glTF-Binary" /"MetalRoughSpheres.glb" ,path))
             // if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "MetalRoughSpheres" / "glTF" /"MetalRoughSpheres.gltf" ,path))
+            // if (GetAbsoluteFilePath(std::filesystem::path("Willy") / "Splash" /"splash.gltf" ,path))
+            // if (GetAbsoluteFilePath(std::filesystem::path("Willy") / "BistroGLTF" /"exterior.glb" ,path))
             {
                 AssertOrError( GLTF::LoadGPUScene(path, GPUScene.Scene), "Failed to load scene")
             }
@@ -675,7 +684,7 @@ int main(void)
 
         FlyCamera camera;
         camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f), kZNear, kZFar);
-        camera.SetTranslation(-4,0,0);
+        camera.SetTranslation(-1,0.125,0);
         
         // Passes
         DrawSky DrawSkyPass{};
