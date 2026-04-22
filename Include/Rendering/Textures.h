@@ -128,6 +128,46 @@ private:
 void Bind(const WriteOnlyTexture2D& texture);
 void UnBind(const WriteOnlyTexture2D& texture);
 
+class Texture2DArray
+{
+public:
+    Texture2DArray(uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, bool UseMips = false);
+    ~Texture2DArray();
+
+    void Data(uint32_t count, bool move = false);
+    void Data(uint32_t width, uint32_t height);
+    void Data(uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, bool UseMips = false);
+    void SubData(uint32_t index, const Image& Image);
+    void SubData(uint32_t index, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize);
+    void UpdateMips();
+    void ExportSub(uint32_t index, Image& Export) const;
+
+    INLINE GLuint Handle() const                    { return m_Texture;}
+    INLINE uint32_t Width() const                   { return m_Width;}
+    INLINE uint32_t Height() const                  { return m_Height;}
+    INLINE uint32_t Count() const                   { return m_LayerCount;}
+    INLINE uint32_t MipCount() const                { return m_MipCount;}
+    INLINE Texture::Type ComponentType() const      { return m_Type;}
+    INLINE Texture::Layout ComponentLayout() const  { return m_Layout;}
+    INLINE GLenum GLType() const                    { return ToGLTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    INLINE GLenum GLFormat() const                  { return ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+    INLINE GLenum GPUType() const                   { return ToGPUTextureType(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout); }
+        
+private:
+    GLuint m_Texture;
+
+    uint32_t m_Width;
+    uint32_t m_Height;
+    uint32_t m_LayerCount;
+    uint32_t m_MipCount;
+
+    Texture::Type m_Type;
+    Texture::Layout m_Layout;
+};
+
+void Bind(const Texture2DArray& texture);
+void UnBind(const Texture2DArray& texture);
+
 class Texture3D
 {
 public:

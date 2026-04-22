@@ -576,7 +576,7 @@ void Bind(const Texture2D& texture)
 void UnBind(const Texture2D& texture)
 {
     GLenum mode = texture.SampleCount() > 0 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-    GLCall(glBindTexture(GL_TEXTURE_2D, 0))
+    GLCall(glBindTexture(mode, 0))
 }
 
 WriteOnlyTexture2D::WriteOnlyTexture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount):
@@ -677,6 +677,183 @@ void UnBind(const WriteOnlyTexture2D& texture)
     GLCall(glBindRenderbuffer(GL_RENDERBUFFER, 0))
 }
 
+Texture2DArray::Texture2DArray(uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, bool UseMips):
+    m_Width(width), m_Height(height), m_LayerCount(count),
+    m_MipCount(UseMips ? miplevels(m_Width, m_Height) : 0), m_Type(type),
+    m_Layout(layout)
+{
+    GLCall(glCreateTextures(GL_TEXTURE_2D_ARRAY, 1,  &m_Texture))
+    
+    Bind(*this);
+
+    // Texture parameters
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, m_MipCount);
+
+    if (m_Width > 0 && m_Height > 0)
+    {
+        GLCall(glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, ToGPUTextureType(type, layout), m_Width, m_Height, m_LayerCount))
+    }
+
+    UnBind(*this);
+}
+
+Texture2DArray::~Texture2DArray()
+{
+    GLCall(glDeleteTextures(1, &m_Texture))
+}
+
+void Texture2DArray::Data(uint32_t count, bool move)
+{
+    Bind(*this);
+    if (move)
+    {
+        uint32_t elementsToMove = std::min<uint32_t>(m_LayerCount, count);
+        
+        Texture2DArray Temp(Width(), Height(), elementsToMove, ComponentType(), ComponentLayout(), false);
+        
+        // Save the old elements to a temporary array
+        glCopyImageSubData(
+            Handle(), GL_TEXTURE_2D_ARRAY, 0,
+            0, 0, 0,
+            
+            Temp.Handle(), GL_TEXTURE_2D_ARRAY, 0,
+            0, 0, 0,
+            
+            Width(), Height(), elementsToMove
+        );
+        
+        // Perform resize
+        GLCall(glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, ToGPUTextureType(m_Type, m_Layout), m_Width, m_Height, count))
+        
+        // Retrieve the old elements
+        glCopyImageSubData(
+            Temp.Handle(), GL_TEXTURE_2D_ARRAY, 0,
+            0, 0, 0,
+                    
+            Handle(), GL_TEXTURE_2D_ARRAY, 0,
+            0, 0, 0,
+                    
+            Width(), Height(), elementsToMove
+        );
+    }
+    else
+    {
+        GLCall(glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, ToGPUTextureType(m_Type, m_Layout), m_Width, m_Height, count))
+    }
+    UnBind(*this);
+    
+    m_LayerCount = count;
+}
+
+void Texture2DArray::Data(uint32_t width, uint32_t height)
+{
+    m_Width = width;
+    m_Height = height;
+    
+    Bind(*this);
+    GLCall(glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, ToGPUTextureType(m_Type, m_Layout), m_Width, m_Height, m_LayerCount))
+    UnBind(*this);
+}
+
+void Texture2DArray::Data(uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, bool UseMips)
+{
+    m_Width = width;
+    m_Height = height;
+    m_Layout = layout;
+    m_Type = type;
+    m_Layout = layout;
+    m_MipCount = UseMips ? miplevels(m_Width, m_Height) : 0;
+    
+    Bind(*this);
+    
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, m_MipCount);
+    
+    GLCall(glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, ToGPUTextureType(m_Type, m_Layout), m_Width, m_Height, m_LayerCount))
+    UnBind(*this);
+}
+
+void Texture2DArray::SubData(uint32_t index, const Image& Image)
+{
+    AssertOrErrorCall(Image.Width() == Width() && Image.Height() == Height(), return;, "Sub texture size missmatch")
+    AssertOrErrorCall(Texture::ToTextureType(Image.ComponentType()) == m_Type, return;, "Sub texture component type missmatch")
+    AssertOrErrorCall(Texture::ToTextureLayout(Image.ComponentLayout()) == m_Layout, return;, "Sub texture component type missmatch")
+    AssertOrErrorCall(index < m_LayerCount, return;, "Sub texture index out of range")
+    
+    Bind(*this);
+    glTextureSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
+        
+        0, 0, index,
+        Width(), Height(), 1,
+        
+        ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), Image.Data());
+    
+    UnBind(*this);
+}
+
+void Texture2DArray::SubData(uint32_t index, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize)
+{
+    AssertOrErrorCall(Texture::ToTextureType(type) == m_Type, return;, "Sub texture component type missmatch")
+    AssertOrErrorCall(Texture::ToTextureLayout(layout) == m_Layout, return;, "Sub texture component type missmatch")
+    AssertOrErrorCall(index < m_LayerCount, return;, "Sub texture index out of range")
+    AssertOrErrorCall(m_Width * m_Height * Image::PixelSize(type, layout) == ImageSize, return;, "Texture and image data size missmatch")
+    
+    Bind(*this);
+    glTextureSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
+        
+        0, 0, index,
+        Width(), Height(), 1,
+        
+        ToGLTextureLayout(m_Type, m_Layout), ToGLTextureType(m_Type, m_Layout), ImageData);
+    
+    UnBind(*this);
+}
+
+void Texture2DArray::UpdateMips()
+{
+    if (m_MipCount == 0) return;
+    
+    Bind(*this);
+    glGenerateTextureMipmap(GL_TEXTURE_2D_ARRAY);
+    UnBind(*this);
+}
+
+void Texture2DArray::ExportSub(uint32_t index, Image& Export) const
+{
+    AssertOrErrorCall(Export.Width() == Width() && Export.Height() == Height(), return;, "Sub texture size missmatch")
+    // AssertOrErrorCall(Texture::ToTextureType(Export.ComponentType()) == m_Type, return;, "Sub texture component type missmatch")
+    // AssertOrErrorCall(Texture::ToTextureLayout(Export.ComponentLayout()) == m_Layout, return;, "Sub texture component type missmatch")
+    AssertOrErrorCall(index < m_LayerCount, return;, "Sub texture index out of range")
+    
+    Texture::Type ExportType = Texture::ToTextureType(Export.ComponentType());
+    Texture::Layout ExportLayout = Texture::ToTextureLayout(Export.ComponentLayout());
+    
+    Bind(*this);
+    glGetTextureSubImage(GL_TEXTURE_2D_ARRAY, 0, 
+        
+        0, 0, index,
+        
+        Width(), Height(), 1,
+        
+        ToGLTextureLayout(ExportType, ExportLayout), ToGLTextureType(ExportType, ExportLayout), Export.DataSize(), Export.Data()
+        );
+    UnBind(*this);
+}
+
+void Bind(const Texture2DArray& texture)
+{
+    GLCall(glBindTexture(GL_TEXTURE_2D_ARRAY, texture.Handle()))
+}
+
+void UnBind(const Texture2DArray& texture)
+{
+    GL_TEXTURE_2D;
+    GLCall(glBindTexture(GL_TEXTURE_2D_ARRAY, 0))
+}
+
 Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, Texture::Type type, Texture::Layout layout):
     m_Width(width), m_Height(height), m_Depth(depth),
     m_MipCount(0), m_Type(type),
@@ -690,6 +867,7 @@ Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, Texture::T
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, m_MipCount);
 
@@ -718,6 +896,7 @@ Texture3D::Texture3D(const ImageCube& Image, bool UseMips):
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, m_MipCount);
 
@@ -758,6 +937,7 @@ void Texture3D::Data(uint32_t width, uint32_t height, uint32_t depth, Texture::T
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, m_MipCount);
 
@@ -788,6 +968,7 @@ void Texture3D::Data(const ImageCube& Image, bool UseMips)
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, m_MipCount);
 
@@ -979,12 +1160,4 @@ void TextureCubeView::Data(const TextureCube& texture, uint32_t MipLevel, uint32
     m_Layout = texture.ComponentLayout();
     
     GLCall(glTextureView(m_Texture, GL_TEXTURE_CUBE_MAP, texture.Handle(), ToGPUTextureType(m_Type, m_Layout), MipLevel, MipCount, 0, 1))
-}
-
-void Bind(const TextureCubeView& texture)
-{
-}
-
-void UnBind(const TextureCubeView& texture)
-{
 }

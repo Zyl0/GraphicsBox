@@ -1,5 +1,10 @@
 #include "Compute.h"
 
+void UnbindTextureStorage(const Pipeline& Program, uint32_t BufferBindingSlot)
+{
+    GLCall(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, BufferBindingSlot, 0))
+}
+
 void BindTextureStorage(const Pipeline& Program, uint8_t TextureBindingSlot, const Texture2D& texture, TextureAccessMode AccessMode, uint8_t MipMapLevel)
 {
     switch (AccessMode)

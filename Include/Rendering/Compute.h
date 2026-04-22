@@ -1,7 +1,12 @@
 #pragma once
 
 #include "Pipelines.h"
+#include "StorageBuffer.h"
 #include "Textures.h"
+
+INLINE void BindBufferStorage(const Pipeline& Program, uint32_t BufferBindingSlot, const StorageBuffer& StorageBuffer) {Bind(StorageBuffer, BufferBindingSlot);}
+
+INLINE void UnbindTextureStorage(const Pipeline& Program, uint32_t BufferBindingSlot);
 
 enum TextureAccessMode : uint8_t
 {
