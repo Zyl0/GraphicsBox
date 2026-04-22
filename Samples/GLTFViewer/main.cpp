@@ -31,6 +31,8 @@ constexpr size_t kBaseWidth = 1280;
 constexpr size_t kBaseHeight = 720;
 constexpr float kZNear = 0.01f;
 constexpr float kZFar = 1000.0f;
+constexpr uint32_t kBaseAntiAliasingMethod = 1; // MSAA
+constexpr uint8_t kBaseSampleCount = 4;
 
 /* ____________________________________ States ____________________________________ */
 
@@ -232,6 +234,10 @@ struct SceneBuffers
     
     // States
     uint32_t SkylightMethod = 1;
+    uint32_t AntiAliasingMethod = kBaseAntiAliasingMethod;
+    
+    // MSAA
+    uint8_t MSAASampleCount = 4;
     
     SceneBuffers() = default;
 };
@@ -619,6 +625,8 @@ int main(void)
     glDepthFunc(GL_LESS);
     glClearDepth(1.0f);
     
+    glEnable(GL_MULTISAMPLE);
+    
 #ifndef CONFIG_DEBUG
     UseFrustumCulling = true;
 #endif // CONFIG_DEBUG 
@@ -627,14 +635,12 @@ int main(void)
     {
         uint32_t CurrentWidth = kBaseWidth, CurrentHeight = kBaseHeight;
         
+        GLint MaxSupportedMSAASamples;
+        glGetIntegerv ( GL_MAX_SAMPLES, &MaxSupportedMSAASamples );
+        
         // GPU buffers data
         CameraData cameraData;
         DirectionalLight lightsData{};
-        
-        Texture2D SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB);
-        Texture2D SceneDepthRT(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D);
-        FrameBuffer::DepthAttachment SceneDepthAttachment(SceneDepthRT);
-        FrameBuffer SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachment);
 
         SceneBuffers GPUScene;
         
@@ -681,7 +687,23 @@ int main(void)
                 GPUScene.SkylightHDRI.Data(ImageLoad(path, Image::Float));
             }
         }
-
+        
+        // MSAA settings
+        GPUScene.MSAASampleCount = std::min(static_cast<uint8_t>(std::clamp(MaxSupportedMSAASamples, 0, (int)(UINT8_MAX))), kBaseSampleCount);
+        
+        // Textures and Frame Buffers
+        Texture2D SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB);
+        Texture2D SceneDepthRT(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D);
+        FrameBuffer::DepthAttachment SceneDepthAttachment(SceneDepthRT);
+        
+        FrameBuffer SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachment);
+        
+        Texture2D SceneRadianceMSAART(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB, GPUScene.MSAASampleCount);
+        WriteOnlyTexture2D SceneDepthMSAART(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D, GPUScene.MSAASampleCount);
+        FrameBuffer::DepthAttachment SceneDepthAttachmentMSAA(SceneDepthMSAART);
+        
+        FrameBuffer SceneRadianceMSAAFB(FrameBuffer::Attachment(SceneRadianceMSAART, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachmentMSAA);
+        
         FlyCamera camera;
         camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f), kZNear, kZFar);
         camera.SetTranslation(-1,0.125,0);
@@ -694,6 +716,11 @@ int main(void)
         // keep track of time during the execution
         clock_t prev_clock = clock();
         clock_t curr_clock;
+        
+        // Time measurements
+        GLuint queryIDs[2];
+        glGenQueries(2, queryIDs);
+        float  frameTimeCPU = 0, frameTimeGPU = 0;
         
 #ifdef WINDOW_GLFW
         while (!glfwWindowShouldClose(window))
@@ -717,6 +744,10 @@ int main(void)
                 SceneRadianceRT.Data(CurrentWidth, CurrentHeight);
                 SceneDepthRT.Data(CurrentWidth, CurrentHeight);
                 SceneRadianceFB.Resize(CurrentWidth, CurrentHeight);
+                
+                SceneRadianceMSAART.Data(CurrentWidth, CurrentHeight);
+                SceneDepthMSAART.Data(CurrentWidth, CurrentHeight);
+                SceneRadianceMSAAFB.Resize(CurrentWidth, CurrentHeight);
             }
             
             // Handle shader reload
@@ -743,6 +774,8 @@ int main(void)
                 
                 GPUScene.Camera.Data(&cameraData, sizeof(cameraData));
                 GPUScene.Lights.Data(&lightsData, sizeof(lightsData));
+                
+                frameTimeCPU = deltaTime;
             }
             
             // Bake non real time data
@@ -750,29 +783,67 @@ int main(void)
             {
                 RequestRebake = false;
             }
+            
+            // begin rendering time measurement
+            glQueryCounter(queryIDs[0], GL_TIMESTAMP);
 
             glClear(GL_COLOR_BUFFER_BIT );
 
             // Draw scene
             {
-                Bind(SceneRadianceFB);
-                SceneRadianceFB.Clear();
+                switch (GPUScene.AntiAliasingMethod)
+                {
+                case 0: // NONE
+                    Bind(SceneRadianceFB);
+                    SceneRadianceFB.Clear();
                 
-                DrawSkyPass.Draw(GPUScene);
+                    DrawSkyPass.Draw(GPUScene);
                 
-                glEnable(GL_CULL_FACE);
-                glEnable(GL_DEPTH_TEST);
-                glClear(GL_DEPTH_BUFFER_BIT);
+                    glEnable(GL_CULL_FACE);
+                    glEnable(GL_DEPTH_TEST);
+                    glClear(GL_DEPTH_BUFFER_BIT);
                 
-                DrawScenePass.Draw(GPUScene, camera);
-                glDisable(GL_CULL_FACE);
-                glDisable(GL_DEPTH_TEST);
+                    DrawScenePass.Draw(GPUScene, camera);
+                    glDisable(GL_CULL_FACE);
+                    glDisable(GL_DEPTH_TEST);
                 
-                UnBind(SceneRadianceFB);
+                    UnBind(SceneRadianceFB);
                 
+                    DrawPostProcessPass.Draw(GPUScene, SceneRadianceRT);
+                    break;
+                    
+                case 1: // MSAA
+                    Bind(SceneRadianceMSAAFB);
+                    SceneRadianceMSAAFB.Clear();
                 
-                DrawPostProcessPass.Draw(GPUScene, SceneRadianceRT);
+                    DrawSkyPass.Draw(GPUScene);
+                
+                    glEnable(GL_CULL_FACE);
+                    glEnable(GL_DEPTH_TEST);
+                    glClear(GL_DEPTH_BUFFER_BIT);
+                
+                    DrawScenePass.Draw(GPUScene, camera);
+                    glDisable(GL_CULL_FACE);
+                    glDisable(GL_DEPTH_TEST);
+                    
+                    Bind(SceneRadianceFB, SceneRadianceMSAAFB);
+                    
+                    glBlitFramebuffer(
+                        0, 0, CurrentWidth, CurrentHeight,
+                        0, 0, CurrentWidth, CurrentHeight,
+                        GL_COLOR_BUFFER_BIT, GL_NEAREST );
+                
+                    UnBind(SceneRadianceFB);
+                
+                    DrawPostProcessPass.Draw(GPUScene, SceneRadianceRT);
+                    break;
+                    
+                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported anti aliasing method")
+                }
             }
+            
+            // end rendering time measurement
+            glQueryCounter(queryIDs[1], GL_TIMESTAMP);
             
             // Draw UI
             {
@@ -819,6 +890,11 @@ int main(void)
                 ImGui::SliderFloat("Camera Speed", &CameraSpeed, 0.1f, 2.0f);
                 ImGui::Checkbox("Use Frustum Culling", &UseFrustumCulling);
                 
+                ImGui::Separator();
+                
+                ImGui::Text("Frame time (CPU): %f ms", frameTimeCPU);
+                ImGui::Text("Frame time (GPU): %f ms", frameTimeGPU);
+                
                 ImGui::End();
 
                 ImGui::Render();
@@ -829,6 +905,12 @@ int main(void)
 #ifdef WINDOW_GLFW
             glfwSwapBuffers(window);
 #endif // WINDOW_GLFW
+            
+            GLuint64 startTime, endTime;
+            glGetQueryObjectui64v(queryIDs[0], GL_QUERY_RESULT, &startTime);
+            glGetQueryObjectui64v(queryIDs[1], GL_QUERY_RESULT, &endTime);
+
+            frameTimeGPU = static_cast<float>(endTime - startTime) / 1000000.f;
         }
     }
     

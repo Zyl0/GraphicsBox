@@ -623,12 +623,12 @@ int main(void)
     UseFrustumCulling = true;
 #endif // CONFIG_DEBUG 
     
-    GLint MaxSupportedMSAASamples;
-    glGetIntegerv ( GL_MAX_SAMPLES, &MaxSupportedMSAASamples );
-    
     // Application resources lifetime
     {
         uint32_t CurrentWidth = kBaseWidth, CurrentHeight = kBaseHeight;
+        
+        GLint MaxSupportedMSAASamples;
+        glGetIntegerv ( GL_MAX_SAMPLES, &MaxSupportedMSAASamples );
         
         // GPU buffers data
         CameraData cameraData;
@@ -832,6 +832,7 @@ int main(void)
                 }
             }
             
+            // end rendering time measurement
             glQueryCounter(queryIDs[1], GL_TIMESTAMP);
             
             // Draw UI
