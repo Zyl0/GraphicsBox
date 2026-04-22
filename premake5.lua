@@ -678,7 +678,8 @@ group "Samples"
         "AntiAliasing",
         "GLTFViewer",
         "PBR",
-        "SpectralRendering"
+        "SpectralRendering",
+        "ShadowMapping"
     }
 
     for i, name in ipairs(SampleProjects) do
