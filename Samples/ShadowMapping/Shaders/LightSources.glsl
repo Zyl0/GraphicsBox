@@ -1,17 +1,29 @@
 #ifndef INCLUDE_GUARD_GLSL_LIGHT_SOURCES
 #define INCLUDE_GUARD_GLSL_LIGHT_SOURCES
 
-struct DirectionalLight_t
+struct LightColor_t
 {
-    vec3 LightDir;
     vec3 LightColor;
     float LightIntensity;
 };
 
-// Scene lights
-layout (binding = 1, std140)  uniform LightSources_t
+struct DirectionalLight_t
 {
-    DirectionalLight_t SunLight;
-} LightSources;
+    LightColor_t Color;
+    
+    uint Camera;
+    uint ShadowMap;
+    vec2 pad;
+};
+
+struct PointLight_t
+{
+    LightColor_t Color;
+    
+    uint Cameras[6];
+    uint ShadowMaps[6];
+    float Size;
+    float pad;
+};
 
 #endif // INCLUDE_GUARD_GLSL_LIGHT_SOURCES

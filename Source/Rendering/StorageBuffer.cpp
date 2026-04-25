@@ -9,6 +9,7 @@ StorageBuffer::StorageBuffer()
 StorageBuffer::StorageBuffer(uint32_t Size, const void* data):
     StorageBuffer()
 {
+    Data(data, Size);
 }
 
 StorageBuffer::~StorageBuffer()
@@ -21,14 +22,14 @@ void StorageBuffer::Data(const void* data, uint32_t size)
     m_Size = size;
     
     Bind(*this);
-    glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, size, data, GL_STATIC_DRAW);
     UnBind(*this);
 }
 
 void StorageBuffer::SubData(const void* data, uint32_t size, uint32_t offset)
 {
     Bind(*this);
-    glBufferSubData(GL_UNIFORM_BUFFER, offset, size, data);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, offset, size, data);
     UnBind(*this);
 }
 

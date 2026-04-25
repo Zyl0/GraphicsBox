@@ -1,11 +1,25 @@
 #version 430
 
+// Scene cameras
 #include "Include/Camera.glsl"
 
 layout(binding = 0, std430) readonly buffer Cameras
 {
     CameraData cameras[];
 };
+
+// Scene lights
+#include "LightSources.glsl"
+
+layout (binding = 0, std140) uniform DirLightSources_t
+{
+    DirectionalLight_t SunLight;
+} LightSources;
+
+// Shadow maps
+uniform sampler2D ShadowMap;
+uniform float ShadowMapBias;
+uniform uint ShadowMapResolution;
 
 #ifdef VERTEX_SHADER
 layout(location= 0) in vec3 position;
@@ -97,7 +111,6 @@ void main( )
 #include "Include/Math.glsl"
 #include "Include/FresnelSchlick.glsl"
 #include "Include/GGX.glsl"
-#include "LightSources.glsl"
 #include "Include/PBRLightingModel.glsl"
 
 // Skylight method switch
@@ -156,6 +169,37 @@ const mat3 RotationX = mat3(
     0,1,0
 );
 
+#define FLT_EPSILON 0.0001
+
+float LightFromShadowMap(vec3 WorldPosition)
+{
+    float ShadowMapUVOffset = 0.25f / ShadowMapResolution;
+    float Bias = max(ShadowMapBias, FLT_EPSILON);
+
+    vec4 LightProjectedPositionHomogeneous = WorldToProj(cameras[LightSources.SunLight.Camera], vec4(WorldPosition, 1));
+    vec3 LightProjectedPosition = LightProjectedPositionHomogeneous.xyz / LightProjectedPositionHomogeneous.w;
+
+    vec2 ShadowMapUV = (LightProjectedPosition.xy + 1.0f) / 2.0f;
+    float Depth = (LightProjectedPosition.z + 1.0f) / 2.0f;
+
+    float Light = 0.0f;
+
+    // Fetch central sample
+    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+
+    // Fetch four more sample at diagonal offsets
+    ShadowMapUV.xy -= ShadowMapUVOffset;
+    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+    ShadowMapUV.x  += ShadowMapUVOffset * 2.0f;
+    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+    ShadowMapUV.y  += ShadowMapUVOffset * 2.0f;
+    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+    ShadowMapUV.x  -= ShadowMapUVOffset* 2.0f;
+    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+
+    return Light * 0.2f;
+}
+
 void main()
 {
     vec3 PixBaseColor = BaseColor;
@@ -200,9 +244,11 @@ void main()
 
     // Direct lighting
     {
+        float Visibility = LightFromShadowMap(FragWorldPosition);
+        
         vec3 n = Normal;
         vec3 v = normalize(CameraWorldPosition(cameras[0]) - FragWorldPosition);
-        vec3 l = normalize(-LightSources.SunLight.LightDir);
+        vec3 l = normalize(-(cameras[LightSources.SunLight.Camera].Camera_WorldForward));
         vec3 h = normalize(v + l);
         
         float CosThetaL = dot(n, l);
@@ -224,7 +270,7 @@ void main()
 
             vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
 
-            vec3 Light = LightSources.SunLight.LightColor * CosThetaL * LightSources.SunLight.LightIntensity;
+            vec3 Light = LightSources.SunLight.Color.LightColor * CosThetaL * LightSources.SunLight.Color.LightIntensity * Visibility;
 
             finalColor += Reflectance * Light;
         }

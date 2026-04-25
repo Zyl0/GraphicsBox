@@ -7,10 +7,12 @@
 
 #include "Include/Camera.glsl"
 
+layout(binding = 0, std430) readonly buffer Cameras
+{
+    CameraData cameras[];
+};
+
 // Skylight method switch
-#ifdef USE_PROCEDURAL_SKYLIGHT
-#include "ProceduralSkylight.glsl"
-#endif // USE_PROCEDURAL_SKYLIGHT
 #ifdef USE_CUBEMAP_SKYLIGHT
 #include "CubemapSkylight.glsl"
 #endif // USE_CUBEMAP_SKYLIGHT
@@ -28,7 +30,7 @@ void main()
     vec4 ViewportDirection = vec4(UVProj, 1.0, 0.0);
     ViewportDirection.x *= -1;
     ViewportDirection.z *= -1;
-    vec4 Direction = ProjToWorld(ViewportToProj(ViewportDirection));
+    vec4 Direction = ProjToWorld(cameras[0], ViewportToProj(cameras[0], ViewportDirection));
 
     OutColor.xyz = SampleSkylightColor(normalize(Direction.xyz));
     OutColor.w = 1.0;

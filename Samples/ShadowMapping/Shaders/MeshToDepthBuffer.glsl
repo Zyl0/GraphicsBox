@@ -2,6 +2,13 @@
 
 #include "Include/Camera.glsl"
 
+layout(binding = 0, std430) readonly buffer Cameras
+{
+    CameraData cameras[];
+};
+
+uniform uint CameraIndex;
+
 #ifdef VERTEX_SHADER
 layout(location= 0) in vec3 position;
 
@@ -19,7 +26,7 @@ vec4 InverseM(vec4 position)
 
 void main( )
 {
-    gl_Position = WorldToProj(M(vec4(position, 1)));
+    gl_Position = WorldToProj(cameras[CameraIndex], M(vec4(position, 1)));
 }
 #endif // VERTEX_SHADER
 

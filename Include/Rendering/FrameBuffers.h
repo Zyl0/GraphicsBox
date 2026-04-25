@@ -80,6 +80,7 @@ public:
         RetargetAttachment(const TextureCubeView& Texture, TextureCube::Face Face, uint8_t TargetMip = 0);
     };
     
+    FrameBuffer(uint32_t width, uint32_t height, const DepthAttachment& DepthStencilAttachment);
     FrameBuffer(const Attachment& Attachments, const DepthAttachment* DepthStencilAttachment = nullptr);
     FrameBuffer(std::span<const Attachment> Attachments, const DepthAttachment* DepthStencilAttachment = nullptr);
     ~FrameBuffer();

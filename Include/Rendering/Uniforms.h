@@ -6,6 +6,7 @@
 
 #include "Pipelines.h"
 #include "Sampler.h"
+#include "StorageBuffer.h"
 #include "Textures.h"
 #include "UniformBuffer.h"
 
@@ -71,3 +72,5 @@ void SetUniform(GLint Location, uint8_t TextureUnit, const Texture2D& texture, c
 void SetUniform(GLint Location, uint8_t TextureUnit, const Texture3D& texture, const Sampler& sampler);
 void SetUniform(GLint Location, uint8_t TextureUnit, const TextureCube& texture, const Sampler& sampler);
 void SetUniform(GLint Binding, const UniformBuffer& buffer);
+void SetUniform(GLint Binding, const StorageBuffer& buffer);
+

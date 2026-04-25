@@ -14,8 +14,11 @@
 #ifdef USE_MINI_ENGINE
 #else // USE_MINI_ENGINE
 
+#include <__msvc_filebuf.hpp>
+
 #include "backends/imgui_impl_opengl3.h"
 #include "Camera/FlyCamera.h"
+#include "Camera/OrthographicCamera.h"
 
 #ifdef WINDOW_GLFW
 #include <GLFW/glfw3.h>
@@ -31,6 +34,9 @@ constexpr size_t kBaseWidth = 1280;
 constexpr size_t kBaseHeight = 720;
 constexpr float kZNear = 0.01f;
 constexpr float kZFar = 1000.0f;
+constexpr uint16_t kBaseShadowMapResolution = 1024;
+constexpr uint16_t kBaseShadowCount = 8;
+constexpr uint16_t kBaseCameraCount = 8;
 
 /* ____________________________________ States ____________________________________ */
 
@@ -164,6 +170,15 @@ void UpdateCamera(GLFWwindow* window, double deltaTime, FlyCamera& camera)
     
     camera.RotateRadians(0, rotateDir * Pi * deltaTime * (CameraSpeed * 1000) / 5);
 }
+
+void UpdateLightObserver(OrthographicCamera& Observer, const Camera& SceneCamera, Vector3f DirectionFromLight, float Size)
+{
+    Vector3f DirectionTowardsLight = -DirectionFromLight;
+
+    Vector3f CameraPosition = SceneCamera.GetWorldDirection() + SceneCamera.GetWorldDirection() * Size + DirectionTowardsLight * Size / 2.0f;
+
+    Observer.LookAt(CameraPosition, DirectionFromLight, Vector3f(0, 1, 0));
+}
 #endif // WINDOW_GLFW
 
 /* ____________________________________ Render Data ____________________________________ */
@@ -211,30 +226,84 @@ void UpdateCameraData(CameraData& Data, const Camera& camera)
     Data.Camera_ViewportToProj = Vector2f(1.0f, -1.0f);
 }
 
-struct DirectionalLight
+struct LightColor_t
 {
-    AlignedVector3f LightDir = AlignedVector3f(Normalize(Vector3f{0.8f, -1.0f, 0.9f}));
-    
     Vector3f LightColor = {1.0f, 1.0f, 1.0f};
     float LightIntensity = 1.0f;
 };
 
+struct DirectionalLight_t
+{
+    LightColor_t Color;
+    
+    uint32_t Camera;
+    uint32_t pad[3];
+};
+
+// struct PointLight_t
+// {
+//     LightColor_t Color;
+//     
+//     uint32_t Cameras[6];
+//     uint32_t ShadowMaps[6];
+//     float Size;
+//     float pad;
+// };
+
+
 struct SceneBuffers
 {
     GLTF::GPUScene Scene;
-    UniformBuffer Lights;
-    UniformBuffer Camera;
 
+    UniformBuffer DirectionalLight{};
+    // StorageBuffer PointLights{};
+    StorageBuffer Cameras{kBaseCameraCount * sizeof(CameraData), nullptr};
+
+    std::vector<CameraData> CamerasData{kBaseCameraCount};
+    
     TextureCube SkylightCube{0, 0, Texture::Byte, Texture::R};
     Texture2D SkylightHDRI{0, 0, Texture::Byte, Texture::R};
+    Texture2D ShadowMap{kBaseShadowMapResolution, kBaseShadowMapResolution, Texture::UnsignedInt, Texture::D};
     
     Sampler BaseSampler{{}};
+    Sampler ShadowMapSampler{{.WarpModeU = Sampler::W_ClampToEdge, .WarpModeV = Sampler::W_ClampToEdge, .WarpModeW = Sampler::W_ClampToEdge}};
     
     // States
     uint32_t SkylightMethod = 1;
+    uint32_t MainCameraIndex = 0;
+    uint32_t CameraCount = 0;
+    float ShadowMapBias = 0.01;
     
     SceneBuffers() = default;
 };
+
+void UpdateGPUCamera(SceneBuffers& Scene, size_t Index, const Camera& Camera)
+{
+    UpdateCameraData(Scene.CamerasData[Index], Camera);
+
+    Scene.Cameras.SubData(&(Scene.CamerasData[Index]), sizeof(CameraData), sizeof(CameraData) * Index);
+}
+
+size_t AddGPUCamera(SceneBuffers& Scene)
+{
+    // Resize if needed
+    if (Scene.CameraCount == Scene.CamerasData.size())
+    {
+        Scene.CamerasData.resize(Scene.CameraCount * 2);
+        Scene.Cameras.Data(Scene.CamerasData.data(), sizeof(CameraData) * Scene.CameraCount * 2);
+    }
+
+    return Scene.CameraCount++;
+}
+
+size_t AddGPUCamera(SceneBuffers& Scene, const Camera& camera)
+{
+    size_t CameraID = AddGPUCamera(Scene);
+
+    UpdateGPUCamera(Scene, CameraID, camera);
+
+    return CameraID;
+}
 
 /* ____________________________________ Helpers ____________________________________ */
 
@@ -328,15 +397,68 @@ public:
         m_Pipeline(PipelineFromFile("Draw Shadow Map", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToDepthBuffer.glsl"))
     {}
     
-    void Draw(const SceneBuffers& SceneObjects)
+    void Draw(const SceneBuffers& SceneObjects, const Camera& LightObserver)
     {
         DebugScopeMarker scope("Draw Shadowmap");
+
+        Matrix4f ViewProj = LightObserver.Projection() * LightObserver.View();
         
         Bind(m_Pipeline);
+
+        // Scene storage buffers
+        SetUniform(0, SceneObjects.Cameras);
+        SetUniform(m_Pipeline, "CameraIndex", 1u);
+
+        for (const GLTF::MeshInstance& Instance : SceneObjects.Scene.instances)
+        {
+            const MeshObject& Mesh = SceneObjects.Scene.meshes[Instance.mesh];
+            const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
+            const GLTF::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
+            const GLTF::Material& Material = SceneObjects.Scene.materials[Instance.material];
+            
+            switch (Transform.Type)
+            {
+            case GLTF::Transform::Properties:
+            {
+                Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
+        
+                if (UseFrustumCulling && !frustumCullingTest(ViewProj, TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+        
+                SetUniform(m_Pipeline, "Model", TransformMatrix);
+            }
+            break;
+                
+            case GLTF::Transform::Matrix:
+            {
+                if (UseFrustumCulling && !frustumCullingTest(ViewProj, Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+        
+                SetUniform(m_Pipeline, "Model", Transform.Value.asMatrix);
+            }
+            break;
+            
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
+            }
+
+            
+            Bind(Mesh.GetVAO());
+            if (Mesh.GetIndexBuffer().has_value())
+            {
+                const IndexBuffer& indexBuffer = Mesh.GetIndexBuffer().value();
+                Bind(indexBuffer);
+            
+                glDrawElements(ToGLGeometryType(Mesh.GetVertexType()), Group.VertexCount, ToGLIndexType(indexBuffer.GetIndexType()), (void*)(Group.FirstVertex * ToGLIndexSize(indexBuffer.GetIndexType())));
+            
+                UnBind(indexBuffer);
+            }
+            else
+            {
+                glDrawArrays(ToGLGeometryType(Mesh.GetVertexType()), Group.FirstVertex, Group.VertexCount);
+            }
+            
+            UnBind(Mesh.GetVAO());
+        }
         
         UnBind(m_Pipeline);
-        
-        Matrix4f ViewProj = Camera.Projection() * Camera.View();
     }
     
     void Reload()
@@ -344,6 +466,42 @@ public:
         PipelineUpdateFromFile(m_Pipeline, "MeshToDepthBuffer.glsl");
     }
     
+private:
+    Pipeline m_Pipeline;
+};
+
+class DebugDrawFrustum
+{
+public:
+    DebugDrawFrustum():
+        m_Pipeline(PipelineFromFile("Debug Draw Frustum", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "DebugCube.glsl"))
+    {}
+
+    void Draw(const SceneBuffers& SceneObjects, uint32_t SourceCamera, uint32_t TargetCamera)
+    {
+        DebugScopeMarker scope("Debug Draw Frustum");
+
+        Bind(m_Pipeline);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+        // Scene storage buffers
+        SetUniform(0, SceneObjects.Cameras);
+        
+        SetUniform(m_Pipeline, "SourceCamera", SourceCamera);
+        SetUniform(m_Pipeline, "TargetCamera", TargetCamera);
+
+        glDrawArrays(GL_QUADS, 0, 24);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        UnBind(m_Pipeline);
+    }
+
+    void Reload()
+    {
+        PipelineUpdateFromFile(m_Pipeline, "DebugCube.glsl");
+    }
 private:
     Pipeline m_Pipeline;
 };
@@ -366,9 +524,10 @@ public:
         case 0: // Cubemap Sampling
             Bind(m_PipelineCubemap);
                 
-            // Scene buffers
-            SetUniform(0, SceneObjects.Camera);
-            SetUniform(1, SceneObjects.Lights);
+            // Scene storage buffers
+            SetUniform(0, SceneObjects.Cameras);
+
+            // Scene texture buffers
             SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
         
             // Draw screen quad
@@ -380,9 +539,10 @@ public:
         case 1: // HDRI Sampling
             Bind(m_PipelineHDRI);
                 
-            // Scene buffers
-            SetUniform(0, SceneObjects.Camera);
-            SetUniform(1, SceneObjects.Lights);
+            // Scene storage buffers
+            SetUniform(0, SceneObjects.Cameras);
+
+            // Scene texture buffers
             SetUniform(m_PipelineHDRI, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
         
             // Draw screen quad
@@ -427,14 +587,17 @@ public:
         {
         case 0: // Cubemap Sampling
             Bind(m_PipelineCubemap);
+
+            // Scene storage buffers
+            SetUniform(0, SceneObjects.Cameras);
+        
+            // Scene uniform buffers
+            SetUniform(0, SceneObjects.DirectionalLight);
                 
-            // Scene buffers
-            SetUniform(0, SceneObjects.Camera);
-            SetUniform(1, SceneObjects.Lights);
+            // Scene texture buffers
             SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
+            SetUniform(m_PipelineCubemap, "ShadowMap", 1, SceneObjects.ShadowMap, SceneObjects.ShadowMapSampler);
             SetUniform(m_PipelineCubemap, "SkyLightMipCount",  SceneObjects.SkylightCube.MipCount());
-            
-            SetUniform(m_PipelineCubemap, "IndirectLightingSampleCount", m_SkyLightSampleCount);
             
             pipeline = &m_PipelineCubemap;
             break;
@@ -442,13 +605,16 @@ public:
         case 1: // HDRI Sampling
             Bind(m_PipelineHDRI);
                 
-            // Scene buffers
-            SetUniform(0, SceneObjects.Camera);
-            SetUniform(1, SceneObjects.Lights);
+            // Scene storage buffers
+            SetUniform(0, SceneObjects.Cameras);
+        
+            // Scene uniform buffers
+            SetUniform(0, SceneObjects.DirectionalLight);
+                
+            // Scene texture buffers
             SetUniform(m_PipelineHDRI, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
+            SetUniform(m_PipelineHDRI, "ShadowMap", 1, SceneObjects.ShadowMap, SceneObjects.ShadowMapSampler);
             SetUniform(m_PipelineHDRI, "SkyLightMipCount",  SceneObjects.SkylightHDRI.MipCount());
-            
-            SetUniform(m_PipelineCubemap, "IndirectLightingSampleCount", m_SkyLightSampleCount);
             
             pipeline = &m_PipelineHDRI;
             break;
@@ -456,6 +622,10 @@ public:
         default:
             return;
         }
+
+        SetUniform(*pipeline, "ShadowMapBias", SceneObjects.ShadowMapBias);
+        SetUniform(*pipeline, "ShadowMapResolution", SceneObjects.ShadowMap.Width());
+        SetUniform(*pipeline, "IndirectLightingSampleCount", m_SkyLightSampleCount);
         
         for (const GLTF::MeshInstance& Instance : SceneObjects.Scene.instances)
         {
@@ -496,10 +666,10 @@ public:
             SetUniform(*pipeline, "UseNormalTexture", Material.normalTexture != UINT64_MAX);
             SetUniform(*pipeline, "UseMRTexture", Material.metallicRoughnessTexture != UINT64_MAX);
             SetUniform(*pipeline, "UseAOTexture", Material.occlusionTexture != UINT64_MAX);
-            if (Material.colorTexture != UINT64_MAX) SetUniform(*pipeline, "texColor", 1, SceneObjects.Scene.textures[Material.colorTexture], SceneObjects.BaseSampler);
-            if (Material.normalTexture != UINT64_MAX) SetUniform(*pipeline, "texNormal", 2, SceneObjects.Scene.textures[Material.normalTexture], SceneObjects.BaseSampler);
-            if (Material.metallicRoughnessTexture != UINT64_MAX) SetUniform(*pipeline, "texMR", 3, SceneObjects.Scene.textures[Material.metallicRoughnessTexture], SceneObjects.BaseSampler);
-            if (Material.occlusionTexture != UINT64_MAX) SetUniform(*pipeline, "texAO", 4, SceneObjects.Scene.textures[Material.occlusionTexture], SceneObjects.BaseSampler);
+            if (Material.colorTexture != UINT64_MAX) SetUniform(*pipeline, "texColor", 2, SceneObjects.Scene.textures[Material.colorTexture], SceneObjects.BaseSampler);
+            if (Material.normalTexture != UINT64_MAX) SetUniform(*pipeline, "texNormal", 3, SceneObjects.Scene.textures[Material.normalTexture], SceneObjects.BaseSampler);
+            if (Material.metallicRoughnessTexture != UINT64_MAX) SetUniform(*pipeline, "texMR", 4, SceneObjects.Scene.textures[Material.metallicRoughnessTexture], SceneObjects.BaseSampler);
+            if (Material.occlusionTexture != UINT64_MAX) SetUniform(*pipeline, "texAO", 5, SceneObjects.Scene.textures[Material.occlusionTexture], SceneObjects.BaseSampler);
             
             Bind(Mesh.GetVAO());
             if (Mesh.GetIndexBuffer().has_value())
@@ -558,10 +728,6 @@ public:
         DebugScopeMarker scope("Apply Tone Mapping");
         
         Bind(m_Pipeline);
-        
-        // Scene buffers
-        SetUniform(0, SceneObjects.Camera);
-        SetUniform(1, SceneObjects.Lights);
         
         SetUniform(m_Pipeline, "SceneRadiance", 0, SceneRadiance, m_Sampler);
         
@@ -646,17 +812,23 @@ int main(void)
     // Application resources lifetime
     {
         uint32_t CurrentWidth = kBaseWidth, CurrentHeight = kBaseHeight;
-        
-        // GPU buffers data
-        CameraData cameraData;
-        DirectionalLight lightsData{};
+
+        SceneBuffers GPUScene;
         
         Texture2D SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB);
         Texture2D SceneDepthRT(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D);
         FrameBuffer::DepthAttachment SceneDepthAttachment(SceneDepthRT);
         FrameBuffer SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachment);
 
-        SceneBuffers GPUScene;
+        FrameBuffer::DepthAttachment ShadowMapDepthAttachment(GPUScene.ShadowMap);
+        FrameBuffer ShadowMapFB(kBaseShadowMapResolution, kBaseShadowMapResolution, ShadowMapDepthAttachment);
+        
+        // GPU buffers data
+        size_t MainCameraData = AddGPUCamera(GPUScene);
+        size_t LightObserverCameraData = AddGPUCamera(GPUScene);
+        
+        DirectionalLight_t lightsData{};
+        lightsData.Camera = LightObserverCameraData;
         
         // Load scene data
         {
@@ -701,11 +873,21 @@ int main(void)
         FlyCamera camera;
         camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f), kZNear, kZFar);
         camera.SetTranslation(-4,1,0);
+
+        OrthographicCamera SunlightCamera;
+        SunlightCamera.SetOrthographicProjection(20,20,0,20);
+
+        Vector3f LightBaseDirection{0, 0, 1};
+        QuaternionF LightRotation{};
         
         // Passes
+        DrawShadowMap DrawShadowMapPass{};
         DrawSky DrawSkyPass{};
         DrawScene DrawScenePass{};
         PostProcess DrawPostProcessPass{};
+
+        // Debug passes
+        DebugDrawFrustum DebugDrawFrustumPass{};
 
         // keep track of time during the execution
         clock_t prev_clock = clock();
@@ -741,6 +923,8 @@ int main(void)
                 DrawSkyPass.Reload();
                 DrawScenePass.Reload();
                 DrawPostProcessPass.Reload();
+                DrawShadowMapPass.Reload();
+                
                 
                 RequestRebake = true;
                 
@@ -755,10 +939,12 @@ int main(void)
                 prev_clock = curr_clock;
                 
                 UpdateCamera(window, deltaTime, camera);
-                UpdateCameraData(cameraData, camera);
-                
-                GPUScene.Camera.Data(&cameraData, sizeof(cameraData));
-                GPUScene.Lights.Data(&lightsData, sizeof(lightsData));
+                UpdateLightObserver(SunlightCamera, camera, LightRotation(LightBaseDirection), 20);
+
+                UpdateGPUCamera(GPUScene, MainCameraData, camera);
+                UpdateGPUCamera(GPUScene, LightObserverCameraData, SunlightCamera);
+
+                GPUScene.DirectionalLight.Data(&lightsData, sizeof(lightsData));
             }
             
             // Bake non real time data
@@ -771,6 +957,14 @@ int main(void)
 
             // Draw scene
             {
+                Bind(ShadowMapFB);
+
+                glEnable(GL_DEPTH_TEST);
+                glClear(GL_DEPTH_BUFFER_BIT);
+                DrawShadowMapPass.Draw(GPUScene, SunlightCamera);
+
+                glDisable(GL_DEPTH_TEST);
+                
                 Bind(SceneRadianceFB);
                 SceneRadianceFB.Clear();
                 
@@ -783,6 +977,8 @@ int main(void)
                 DrawScenePass.Draw(GPUScene, camera);
                 glDisable(GL_CULL_FACE);
                 glDisable(GL_DEPTH_TEST);
+
+                DebugDrawFrustumPass.Draw(GPUScene, LightObserverCameraData, MainCameraData);
                 
                 UnBind(SceneRadianceFB);
                 
@@ -804,9 +1000,23 @@ int main(void)
                 ImGui::Begin("Settings");
                 
                 // Directional Light
-                ImGui::DragFloat3("Light Direction", lightsData.LightDir.vector.data(), 0.1f);
-                ImGui::ColorEdit3("Light Color", lightsData.LightColor.data());
-                ImGui::SliderFloat("Light Intensity", &lightsData.LightIntensity, 0.1f, 10.0f);
+                {
+                    Vector3f Angles = LightRotation.GetAngles();
+                    Angles.x = Degrees(Angles.x);
+                    Angles.y = Degrees(Angles.y);
+                    Angles.z = Degrees(Angles.z);
+
+                    ImGui::DragFloat3("Light Rotation", Angles.data(), 0.25, -180, 180);
+
+                    Angles.x = Radians(Angles.x);
+                    Angles.y = Radians(Angles.y);
+                    Angles.z = Radians(Angles.z);
+                    
+                    LightRotation = QuaternionF(Angles.x, Angles.y, Angles.z);
+                }
+                ImGui::ColorEdit3("Light Color", lightsData.Color.LightColor.data());
+                ImGui::SliderFloat("Light Intensity", &lightsData.Color.LightIntensity, 0.1f, 10.0f);
+
                 
                 ImGui::Separator();
 

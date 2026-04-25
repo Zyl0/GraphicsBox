@@ -285,3 +285,8 @@ void SetUniform(GLint Binding, const UniformBuffer& buffer)
 {
     glBindBufferBase(GL_UNIFORM_BUFFER, Binding, buffer.Handle());
 }
+
+void SetUniform(GLint Binding, const StorageBuffer& buffer)
+{
+    Bind(buffer, Binding);
+}

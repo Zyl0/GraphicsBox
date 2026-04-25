@@ -127,6 +127,71 @@ FrameBuffer::RetargetAttachment::RetargetAttachment(const TextureCubeView& Textu
     }
 }
 
+FrameBuffer::FrameBuffer(uint32_t width, uint32_t height, const DepthAttachment& DepthStencilAttachment):
+    m_Width(width), m_Height(height), m_Depth(1), m_ColorAttachmentCount(0)
+{
+    GLCall(glGenFramebuffers(1, &m_FrameBuffer))
+    Bind(*this);
+
+    GLenum Attachment = GL_NONE;
+        
+    switch (DepthStencilAttachment.Layout)
+    {
+    case Texture::D:
+        Attachment = GL_DEPTH_ATTACHMENT;
+        break;
+                
+    case Texture::S:
+        Attachment = GL_STENCIL_ATTACHMENT;
+        break;
+                
+    case Texture::DS:
+        Attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+        break;
+                
+    case Texture::R:
+    case Texture::RG:
+    case Texture::RGB:
+    case Texture::BGR:
+    case Texture::RGBA:
+    case Texture::ARGB:
+    case Texture::ABGR:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported depth/stencil texture layout")
+    }
+        
+    switch (DepthStencilAttachment.Type)
+    {
+    case Frame2D:
+        if (DepthStencilAttachment.Multisample)
+        {
+            GLCall(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, Attachment, GL_TEXTURE_2D_MULTISAMPLE, DepthStencilAttachment.Handle, 0))
+        }
+        else
+        {
+            GLCall(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, Attachment, GL_TEXTURE_2D, DepthStencilAttachment.Handle, 0))
+        }
+        break;
+            
+    case Buffer2D:
+        GLCall(glFramebufferRenderbuffer(GL_FRAMEBUFFER, Attachment, GL_RENDERBUFFER, DepthStencilAttachment.Handle))
+        break;
+            
+    case Frame3D:
+    case FrameCubemapRight:
+    case FrameCubemapLeft:
+    case FrameCubemapUp:
+    case FrameCubemapDown:
+    case FrameCubemapBack:
+    case FrameCubemapFront:
+    case Unset:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported depth/stencil texture attachment type")
+    }
+
+    GLCall(glDrawBuffers(0, nullptr);)
+
+    UnBind(*this);
+}
+
 FrameBuffer::FrameBuffer(const Attachment& Attachments, const DepthAttachment* DepthStencilAttachment) :
     FrameBuffer(std::span<const Attachment>(&Attachments, (&Attachments)+1), DepthStencilAttachment)
 {
@@ -269,6 +334,8 @@ FrameBuffer::FrameBuffer(std::span<const Attachment> Attachments, const DepthAtt
         case Unset:
         SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported depth/stencil texture attachment type")
         }
+
+        AttachmentsIndexes.push_back(Attachment);
     }
     
     GLCall(glDrawBuffers(ColorAttachmentCount(), AttachmentsIndexes.data());)
