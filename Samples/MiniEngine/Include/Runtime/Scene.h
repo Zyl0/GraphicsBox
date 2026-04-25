@@ -141,10 +141,7 @@ namespace Engine::World
             Context& GetContext() {return m_Context;}
         
         private:
-            Handle AddOrReuse()
-            {
-                std::unique_ptr<int> pi = std::make_unique<int>(0);
-            }
+            Handle AddOrReuse();
 
         private:
             struct Instance
