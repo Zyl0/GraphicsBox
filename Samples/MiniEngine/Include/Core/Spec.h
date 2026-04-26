@@ -9,7 +9,7 @@
 
 namespace Engine
 {
-    // A spec is the specifications of mudule an engine have to contain
+    // A spec is the specifications of module an engine have to contain
     class Spec
     {
     public:
@@ -18,7 +18,11 @@ namespace Engine
         template<class T> requires(std::is_base_of_v<IModule, T>) // && (std::is_default_constructible_v<T>() || std::is_trivially_constructible_v<T>()))
         void Register()
         {
-            Modules.try_emplace(ctti::type_id<T>().hash(), std::make_unique<T>());
+            if (Modules.contains(ctti::type_id<T>().hash())) return;
+            
+            auto it = Modules.try_emplace(ctti::type_id<T>().hash(), std::make_unique<T>());
+            
+            it.first->second->RegisterDependencies(*this);
         }
     
     private:

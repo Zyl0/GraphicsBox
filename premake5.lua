@@ -677,6 +677,7 @@ group "Samples"
     SampleProjects = {
         "AntiAliasing",
         "GLTFViewer",
+        "MiniEngineSample",
         "PBR",
         "SpectralRendering",
         "ShadowMapping"
@@ -708,6 +709,7 @@ group "Samples"
                 gb_IncludeDir,
                 path.join(gb_SamplesDir, "MiniEngine", "Include"),
                 path.join(gb_SamplesDir, name),
+                path.join(gb_SourceDependencyDir, "ctti", "include"),
                 path.join(gb_SourceDependencyDir, "imgui"),
                 path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
             }

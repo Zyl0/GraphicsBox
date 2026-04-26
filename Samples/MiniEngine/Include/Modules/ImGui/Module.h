@@ -1,8 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include "Core/Module.h"
 
-namespace Rendering
+namespace ImGui
 {
     // Base renderer
     // Made to be overriden
@@ -14,10 +14,7 @@ namespace Rendering
         
         void RegisterDependencies(Engine::Spec& spec) override;
 
-        void RegisterComponents() override;
-        
-        INLINE int OpenGLVersionMajor() {return 4;}
-        INLINE int OpenGLVersionmMinor() {return 5;}
-        INLINE bool OpenGLUseCoreProfile() {return false;}
+        // No components to register
+        // void RegisterComponents() override;
     };
 }

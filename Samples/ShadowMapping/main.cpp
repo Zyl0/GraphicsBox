@@ -132,7 +132,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         RequestShaderReload = true;
 }
 
-bool GetKey(GLFWwindow* window, unsigned code)
+bool GetKey(GLFWwindow* window, int code)
 {
     int state = glfwGetKey(window, code);
     
@@ -275,7 +275,7 @@ struct SceneBuffers
     uint32_t SkylightMethod = 1;
     uint32_t MainCameraIndex = 0;
     uint32_t CameraCount = 0;
-    float ShadowMapBias = 0.01;
+    float ShadowMapBias = 0.01f;
     
     SceneBuffers() = default;
 };

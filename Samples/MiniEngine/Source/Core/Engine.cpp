@@ -20,4 +20,28 @@ namespace Engine
 
         return m_Modules[ModuleID].get();
     }
+
+    void Engine::InitializeScene() const
+    {
+        for (auto & Systems : m_Scene.m_Systems)
+        {
+            Systems->Initialize();
+        }
+    }
+
+    void Engine::TickScene(double DeltaTime) const
+    {
+        for (auto & Systems : m_Scene.m_Systems)
+        {
+            Systems->Update(DeltaTime);
+        }
+    }
+
+    void Engine::TerminateScene() const
+    {
+        for (auto & Systems : m_Scene.m_Systems)
+        {
+            Systems->Terminate();
+        }
+    }
 }

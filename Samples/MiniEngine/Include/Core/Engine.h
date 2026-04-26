@@ -9,6 +9,8 @@ namespace Engine
     class Engine
     {
     public:
+        friend class App;
+        
         Engine(Spec&& spec);
 
         IModule* GetModule(TypeHash ModuleID);
@@ -28,7 +30,12 @@ namespace Engine
             ctx.m_Scene = &m_Scene;
             return ctx;
         }
+        
     private:
+        void InitializeScene() const;
+        void TickScene(double DeltaTime) const;
+        void TerminateScene() const;
+        
         World::_World::Scene m_Scene;
         std::unordered_map<TypeHash, std::unique_ptr<IModule>> m_Modules;
     };

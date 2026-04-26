@@ -178,6 +178,8 @@ namespace Engine::World
         class Scene
         {
         public:
+            friend Engine;
+            
             Scene(Context Context) : m_Context(Context) {}
             
             template<ComponentSystem CS>

@@ -8,6 +8,7 @@
 #include "Modules/Rendering/World/Mesh.h"
 
 #include "Core/Spec.h"
+#include "World/Component.h"
 
 void Rendering::Module::RegisterDependencies(Engine::Spec& spec)
 {
@@ -16,7 +17,7 @@ void Rendering::Module::RegisterDependencies(Engine::Spec& spec)
 
 void Rendering::Module::RegisterComponents()
 {
-    Engine::World::RegisterComponentSystem<World::CameraComponentSystem>(Context());
-    Engine::World::RegisterComponentSystem<World::MeshComponentSystem>(Context());
+    // Engine::World::RegisterComponentSystem<World::CameraComponentSystem>(Context());
+    // Engine::World::RegisterComponentSystem<World::MeshComponentSystem>(Context());
     // Engine::World::RegisterComponentSystem<World::CameraComponentSystem>(Context());
 }
