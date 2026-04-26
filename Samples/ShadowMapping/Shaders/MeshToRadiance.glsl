@@ -185,19 +185,19 @@ float LightFromShadowMap(vec3 WorldPosition)
     float Light = 0.0f;
 
     // Fetch central sample
-    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+    Light += (texture(ShadowMap, ShadowMapUV).x) > (Depth - Bias) ? 0.0f : 1.0f;
 
     // Fetch four more sample at diagonal offsets
     ShadowMapUV.xy -= ShadowMapUVOffset;
-    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+    Light += (texture(ShadowMap, ShadowMapUV).x) > (Depth - Bias) ? 0.0f : 1.0f;
     ShadowMapUV.x  += ShadowMapUVOffset * 2.0f;
-    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+    Light += (texture(ShadowMap, ShadowMapUV).x) > (Depth - Bias) ? 0.0f : 1.0f;
     ShadowMapUV.y  += ShadowMapUVOffset * 2.0f;
-    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+    Light += (texture(ShadowMap, ShadowMapUV).x) > (Depth - Bias) ? 0.0f : 1.0f;
     ShadowMapUV.x  -= ShadowMapUVOffset* 2.0f;
-    Light += (texture(ShadowMap, ShadowMapUV).x - Depth) > Bias ? 0.0f : 1.0f;
+    Light += (texture(ShadowMap, ShadowMapUV).x) > (Depth - Bias) ? 0.0f : 1.0f;
 
-    return Light * 0.2f;
+    return 1 - (Light * 0.2f);
 }
 
 void main()
@@ -248,7 +248,7 @@ void main()
         
         vec3 n = Normal;
         vec3 v = normalize(CameraWorldPosition(cameras[0]) - FragWorldPosition);
-        vec3 l = normalize(-(cameras[LightSources.SunLight.Camera].Camera_WorldForward));
+        vec3 l = normalize((cameras[LightSources.SunLight.Camera].Camera_WorldForward));
         vec3 h = normalize(v + l);
         
         float CosThetaL = dot(n, l);

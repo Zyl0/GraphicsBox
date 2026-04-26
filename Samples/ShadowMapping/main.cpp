@@ -48,6 +48,8 @@ float CameraSpeed = 1.0f;
 
 bool UseFrustumCulling = false;
 
+bool DebugDrawLightObserverFrustum = false;
+
 /* ____________________________________ Debug ____________________________________ */
 
 void GLAPIENTRY MessageCallback(GLenum source,
@@ -175,7 +177,8 @@ void UpdateLightObserver(OrthographicCamera& Observer, const Camera& SceneCamera
 {
     Vector3f DirectionTowardsLight = -DirectionFromLight;
 
-    Vector3f CameraPosition = SceneCamera.GetWorldDirection() + SceneCamera.GetWorldDirection() * Size + DirectionTowardsLight * Size / 2.0f;
+    Vector3f Center = SceneCamera.GetWorldDirection() + SceneCamera.GetWorldDirection() * Size;
+    Vector3f CameraPosition = Center + DirectionTowardsLight * Size / 2.0f;
 
     Observer.LookAt(CameraPosition, DirectionFromLight, Vector3f(0, 1, 0));
 }
@@ -229,7 +232,7 @@ void UpdateCameraData(CameraData& Data, const Camera& camera)
 struct LightColor_t
 {
     Vector3f LightColor = {1.0f, 1.0f, 1.0f};
-    float LightIntensity = 1.0f;
+    float LightIntensity = 3.2f;
 };
 
 struct DirectionalLight_t
@@ -875,10 +878,10 @@ int main(void)
         camera.SetTranslation(-4,1,0);
 
         OrthographicCamera SunlightCamera;
-        SunlightCamera.SetOrthographicProjection(20,20,0,20);
+        SunlightCamera.SetOrthographicProjection(5,5,0,10);
 
         Vector3f LightBaseDirection{0, 0, 1};
-        QuaternionF LightRotation{};
+        QuaternionF LightRotation{0, Radians(28.0f), Radians(-29.5f)};
         
         // Passes
         DrawShadowMap DrawShadowMapPass{};
@@ -939,7 +942,7 @@ int main(void)
                 prev_clock = curr_clock;
                 
                 UpdateCamera(window, deltaTime, camera);
-                UpdateLightObserver(SunlightCamera, camera, LightRotation(LightBaseDirection), 20);
+                UpdateLightObserver(SunlightCamera, camera, LightRotation(LightBaseDirection), 2.5);
 
                 UpdateGPUCamera(GPUScene, MainCameraData, camera);
                 UpdateGPUCamera(GPUScene, LightObserverCameraData, SunlightCamera);
@@ -978,7 +981,10 @@ int main(void)
                 glDisable(GL_CULL_FACE);
                 glDisable(GL_DEPTH_TEST);
 
-                DebugDrawFrustumPass.Draw(GPUScene, LightObserverCameraData, MainCameraData);
+                if (DebugDrawLightObserverFrustum)
+                {
+                    DebugDrawFrustumPass.Draw(GPUScene, LightObserverCameraData, MainCameraData);
+                }
                 
                 UnBind(SceneRadianceFB);
                 
@@ -1029,6 +1035,10 @@ int main(void)
                 
                 ImGui::SliderInt("Sky light Sample Count", (int*)&DrawScenePass.SkyLightSampleCount(), 1, 1024);
 
+                ImGui::Separator();
+                ImGui::Checkbox("Light Draw Frustum", &DebugDrawLightObserverFrustum);
+                ImGui::SliderFloat("Shadow Map bias", &GPUScene.ShadowMapBias, std::numeric_limits<float>::epsilon(), 0.1f);
+                
                 ImGui::Separator();
                 
                 if (GPUScene.SkylightMethod == 3)
