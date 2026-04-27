@@ -23,7 +23,6 @@
 #ifdef WINDOW_GLFW
 #include <GLFW/glfw3.h>
 #include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_glfw.h"
 #endif // WINDOW_GLFW
 
 using namespace Math;

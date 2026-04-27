@@ -12,6 +12,12 @@ namespace Engine
         {
             module.second->m_Context = GetContext();
         }
+
+        m_UpdateOrder.reserve(spec.UpdateOrder.size());
+        for (auto & val : spec.UpdateOrder)
+        {
+            m_UpdateOrder.push_back(val);
+        }
     }
 
     IModule* Engine::GetModule(TypeHash ModuleID)

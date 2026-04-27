@@ -18,14 +18,56 @@ namespace Engine
         template<class T> requires(std::is_base_of_v<IModule, T>) // && (std::is_default_constructible_v<T>() || std::is_trivially_constructible_v<T>()))
         void Register()
         {
-            if (Modules.contains(ctti::type_id<T>().hash())) return;
+            TypeHash ID = ctti::type_id<T>().hash();
+            if (Modules.contains(ID))
+            {
+                if (CurrentReferencer != 0)
+                {
+                    PromoteInUpdateList(ID, CurrentReferencer);
+                    RegisterDependencies(ID);
+                }
+
+                return;
+            }
             
             auto it = Modules.try_emplace(ctti::type_id<T>().hash(), std::make_unique<T>());
             
-            it.first->second->RegisterDependencies(*this);
+            if (CurrentReferencer != 0)
+            {
+                PromoteInUpdateList(ID, CurrentReferencer);
+            }
+            else
+            {
+                UpdateOrder.push_back(ID);
+            }
+            
+            RegisterDependencies(ID);
         }
     
     private:
+        void RegisterDependencies(TypeHash ID)
+        {
+            TypeHash Referencer = CurrentReferencer;
+            CurrentReferencer = ID;
+            
+            Modules[ID]->RegisterDependencies(*this);
+
+            CurrentReferencer = Referencer;
+        }
+        
+        // Push the id up in the update list so it gets updated before the referencer in the update list
+        void PromoteInUpdateList(TypeHash ID, TypeHash Referencer)
+        {
+            auto InstIt = std::find(UpdateOrder.begin(), UpdateOrder.end(), ID);
+            auto RefIt = std::find(UpdateOrder.begin(), UpdateOrder.end(), Referencer);
+
+            UpdateOrder.erase(InstIt);
+            UpdateOrder.insert(RefIt, ID);
+        }
+        
         std::unordered_map<TypeHash, std::unique_ptr<IModule>> Modules;
+        std::list<TypeHash> UpdateOrder;
+
+        TypeHash CurrentReferencer = 0;
     };
 }

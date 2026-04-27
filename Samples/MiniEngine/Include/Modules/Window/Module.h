@@ -20,15 +20,19 @@ namespace Window
         
         bool HasFocus();
         
-        INLINE bool IsNotReduced() const {return m_IsReduced;}
+        INLINE bool IsNotReduced() const {return !m_IsReduced;}
         
         INLINE bool ShouldResize() const {return m_ShouldResize;}
         
         bool GetFrameBufferSize(uint32_t& width, uint32_t& height);
+
+        bool ShouldRecompileShaders();
         
 #ifdef WINDOW_GLFW
         bool GLFWGetKey(int code);
 #endif // WINDOW_GLFW
+
+        INLINE void* _Handle() {return m_Window;}
         
     private:
         void* m_Window;

@@ -23,6 +23,8 @@ namespace Engine
 
         virtual void Shutdown() {}
 
+        virtual void EditorUI() {}
+
         class Context& Context() {return m_Context;}
         const class Context& Context() const {return m_Context;}
         

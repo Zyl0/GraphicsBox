@@ -38,5 +38,6 @@ namespace Engine
         
         World::_World::Scene m_Scene;
         std::unordered_map<TypeHash, std::unique_ptr<IModule>> m_Modules;
+        std::vector<TypeHash> m_UpdateOrder;
     };
 }

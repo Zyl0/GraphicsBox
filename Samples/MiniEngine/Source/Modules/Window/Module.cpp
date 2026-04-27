@@ -1,7 +1,10 @@
 ﻿#include "Modules/Rendering/Module.h"
 #include "Modules/Window/Module.h"
 
+#include "Rendering/GLHelper.h"
+#ifdef WINDOW_GLFW
 #include <GLFW/glfw3.h>
+#endif // WINDOW_GLFW
 
 #include "Shared/Assertion.h"
 
@@ -14,6 +17,9 @@ namespace Window
     constexpr size_t kBaseWidth = 1280;
     constexpr size_t kBaseHeight = 720;
     constexpr const char* kBaseWindowName = "Mini Engine";
+
+    // states
+    static bool RequestShaderReload = false;
     
 #ifdef WINDOW_GLFW
     void error_callback(int error, const char* description)
@@ -36,7 +42,7 @@ namespace Window
     
         if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
         {
-            // RequestShaderReload = true;
+            RequestShaderReload = true;
         }
     }
 #endif // WINDOW_GLFW
@@ -88,6 +94,9 @@ terminate_glfw_window:
 
     void Module::Tick(double deltaTime)
     {
+        // Reset states
+        RequestShaderReload = false;
+        
 #ifdef WINDOW_GLFW
         GLFWwindow* window = (GLFWwindow*)m_Window;
         
@@ -158,6 +167,11 @@ terminate_glfw_window:
         height = m_Height;
         
         return m_ShouldResize;
+    }
+
+    bool Module::ShouldRecompileShaders()
+    {
+        return RequestShaderReload;
     }
 
 #ifdef WINDOW_GLFW

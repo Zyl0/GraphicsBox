@@ -16,5 +16,16 @@ namespace ImGui
 
         // No components to register
         // void RegisterComponents() override;
+
+        void Initialize() override;
+
+        // Tick is not requiered
+        // void Tick(double deltaTime) override;
+
+        void Shutdown() override;
+
+        void _BeginFrame();
+
+        void _EndFrame();
     };
 }
