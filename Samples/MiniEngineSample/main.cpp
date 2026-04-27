@@ -1,9 +1,9 @@
+#include <imgui.h>
 
 #include "App.h"
 #include "Core/Spec.h"
 
 // Modules
-#include "imgui.h"
 #include "Modules/Window/Module.h"
 #include "Modules/Rendering/Module.h"
 #include "Modules/ImGui/Module.h"

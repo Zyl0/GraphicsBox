@@ -89,6 +89,11 @@ namespace Rendering
         // Engine::World::RegisterComponentSystem<World::CameraComponentSystem>(Context());
     }
 
+    void Module::EnableMSAA()
+    {
+        glEnable(GL_MULTISAMPLE);
+    }
+
     void Module::Initialize()
     {
         AssertOrError(glewInit() == GLEW_OK, "Failed to initialize GLEW")

@@ -65,8 +65,8 @@ namespace Engine
             {
                 curr_clock = clock();
                 clock_t dcl = curr_clock - prev_clock;
-                double deltaTimeMs = static_cast<double>(dcl) / 1000000.0;
-                double deltaTime = deltaTimeMs / 1000.0;
+                double deltaTime = static_cast<double>(dcl) / 1000000.0;
+                // double deltaTime = deltaTimeMs / 1000.0;
                 prev_clock = curr_clock;
 
                 // Slowdown app when not on focus

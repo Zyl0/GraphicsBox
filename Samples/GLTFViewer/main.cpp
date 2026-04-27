@@ -5,30 +5,29 @@
 #include "Rendering/Rendering.h"
 #include "Importers/GLTF/SceneLoader.h"
 #include "Image/ColorSpaces.h"
+#include "Camera/FlyCamera.h"
 
 #include <imgui.h>
 
-// Implementation using the mini engine
-// #define USE_MINI_ENGINE
+#include "Modules/Rendering/Shaders/Camera.h"
 
-#ifdef USE_MINI_ENGINE
-#else // USE_MINI_ENGINE
 
-#include "backends/imgui_impl_opengl3.h"
-#include "Camera/FlyCamera.h"
+#include "App.h"
+#include "Core/Engine.h"
 
-#ifdef WINDOW_GLFW
+// Modules
+#include "Modules/ImGui/Module.h"
+#include "Modules/Rendering/Module.h"
+#include "Modules/Rendering/Tools/FrustumCulling.h"
+#include "Modules/Window/Module.h"
+
+// for macro keys, TODO maybe abstract into an input system or module
 #include <GLFW/glfw3.h>
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_glfw.h"
-#endif // WINDOW_GLFW
 
 using namespace Math;
 
 /* ____________________________________ Constants ____________________________________ */
 
-constexpr size_t kBaseWidth = 1280;
-constexpr size_t kBaseHeight = 720;
 constexpr float kZNear = 0.01f;
 constexpr float kZFar = 1000.0f;
 constexpr uint32_t kBaseAntiAliasingMethod = 1; // MSAA
@@ -36,182 +35,10 @@ constexpr uint8_t kBaseSampleCount = 4;
 
 /* ____________________________________ States ____________________________________ */
 
-bool RequestShaderReload = false;
-bool RequestRebake = true;
-bool RebakeEveryFrame = false;
-
 float CameraSpeed = 1.0f;
-
 bool UseFrustumCulling = false;
 
-/* ____________________________________ Debug ____________________________________ */
-
-void GLAPIENTRY MessageCallback(GLenum source,
-    GLenum type,
-    GLuint id,
-    GLenum severity,
-    GLsizei length,
-    const GLchar* message,
-    const void* userParam)
-{
-    // Ignore non-significant error/warning codes
-    if (id == 131169 || id == 131185 || id == 131218 || id == 131204) return;
-
-    const char* NullString = "";
-    const char* errSource = NullString;
-    const char* errType = NullString;
-
-    switch (source)
-    {
-    case GL_DEBUG_SOURCE_API:             errSource = "Source: API";                 break;
-    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   errSource = "Source: Window System";       break;
-    case GL_DEBUG_SOURCE_SHADER_COMPILER: errSource = "Source: Shader Compiler";     break;
-    case GL_DEBUG_SOURCE_THIRD_PARTY:     errSource = "Source: Third Party";         break;
-    case GL_DEBUG_SOURCE_APPLICATION:     errSource = "Source: Application";         break;
-    case GL_DEBUG_SOURCE_OTHER:           errSource = "Source: Other";               break;
-    }
-
-    switch (type)
-    {
-    case GL_DEBUG_TYPE_ERROR:               errType = "Type: Error";                 break;
-    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: errType = "Type: Deprecated Behaviour";  break;
-    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  errType = "Type: Undefined Behaviour";   break;
-    case GL_DEBUG_TYPE_PORTABILITY:         errType = "Type: Portability";           break;
-    case GL_DEBUG_TYPE_PERFORMANCE:         errType = "Type: Performance";           break;
-    case GL_DEBUG_TYPE_MARKER:              errType = "Type: Marker";                break;
-    case GL_DEBUG_TYPE_OTHER:               errType = "Type: Other";                 break;
-
-    case GL_DEBUG_TYPE_PUSH_GROUP:
-    case GL_DEBUG_TYPE_POP_GROUP:
-        return;
-    }
-
-    switch (severity)
-    {
-    case GL_DEBUG_SEVERITY_HIGH:
-        EngineLoggerErrorF("OpenGL Validation Error High [%s] [%s]: %s", errSource, errType, message);
-#ifdef CONFIG_DEBUG
-        EngineRuntimeBREAKPOINT
-#endif // CONFIG_DEBUG
-        break;
-
-    case GL_DEBUG_SEVERITY_MEDIUM:
-        EngineLoggerErrorF("OpenGL Validation Error Medium [%s] [%s]: %s", errSource, errType, message);
-        break;
-
-    case GL_DEBUG_SEVERITY_LOW:
-        EngineLoggerErrorF("OpenGL Validation Error Low [%s] [%s]: %s", errSource, errType, message);
-        break;
-
-    case GL_DEBUG_SEVERITY_NOTIFICATION:
-        EngineLoggerErrorF("OpenGL Validation Notification [%s] [%s]: %s", errSource, errType, message);
-        break;
-    }
-}
-
-/* ____________________________________ Window ____________________________________ */
-
-#ifdef WINDOW_GLFW
-static void error_callback(int error, const char* description)
-{
-    fprintf(stderr, "Error: %s\n", description);
-}
-
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-    
-    if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
-        RequestShaderReload = true;
-}
-
-bool GetKey(GLFWwindow* window, unsigned code)
-{
-    int state = glfwGetKey(window, code);
-    
-    if (state == GLFW_PRESS)
-    {
-        return true;
-    }
-    
-    return false;
-}
-
-void UpdateCamera(GLFWwindow* window, double deltaTime, FlyCamera& camera)
-{
-    Vector3f PositionDir(0, 0, 0);
-    float rotateDir = 0.0f;
-
-    if (GetKey(window, GLFW_KEY_LEFT_SHIFT))
-        PositionDir.y += 1;
-    if (GetKey(window, GLFW_KEY_LEFT_CONTROL))
-        PositionDir.y -= 1;
-    if (GetKey(window, GLFW_KEY_W))
-        PositionDir.x += 1;
-    if (GetKey(window, GLFW_KEY_S))
-        PositionDir.x -= 1;
-    if (GetKey(window, GLFW_KEY_A))
-        PositionDir.z += 1;
-    if (GetKey(window, GLFW_KEY_D))
-        PositionDir.z -= 1;
-    
-    PositionDir = PositionDir * static_cast<float>(deltaTime) * (CameraSpeed * 100) * 2.0f;
-    camera.Translate(Transpose(camera.GetWorldRotation().GetRotationMatrix()) * PositionDir);
-        
-    if (GetKey(window, GLFW_KEY_Q))
-        rotateDir += 1;
-    if (GetKey(window, GLFW_KEY_E))
-        rotateDir -= 1;
-    
-    camera.RotateRadians(0, rotateDir * Pi * deltaTime * (CameraSpeed * 1000) / 5);
-}
-#endif // WINDOW_GLFW
-
 /* ____________________________________ Render Data ____________________________________ */
-
-struct CameraData
-{
-    // Matrices
-    AlignedMatrix4f     Camera_WorldToView;
-    AlignedMatrix4f     Camera_WorldToProj;
-    AlignedMatrix4f     Camera_ViewToWorld;
-    AlignedMatrix4f     Camera_ViewToProj;
-    AlignedMatrix4f     Camera_ProjToView;
-    AlignedMatrix4f     Camera_ProjToWorld;
-    
-    // Camera properties
-    AlignedVector3f     Camera_WorldPosition;
-    Vector3f            Camera_WorldUp;
-    float               Camera_AspectRatio;
-    AlignedVector3f     Camera_WorldForward;
-    AlignedVector3f     Camera_WorldRight;
-    
-    // Screen
-    Vector2f            Camera_ProjToViewport;
-    Vector2f            Camera_ViewportToProj;
-};
-
-void UpdateCameraData(CameraData& Data, const Camera& camera)
-{
-    Data.Camera_WorldToView    = camera.View();
-    Data.Camera_ViewToProj     = camera.Projection();
-
-    Data.Camera_ViewToWorld    = camera.InverseView();
-    Data.Camera_ProjToView     = camera.InverseProjection();
-
-    Data.Camera_WorldToProj    = camera.Projection() * camera.View();
-    Data.Camera_ProjToWorld    = Inverse(camera.Projection() * camera.View());
-
-    Data.Camera_WorldPosition  = camera.GetWorldPosition();
-    Data.Camera_WorldForward   = camera.GetWorldDirection();
-    Data.Camera_WorldUp        = camera.GetWorldUp();
-    Data.Camera_WorldRight     = camera.GetWorldRight();
-    Data.Camera_AspectRatio    = camera.GetAspectRatio();
-    
-    Data.Camera_ProjToViewport = Vector2f(1.0f, -1.0f); // TODO find the right one between GL and vulkan
-    Data.Camera_ViewportToProj = Vector2f(1.0f, -1.0f);
-}
 
 struct DirectionalLight
 {
@@ -221,117 +48,61 @@ struct DirectionalLight
     float LightIntensity = 1.0f;
 };
 
-struct SceneBuffers
+struct CPUSceneData
 {
+    FlyCamera Camera;
+    Rendering::CameraData CameraData;
+    DirectionalLight lightsData{};
+};
+
+// TODO move to scene, referencing and building manually scene graph is bad
+struct GPuSceneBuffers
+{
+    GPuSceneBuffers(uint32_t width, uint32_t height, GLint MaxSupportedMSAASamples):
+        CurrentWidth(width), CurrentHeight(height),
+        MSAASampleCount(std::min(static_cast<uint8_t>(std::clamp(MaxSupportedMSAASamples, 0, (int)(UINT8_MAX))), kBaseSampleCount)),
+        SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB),
+        SceneDepthRT(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D),
+        SceneDepthAttachment(SceneDepthRT),
+        SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachment),
+        SceneRadianceMSAART(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB, MSAASampleCount),
+        SceneDepthMSAART(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D, MSAASampleCount),
+        SceneDepthAttachmentMSAA(SceneDepthMSAART),
+        SceneRadianceMSAAFB(FrameBuffer::Attachment(SceneRadianceMSAART, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachmentMSAA)
+    {}
+
+    // States
+    uint32_t CurrentWidth, CurrentHeight;
+    uint32_t SkylightMethod = 1;
+    uint32_t AntiAliasingMethod = kBaseAntiAliasingMethod;
+    uint8_t MSAASampleCount;
+    
     GLTF::GPUScene Scene;
     UniformBuffer Lights;
     UniformBuffer Camera;
 
     TextureCube SkylightCube{0, 0, Texture::Byte, Texture::R};
     Texture2D SkylightHDRI{0, 0, Texture::Byte, Texture::R};
+
+    Texture2D SceneRadianceRT;
+    Texture2D SceneDepthRT;
+    FrameBuffer::DepthAttachment SceneDepthAttachment;
+        
+    FrameBuffer SceneRadianceFB;
+        
+    Texture2D SceneRadianceMSAART;
+    WriteOnlyTexture2D SceneDepthMSAART;
+    FrameBuffer::DepthAttachment SceneDepthAttachmentMSAA;
+        
+    FrameBuffer SceneRadianceMSAAFB;
+        
     
     Sampler BaseSampler{{}};
-    
-    // States
-    uint32_t SkylightMethod = 1;
-    uint32_t AntiAliasingMethod = kBaseAntiAliasingMethod;
-    
-    // MSAA
-    uint8_t MSAASampleCount = 4;
-    
-    SceneBuffers() = default;
 };
-
-/* ____________________________________ Helpers ____________________________________ */
-
-bool frustumCullingTest(
-    const Matrix4f &ViewProj,
-    const Matrix4f &Model,
-    Point3f boundMin, Point3f boundMax)
-{
-    //todo fix
-    
-    Matrix4f MVP = ViewProj * Model;
-    Matrix4f InverseMVP = Inverse(MVP);
-    
-    static const Point3f frustum[8]= { 
-        { -1, -1, -1 },
-        { -1, -1, 1 },
-        { -1, 1, -1 },
-        { -1, 1, 1 },
-        { 1, -1, -1 },
-        { 1, -1, 1 },
-        { 1, 1, -1 },
-        { 1, 1, 1 },
-    };
-
-    Point3f bounds[8]= { 
-        { boundMin.x, boundMin.y, boundMin.z },
-        { boundMin.x, boundMin.y,  boundMax.z },
-        { boundMin.x, boundMax.y, boundMin.z },
-        { boundMin.x, boundMax.y,  boundMax.z },
-        { boundMax.x, boundMin.y, boundMin.z },
-        { boundMax.x, boundMin.y,  boundMax.z },
-        { boundMax.x,  boundMax.y, boundMin.z },
-        { boundMax.x,  boundMax.y,  boundMax.z },
-    };
-    
-    bool areBoundsInFrustum = true;
-    {
-        bool validPlans[6] = {false};
-        for (size_t i = 0; i < 8; i++)
-        {
-            Vector4f tp = MVP * Vector4f(bounds[i], 1);
-
-            validPlans[0] |= (tp.x > -tp.w);
-            validPlans[1] |= (tp.x <  tp.w);
-            validPlans[2] |= (tp.y > -tp.w);
-            validPlans[3] |= (tp.y <  tp.w);
-            validPlans[4] |= (tp.z > -tp.w);
-            validPlans[5] |= (tp.z <  tp.w);        
-        }
-        for (size_t i = 0; i < 6; i++)
-        {
-            if(!validPlans[i]) 
-                areBoundsInFrustum = false;
-        }
-    }
-
-    // todo fix
-    bool isFrustumInBounds = true;
-    {
-        bool validPlans[6] = {false};
-        for (size_t i = 0; i < 8; i++)
-        {
-            Vector4f boundPosition = InverseMVP * Vector4f(frustum[i], 1);
-            boundPosition /= boundPosition.w;
-    
-            validPlans[0] |= (boundPosition.x >= boundMin.x);
-            validPlans[1] |= (boundPosition.x <= boundMax.x);
-            validPlans[2] |= (boundPosition.y >= boundMin.y);
-            validPlans[3] |= (boundPosition.y <= boundMax.y);
-            validPlans[4] |= (boundPosition.z >= boundMin.z);
-            validPlans[5] |= (boundPosition.z <= boundMax.z);
-        
-        }
-        for (size_t i = 0; i < 6; i++)
-        {
-            if(!validPlans[i]) 
-                isFrustumInBounds = false;
-        }
-    }
-    return areBoundsInFrustum && isFrustumInBounds;
-}
 
 /* ____________________________________ Baking Passes ____________________________________ */
 
 /* ____________________________________ Real time Passes ____________________________________ */
-
-class DrawShadowMap
-{
-public:
-private:
-};
 
 class DrawSky
 {
@@ -342,7 +113,7 @@ public:
     {}
     
     // void Update(double DeltaTime);
-    void Draw(const SceneBuffers& SceneObjects)
+    void Draw(const GPuSceneBuffers& SceneObjects)
     {
         DebugScopeMarker scope("Draw Sky");
 
@@ -401,7 +172,7 @@ public:
     {}
     
     // void Update(double DeltaTime);
-    void Draw(const SceneBuffers& SceneObjects, const Camera& Camera)
+    void Draw(const GPuSceneBuffers& SceneObjects, const Camera& Camera)
     {
         DebugScopeMarker scope("Draw Scene");
         
@@ -455,7 +226,7 @@ public:
                 {
                     Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
             
-                    if (UseFrustumCulling && !frustumCullingTest(ViewProj, TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+                    if (UseFrustumCulling && !Rendering::frustumCullingTest(ViewProj, TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
             
                     SetUniform(*pipeline, "Model", TransformMatrix);
                 }
@@ -463,7 +234,7 @@ public:
                 
             case GLTF::Transform::Matrix:
                 {
-                    if (UseFrustumCulling && !frustumCullingTest(ViewProj, Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+                    if (UseFrustumCulling && !Rendering::frustumCullingTest(ViewProj, Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
             
                     SetUniform(*pipeline, "Model", Transform.Value.asMatrix);
                 }
@@ -538,7 +309,7 @@ public:
     {}
     
     // void Update(double DeltaTime);
-    void Draw(const SceneBuffers& SceneObjects, const Texture2D& SceneRadiance)
+    void Draw(const GPuSceneBuffers& SceneObjects, const Texture2D& SceneRadiance)
     {
         DebugScopeMarker scope("Apply Tone Mapping");
         
@@ -568,82 +339,77 @@ private:
 
 /* ____________________________________ Process ____________________________________ */
 
-int main(void)
+struct GPUDrawCalls
 {
-    int RC = EXIT_SUCCESS; // Ok
+    GPUDrawCalls() = default;
+    ~GPUDrawCalls() = default;
+    
+    DrawSky DrawSkyPass;
+    DrawScene DrawScenePass;
+    PostProcess PostProcessPass;
+};
 
-#ifdef WINDOW_GLFW
-    GLFWwindow* window = nullptr;
+void UpdateCamera(Window::Module& Window, double deltaTime, FlyCamera& camera)
+{
+    Vector3f PositionDir(0, 0, 0);
+    float rotateDir = 0.0f;
 
-    AddSearchPath(RESOURCES_GLOBAL);
-    AddSearchPath(RESOURCES_PROJECT);
-    AddSearchPath(RESOURCES_SAMPLE_SCENES);
+    if (Window.GLFWGetKey(GLFW_KEY_LEFT_SHIFT))
+        PositionDir.y += 1;
+    if (Window.GLFWGetKey(GLFW_KEY_LEFT_CONTROL))
+        PositionDir.y -= 1;
+    if (Window.GLFWGetKey(GLFW_KEY_W))
+        PositionDir.x += 1;
+    if (Window.GLFWGetKey(GLFW_KEY_S))
+        PositionDir.x -= 1;
+    if (Window.GLFWGetKey(GLFW_KEY_A))
+        PositionDir.z += 1;
+    if (Window.GLFWGetKey(GLFW_KEY_D))
+        PositionDir.z -= 1;
+    
+    PositionDir = PositionDir * static_cast<float>(deltaTime) * (CameraSpeed * 100) * 4.0f;
+    camera.Translate(Transpose(camera.GetWorldRotation().GetRotationMatrix()) * PositionDir);
+        
+    if (Window.GLFWGetKey(GLFW_KEY_Q))
+        rotateDir += 1;
+    if (Window.GLFWGetKey(GLFW_KEY_E))
+        rotateDir -= 1;
+    
+    camera.RotateRadians(0, rotateDir * Pi * deltaTime * (CameraSpeed * 1000.f) / 2.5);
+}
 
-    ShaderAddSearchPath(SHADERS_GLOBAL);
-    ShaderAddSearchPath(SHADERS_PROJECT);
-    
-    glfwSetErrorCallback(error_callback);
-    AssertOrErrorCall(glfwInit(), RC = EXIT_FAILURE; goto terminate_main, "Failed to initialise GLFW")
-    
+class AppModule : public Engine::IModule
+{
+public:
+    AppModule() {}
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
-    window = glfwCreateWindow(kBaseWidth, kBaseHeight, "ColorBox", nullptr, nullptr);
-    AssertOrErrorCall(window, RC = EXIT_FAILURE; goto terminate_glfw_window, "Failed to create GLFW window")
-    EngineLoggerLog("Initialized GLFW window");
+    ~AppModule() override = default;
     
-    glfwSetKeyCallback(window, key_callback);
-    glfwMakeContextCurrent(window);
-#endif // WINDOW_GLFW
-
-    AssertOrErrorCall(glewInit() == GLEW_OK, RC = EXIT_FAILURE; goto terminate_context, "Failed to initialize GLEW")
-
-    EngineLoggerLog("Initialized GLEW");
-    EngineLoggerLogF("OpenGL Version: %s", glGetString(GL_VERSION));
-    EngineLoggerLogF("GLSL Version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
-    EngineLoggerLogF("Vendor: %s", glGetString(GL_VENDOR));
-    EngineLoggerLogF("Renderer: %s", glGetString(GL_RENDERER));
-    
-#ifdef CONFIG_DEBUG
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // Makes sure errors are displayed synchronously
-    glDebugMessageCallback(MessageCallback, 0);
-#endif // CONFIG_DEBUG
-
-    ImGui::CreateContext();
-#ifdef WINDOW_GLFW
-    AssertOrErrorCall(ImGui_ImplGlfw_InitForOpenGL(window, true), RC = EXIT_FAILURE; goto terminate_glfw_ui, "Could not initialize ImGUI")
-#endif // WINDOW_GLFW
-    AssertOrErrorCall(ImGui_ImplOpenGL3_Init("#version 430"), RC = EXIT_FAILURE; goto terminate_ui, "Could not initialize ImGUI")
-    
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glFrontFace(GL_CW);
-    
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glClearDepth(1.0f);
-    
-    glEnable(GL_MULTISAMPLE);
-    
-#ifndef CONFIG_DEBUG
-    UseFrustumCulling = true;
-#endif // CONFIG_DEBUG 
-    
-    // Application resources lifetime
+    void RegisterDependencies(Engine::Spec& spec) override
     {
-        uint32_t CurrentWidth = kBaseWidth, CurrentHeight = kBaseHeight;
-        
-        GLint MaxSupportedMSAASamples;
-        glGetIntegerv ( GL_MAX_SAMPLES, &MaxSupportedMSAASamples );
-        
-        // GPU buffers data
-        CameraData cameraData;
-        DirectionalLight lightsData{};
+        spec.Register<Window::Module>();
+        spec.Register<Rendering::Module>();
+    }
 
-        SceneBuffers GPUScene;
+    void Initialize() override
+    {
+        glGetIntegerv ( GL_MAX_SAMPLES, &MaxSupportedMSAASamples );
+
+        Window::Module* Window = Engine::GetModule<Window::Module>(Context());
+        AssertOrError(Window != nullptr, "Window is null")
+
+        Rendering::Module* Rendering = Engine::GetModule<Rendering::Module>(Context());
+        AssertOrError(Rendering != nullptr, "Rendering is null")
+
+        Rendering->EnableMSAA();
+
+        uint32_t InitialWidth, InitialHeight;
+        Window->GetFrameBufferSize(InitialWidth, InitialHeight);
         
+        m_CPUSceneData.emplace();
+        m_GPUScene.emplace(InitialWidth, InitialHeight, MaxSupportedMSAASamples);
+        m_GPUDrawCalls.emplace();
+
         // Load scene data
         {
             std::filesystem::path path;
@@ -653,7 +419,7 @@ int main(void)
             // if (GetAbsoluteFilePath(std::filesystem::path("Willy") / "Splash" /"splash.gltf" ,path))
             // if (GetAbsoluteFilePath(std::filesystem::path("Willy") / "BistroGLTF" /"exterior.glb" ,path))
             {
-                AssertOrError( GLTF::LoadGPUScene(path, GPUScene.Scene), "Failed to load scene")
+                AssertOrError( GLTF::LoadGPUScene(path, m_GPUScene->Scene), "Failed to load scene")
             }
         }
 
@@ -676,263 +442,173 @@ int main(void)
                 TextureCube::FacePair(TextureCube::Down, Bottom),
             };
 
-            GPUScene.SkylightCube.Data(faces);
-        }
-        
-        // Load HDRi
-        {
-            std::filesystem::path path;
-            if (GetAbsoluteFilePath(std::filesystem::path("Textures") / "HDRi" / "san_giuseppe_bridge_4k.hdr" ,path))
+            m_GPUScene->SkylightCube.Data(faces);
+
+            // Load HDRi
             {
-                GPUScene.SkylightHDRI.Data(ImageLoad(path, Image::Float));
-            }
-        }
-        
-        // MSAA settings
-        GPUScene.MSAASampleCount = std::min(static_cast<uint8_t>(std::clamp(MaxSupportedMSAASamples, 0, (int)(UINT8_MAX))), kBaseSampleCount);
-        
-        // Textures and Frame Buffers
-        Texture2D SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB);
-        Texture2D SceneDepthRT(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D);
-        FrameBuffer::DepthAttachment SceneDepthAttachment(SceneDepthRT);
-        
-        FrameBuffer SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachment);
-        
-        Texture2D SceneRadianceMSAART(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB, GPUScene.MSAASampleCount);
-        WriteOnlyTexture2D SceneDepthMSAART(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D, GPUScene.MSAASampleCount);
-        FrameBuffer::DepthAttachment SceneDepthAttachmentMSAA(SceneDepthMSAART);
-        
-        FrameBuffer SceneRadianceMSAAFB(FrameBuffer::Attachment(SceneRadianceMSAART, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachmentMSAA);
-        
-        FlyCamera camera;
-        camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f), kZNear, kZFar);
-        camera.SetTranslation(-1,0.125,0);
-        
-        // Passes
-        DrawSky DrawSkyPass{};
-        DrawScene DrawScenePass{};
-        PostProcess DrawPostProcessPass{};
-
-        // keep track of time during the execution
-        clock_t prev_clock = clock();
-        clock_t curr_clock;
-        
-        // Time measurements
-        GLuint queryIDs[2];
-        glGenQueries(2, queryIDs);
-        float  frameTimeCPU = 0, frameTimeGPU = 0;
-        
-#ifdef WINDOW_GLFW
-        while (!glfwWindowShouldClose(window))
-        {
-            glfwPollEvents();
-
-            int width, height;
-            glfwGetFramebufferSize(window, &width, &height);
-#endif // WINDOW_GLFW
-
-            // Handle resizing
-            if (CurrentWidth != width || CurrentHeight != height)
-            {
-                const float ratio = width / (float)height;
-                CurrentWidth = width; CurrentHeight = height;
-
-                glViewport(0, 0, CurrentWidth, CurrentHeight);
-
-                camera.SetProjection(CurrentWidth, CurrentHeight, Math::Radians(45.0f), kZNear, kZFar);
-                
-                SceneRadianceRT.Data(CurrentWidth, CurrentHeight);
-                SceneDepthRT.Data(CurrentWidth, CurrentHeight);
-                SceneRadianceFB.Resize(CurrentWidth, CurrentHeight);
-                
-                SceneRadianceMSAART.Data(CurrentWidth, CurrentHeight);
-                SceneDepthMSAART.Data(CurrentWidth, CurrentHeight);
-                SceneRadianceMSAAFB.Resize(CurrentWidth, CurrentHeight);
-            }
-            
-            // Handle shader reload
-            if (RequestShaderReload)
-            {
-                DrawSkyPass.Reload();
-                DrawScenePass.Reload();
-                DrawPostProcessPass.Reload();
-                
-                RequestRebake = true;
-                
-                RequestShaderReload = false;
-            }
-
-            // Update scene
-            {
-                curr_clock = clock();
-                clock_t dcl = curr_clock - prev_clock;
-                double deltaTime = static_cast<double>(dcl) / 1000000.0;
-                prev_clock = curr_clock;
-                
-                UpdateCamera(window, deltaTime, camera);
-                UpdateCameraData(cameraData, camera);
-                
-                GPUScene.Camera.Data(&cameraData, sizeof(cameraData));
-                GPUScene.Lights.Data(&lightsData, sizeof(lightsData));
-                
-                frameTimeCPU = deltaTime;
-            }
-            
-            // Bake non real time data
-            if (RequestRebake || RebakeEveryFrame)
-            {
-                RequestRebake = false;
-            }
-            
-            // begin rendering time measurement
-            glQueryCounter(queryIDs[0], GL_TIMESTAMP);
-
-            glClear(GL_COLOR_BUFFER_BIT );
-
-            // Draw scene
-            {
-                switch (GPUScene.AntiAliasingMethod)
+                std::filesystem::path path;
+                if (GetAbsoluteFilePath(std::filesystem::path("Textures") / "HDRi" / "san_giuseppe_bridge_4k.hdr" ,path))
                 {
-                case 0: // NONE
-                    Bind(SceneRadianceFB);
-                    SceneRadianceFB.Clear();
+                    m_GPUScene->SkylightHDRI.Data(ImageLoad(path, Image::Float));
+                }
+            }
+        }
+    }
+
+    void Tick(double deltaTime) override
+    {
+        Window::Module* Window = Engine::GetModule<Window::Module>(Context());
+        AssertOrError(Window != nullptr, "Window is null")
+
+        // Handle Window resize
+        uint32_t NextWidth, NextHeight;
+        if (Window->GetFrameBufferSize(NextWidth, NextHeight))
+        {
+            m_CPUSceneData->Camera.SetProjection(NextWidth, NextHeight, Math::Radians(45.0f), kZNear, kZFar);
                 
-                    DrawSkyPass.Draw(GPUScene);
+            m_GPUScene->SceneRadianceRT.Data(NextWidth, NextHeight);
+            m_GPUScene->SceneDepthRT.Data(NextWidth, NextHeight);
+            m_GPUScene->SceneRadianceFB.Resize(NextWidth, NextHeight);
                 
-                    glEnable(GL_CULL_FACE);
-                    glEnable(GL_DEPTH_TEST);
-                    glClear(GL_DEPTH_BUFFER_BIT);
+            m_GPUScene->SceneRadianceMSAART.Data(NextWidth, NextHeight);
+            m_GPUScene->SceneDepthMSAART.Data(NextWidth, NextHeight);
+            m_GPUScene->SceneRadianceMSAAFB.Resize(NextWidth, NextHeight);
+
+            m_GPUScene->CurrentWidth = NextWidth;
+            m_GPUScene->CurrentHeight = NextHeight;
+        }
+
+        // Handle Shader Reload
+        if (Window->ShouldRecompileShaders())
+        {
+            m_GPUDrawCalls->DrawSkyPass.Reload();
+            m_GPUDrawCalls->DrawScenePass.Reload();
+            m_GPUDrawCalls->PostProcessPass.Reload();
+        }
+
+        // Update scene
+        {                
+            UpdateCamera(*Window, deltaTime, m_CPUSceneData->Camera);
+            Rendering::UpdateCameraData(m_CPUSceneData->CameraData, m_CPUSceneData->Camera);
                 
-                    DrawScenePass.Draw(GPUScene, camera);
-                    glDisable(GL_CULL_FACE);
-                    glDisable(GL_DEPTH_TEST);
+            m_GPUScene->Camera.Data(&(m_CPUSceneData->CameraData), sizeof(m_CPUSceneData->CameraData));
+            m_GPUScene->Lights.Data(&(m_CPUSceneData->lightsData), sizeof(m_CPUSceneData->lightsData));
+        }
+
+        // Draw scene
+        {
+            switch (m_GPUScene->AntiAliasingMethod)
+            {
+            case 0: // NONE
+                Bind(m_GPUScene->SceneRadianceFB);
+                m_GPUScene->SceneRadianceFB.Clear();
                 
-                    UnBind(SceneRadianceFB);
+                m_GPUDrawCalls->DrawSkyPass.Draw(*m_GPUScene);
                 
-                    DrawPostProcessPass.Draw(GPUScene, SceneRadianceRT);
-                    break;
+                glEnable(GL_CULL_FACE);
+                glEnable(GL_DEPTH_TEST);
+                glClear(GL_DEPTH_BUFFER_BIT);
+                
+                m_GPUDrawCalls->DrawScenePass.Draw(*m_GPUScene, m_CPUSceneData->Camera);
+                glDisable(GL_CULL_FACE);
+                glDisable(GL_DEPTH_TEST);
+                
+                UnBind(m_GPUScene->SceneRadianceFB);
+                
+                m_GPUDrawCalls->PostProcessPass.Draw(*m_GPUScene, m_GPUScene->SceneRadianceRT);
+                break;
                     
-                case 1: // MSAA
-                    Bind(SceneRadianceMSAAFB);
-                    SceneRadianceMSAAFB.Clear();
+            case 1: // MSAA
+                Bind(m_GPUScene->SceneRadianceMSAAFB);
+                m_GPUScene->SceneRadianceMSAAFB.Clear();
                 
-                    DrawSkyPass.Draw(GPUScene);
+                m_GPUDrawCalls->DrawSkyPass.Draw(*m_GPUScene);
                 
-                    glEnable(GL_CULL_FACE);
-                    glEnable(GL_DEPTH_TEST);
-                    glClear(GL_DEPTH_BUFFER_BIT);
+                glEnable(GL_CULL_FACE);
+                glEnable(GL_DEPTH_TEST);
+                glClear(GL_DEPTH_BUFFER_BIT);
                 
-                    DrawScenePass.Draw(GPUScene, camera);
-                    glDisable(GL_CULL_FACE);
-                    glDisable(GL_DEPTH_TEST);
+                m_GPUDrawCalls->DrawScenePass.Draw(*m_GPUScene, m_CPUSceneData->Camera);
+                glDisable(GL_CULL_FACE);
+                glDisable(GL_DEPTH_TEST);
                     
-                    Bind(SceneRadianceFB, SceneRadianceMSAAFB);
+                Bind(m_GPUScene->SceneRadianceFB, m_GPUScene->SceneRadianceMSAAFB);
                     
-                    glBlitFramebuffer(
-                        0, 0, CurrentWidth, CurrentHeight,
-                        0, 0, CurrentWidth, CurrentHeight,
-                        GL_COLOR_BUFFER_BIT, GL_NEAREST );
+                glBlitFramebuffer(
+                    0, 0, m_GPUScene->CurrentWidth, m_GPUScene->CurrentHeight,
+                    0, 0, m_GPUScene->CurrentWidth, m_GPUScene->CurrentHeight,
+                    GL_COLOR_BUFFER_BIT, GL_NEAREST );
                 
-                    UnBind(SceneRadianceFB);
+                UnBind(m_GPUScene->SceneRadianceFB);
                 
-                    DrawPostProcessPass.Draw(GPUScene, SceneRadianceRT);
-                    break;
+                m_GPUDrawCalls->PostProcessPass.Draw(*m_GPUScene, m_GPUScene->SceneRadianceRT);
+                break;
                     
                 SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported anti aliasing method")
                 }
-            }
-            
-            // end rendering time measurement
-            glQueryCounter(queryIDs[1], GL_TIMESTAMP);
-            
-            // Draw UI
-            {
-#ifdef WINDOW_GLFW
-                ImGui_ImplGlfw_NewFrame();
-#endif // WINDOW_GLFW
-#ifdef WINDOW_SDL3
-                ImGui_ImplSDL3_NewFrame();
-#endif // WINDOW_SDL3
-                ImGui_ImplOpenGL3_NewFrame();
-                ImGui::NewFrame();
-
-                ImGui::Begin("Settings");
-                
-                // Directional Light
-                ImGui::DragFloat3("Light Direction", lightsData.LightDir.vector.data(), 0.1f);
-                ImGui::ColorEdit3("Light Color", lightsData.LightColor.data());
-                ImGui::SliderFloat("Light Intensity", &lightsData.LightIntensity, 0.1f, 10.0f);
-                
-                ImGui::Separator();
-
-                static const char* SkyLightMethodNames[] =
-                {
-                    "Cubemap", "HDRi"
-                };
-                ImGui::ListBox("Sky Light Method", (int*)&GPUScene.SkylightMethod, SkyLightMethodNames, 2);
-                GPUScene.SkylightMethod = Math::Clamp(GPUScene.SkylightMethod, 0u, 1u);
-                
-                ImGui::SliderInt("Sky light Sample Count", (int*)&DrawScenePass.SkyLightSampleCount(), 1, 1024);
-
-                ImGui::Separator();
-                
-                if (GPUScene.SkylightMethod == 3)
-                {
-                    ImGui::Checkbox("Rebake data every frame", &RebakeEveryFrame);
-                    if (ImGui::Button("Rebake data"))
-                    {
-                        RequestRebake = true;
-                    }
-                    
-                    ImGui::Separator();
-                }
-                
-                ImGui::SliderFloat("Camera Speed", &CameraSpeed, 0.1f, 2.0f);
-                ImGui::Checkbox("Use Frustum Culling", &UseFrustumCulling);
-                
-                ImGui::Separator();
-                
-                ImGui::Text("Frame time (CPU): %f ms", frameTimeCPU);
-                ImGui::Text("Frame time (GPU): %f ms", frameTimeGPU);
-                
-                ImGui::End();
-
-                ImGui::Render();
-                ImGui::EndFrame();
-                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-            }
-
-#ifdef WINDOW_GLFW
-            glfwSwapBuffers(window);
-#endif // WINDOW_GLFW
-            
-            GLuint64 startTime, endTime;
-            glGetQueryObjectui64v(queryIDs[0], GL_QUERY_RESULT, &startTime);
-            glGetQueryObjectui64v(queryIDs[1], GL_QUERY_RESULT, &endTime);
-
-            frameTimeGPU = static_cast<float>(endTime - startTime) / 1000000.f;
         }
+            
+    }
+
+    void Shutdown() override
+    {
+        m_GPUScene.reset();
+        m_GPUDrawCalls.reset();
+        m_CPUSceneData.reset();
+    }
+
+    void EditorUI() override
+    {
+        // Directional Light
+        ImGui::DragFloat3("Light Direction", m_CPUSceneData->lightsData.LightDir.vector.data(), 0.1f);
+        ImGui::ColorEdit3("Light Color", m_CPUSceneData->lightsData.LightColor.data());
+        ImGui::SliderFloat("Light Intensity", &m_CPUSceneData->lightsData.LightIntensity, 0.1f, 10.0f);
+
+        ImGui::Separator();
+
+        static const char* SkyLightMethodNames[] =
+        {
+            "Cubemap", "HDRi"
+        };
+
+        ImGui::ListBox("Sky Light Method", (int*)&m_GPUScene->SkylightMethod, SkyLightMethodNames, 2);
+        m_GPUScene->SkylightMethod = Math::Clamp(m_GPUScene->SkylightMethod, 0u, 1u);
+
+        ImGui::Separator();
+
+        ImGui::SliderFloat("Camera Speed", &CameraSpeed, 0.1f, 2.0f);
+        ImGui::Checkbox("Use Frustum Culling", &UseFrustumCulling);
+
+        // TODO make a profiling window
+        // ImGui::Text("Frame time (CPU): %f ms", frameTimeCPU);
+        // ImGui::Text("Frame time (GPU): %f ms", frameTimeGPU);
     }
     
-terminate_ui:
-    ImGui_ImplOpenGL3_Shutdown();
-#ifdef WINDOW_GLFW
-terminate_glfw_ui:
-    ImGui_ImplGlfw_Shutdown();
-#endif // WINDOW_GLFW
-    
-    ImGui::DestroyContext();
+private:
+    GLint MaxSupportedMSAASamples;
 
-terminate_context:
-#ifdef WINDOW_GLFW
-    glfwDestroyWindow(window);
+    std::optional<CPUSceneData> m_CPUSceneData;
+    std::optional<GPuSceneBuffers> m_GPUScene;
+    std::optional<GPUDrawCalls> m_GPUDrawCalls;
+};
+
+
+int main(int argc, char* argv[])
+{
+    // Search paths
+    AddSearchPath(RESOURCES_GLOBAL);
+    AddSearchPath(RESOURCES_PROJECT);
+    AddSearchPath(RESOURCES_SAMPLE_SCENES);
+    ShaderAddSearchPath(SHADERS_GLOBAL);
+    ShaderAddSearchPath(SHADERS_PROJECT);
     
-terminate_glfw_window:
-    glfwTerminate();
-#endif // WINDOW_GLFW
+    Engine::Spec Specification;
+    Specification.Register<Window::Module>();
+    Specification.Register<Rendering::Module>();
+    Specification.Register<AppModule>();
+    Specification.Register<ImGui::Module>();
     
-terminate_main:
-    return RC;
+    Engine::App App(std::move(Specification));
+    
+    App.Run();
 }
-
-#endif // !USE_MINI_ENGINE

@@ -20,6 +20,8 @@ namespace Rendering
         INLINE int OpenGLVersionmMinor() {return 5;}
         INLINE bool OpenGLUseCoreProfile() {return false;}
 
+        void EnableMSAA();
+
         void Initialize() override;
 
         void Tick(double deltaTime) override;

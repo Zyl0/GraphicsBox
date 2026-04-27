@@ -61,6 +61,11 @@ namespace Engine
             auto InstIt = std::find(UpdateOrder.begin(), UpdateOrder.end(), ID);
             auto RefIt = std::find(UpdateOrder.begin(), UpdateOrder.end(), Referencer);
 
+            size_t InstIndex = std::distance(UpdateOrder.begin(), InstIt);
+            size_t RefIndex = std::distance(UpdateOrder.begin(), RefIt);
+
+            if (RefIndex > InstIndex) return;
+
             UpdateOrder.erase(InstIt);
             UpdateOrder.insert(RefIt, ID);
         }
