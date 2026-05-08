@@ -514,8 +514,6 @@ public:
                 glDisable(GL_DEPTH_TEST);
                 
                 UnBind(m_GPUScene->SceneRadianceFB);
-                
-                m_GPUDrawCalls->PostProcessPass.Draw(*m_GPUScene, m_GPUScene->SceneRadianceRT);
                 break;
                     
             case 1: // MSAA
@@ -540,12 +538,12 @@ public:
                     GL_COLOR_BUFFER_BIT, GL_NEAREST );
                 
                 UnBind(m_GPUScene->SceneRadianceFB);
-                
-                m_GPUDrawCalls->PostProcessPass.Draw(*m_GPUScene, m_GPUScene->SceneRadianceRT);
                 break;
                     
-                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported anti aliasing method")
-                }
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported anti aliasing method")
+            }
+            
+            m_GPUDrawCalls->PostProcessPass.Draw(*m_GPUScene, m_GPUScene->SceneRadianceRT);
         }
             
     }
