@@ -59,6 +59,11 @@ public:
     Texture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount = 0);
     Texture2D(const Image& Image, bool UseMips = true);
     Texture2D(uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips = true);
+    Texture2D(const Texture2D& Other) = delete;
+    Texture2D(Texture2D&& Other) noexcept;
+    Texture2D& operator=(const Texture2D& Other) = delete;
+    Texture2D& operator=(Texture2D&& Other) noexcept;
+
     ~Texture2D();
 
     void Data(uint32_t width, uint32_t height);
@@ -98,6 +103,11 @@ class WriteOnlyTexture2D
 {
 public:
     WriteOnlyTexture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount = 0);
+    WriteOnlyTexture2D(const WriteOnlyTexture2D& Other) = delete;
+    WriteOnlyTexture2D(WriteOnlyTexture2D&& Other) noexcept;
+    WriteOnlyTexture2D& operator=(const WriteOnlyTexture2D& Other) = delete;
+    WriteOnlyTexture2D& operator=(WriteOnlyTexture2D&& Other) noexcept;
+
     ~WriteOnlyTexture2D();
     
     void Data(uint32_t width, uint32_t height);
@@ -132,6 +142,11 @@ class Texture2DArray
 {
 public:
     Texture2DArray(uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, bool UseMips = false);
+    Texture2DArray(const Texture2DArray& Other) = delete;
+    Texture2DArray(Texture2DArray&& Other) noexcept;
+    Texture2DArray& operator=(const Texture2DArray& Other) = delete;
+    Texture2DArray& operator=(Texture2DArray&& Other) noexcept;
+
     ~Texture2DArray();
 
     void Data(uint32_t count, bool move = false);
@@ -173,6 +188,11 @@ class Texture3D
 public:
     Texture3D(uint32_t width, uint32_t height, uint32_t depth, Texture::Type type, Texture::Layout layout);
     Texture3D(const ImageCube& Image, bool UseMips = true);
+    Texture3D(const Texture3D& Other) = delete;
+    Texture3D(Texture3D&& Other) noexcept;
+    Texture3D& operator=(const Texture3D& Other) = delete;
+    Texture3D& operator=(Texture3D&& Other) noexcept;
+
     ~Texture3D();
 
     void Data(uint32_t width, uint32_t height, uint32_t depth);
@@ -224,6 +244,11 @@ public:
     
     TextureCube(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips = false);
     TextureCube(std::span<const FacePair> Faces, bool UseMips = true);
+    TextureCube(const TextureCube& Other) = delete;
+    TextureCube(TextureCube&& Other) noexcept;
+    TextureCube& operator=(const TextureCube& Other) = delete;
+    TextureCube& operator=(TextureCube&& Other) noexcept;
+
     ~TextureCube();
 
     void Data(std::span<const FacePair> Faces);
@@ -258,6 +283,11 @@ class TextureCubeView
 {
 public:
     TextureCubeView(const TextureCube& texture, uint32_t MipLevel, uint32_t MipCount = 1);
+    TextureCubeView(const TextureCubeView& Other) = delete;
+    TextureCubeView(TextureCubeView&& Other) noexcept;
+    TextureCubeView& operator=(const TextureCubeView& Other) = delete;
+    TextureCubeView& operator=(TextureCubeView&& Other) noexcept;
+
     ~TextureCubeView();
     
     // Retarget view

@@ -1,11 +1,15 @@
 ﻿#pragma once
 
+#include "Quaternion.h"
+#include "Transforms.h"
+
 namespace Math
 {
     struct AlignedVector2f
     {
         INLINE AlignedVector2f operator = (const Vector2f& other) {vector = other; return *this;}
         INLINE Vector2f&  operator () () {return vector;}
+        INLINE const Vector2f&  operator () () const {return vector;}
         
         alignas(8) Vector2f vector;
     };
@@ -14,6 +18,7 @@ namespace Math
     {
         INLINE AlignedVector3f operator = (const Vector3f& other) {vector = other; return *this;}
         INLINE Vector3f&  operator () () {return vector;}
+        INLINE const Vector3f&  operator () () const {return vector;}
         
         alignas(16) Vector3f vector;
     };
@@ -22,6 +27,7 @@ namespace Math
     {
         INLINE AlignedVector4f operator = (const Vector4f& other) {vector = other; return *this;}
         INLINE Vector4f&  operator () () {return vector;}
+        INLINE const Vector4f&  operator () () const {return vector;}
         
         alignas(16) Vector4f vector;
     };
@@ -30,6 +36,7 @@ namespace Math
     {
         INLINE AlignedQuaternionF operator = (const QuaternionF& other) {quaternion = other; return *this;}
         INLINE QuaternionF&  operator () () {return quaternion;}
+        INLINE const QuaternionF&  operator () () const {return quaternion;}
         
         alignas(16) QuaternionF quaternion;
     };
@@ -43,6 +50,7 @@ namespace Math
         INLINE AlignedMatrix4f operator = (Matrix4f&& other) {matrix = std::move(other); return *this;}
         INLINE AlignedMatrix4f operator = (Transform4f&& other) {matrix = std::move(other); return *this;}
         INLINE Matrix4f&  operator () () {return matrix;}
+        INLINE const Matrix4f&  operator () () const {return matrix;}
         
         alignas(16) Matrix4f matrix;
     };

@@ -427,6 +427,36 @@ Texture2D::Texture2D(uint32_t width, uint32_t height, Image::Type type, Image::L
     UnBind(*this);
 }
 
+Texture2D::Texture2D(Texture2D&& Other) noexcept: 
+    m_Texture(Other.m_Texture),
+    m_Width(Other.m_Width),
+    m_Height(Other.m_Height),
+    m_MipCount(Other.m_MipCount),
+    m_Type(Other.m_Type),
+    m_Layout(Other.m_Layout),
+    m_SampleCount(Other.m_SampleCount)
+{
+    Other.m_Texture = 0;
+}
+
+Texture2D& Texture2D::operator=(Texture2D&& Other) noexcept
+{
+    if (this == &Other)
+        return *this;
+    
+    m_Texture = Other.m_Texture;
+    m_Width = Other.m_Width;
+    m_Height = Other.m_Height;
+    m_MipCount = Other.m_MipCount;
+    m_Type = Other.m_Type;
+    m_Layout = Other.m_Layout;
+    m_SampleCount = Other.m_SampleCount;
+    
+    Other.m_Texture = 0;
+    
+    return *this;
+}
+
 Texture2D::~Texture2D()
 {
     GLCall(glDeleteTextures(1, &m_Texture))
@@ -603,6 +633,34 @@ WriteOnlyTexture2D::WriteOnlyTexture2D(uint32_t width, uint32_t height, Texture:
     UnBind(*this);
 }
 
+WriteOnlyTexture2D::WriteOnlyTexture2D(WriteOnlyTexture2D&& Other) noexcept: 
+    m_Texture(Other.m_Texture),
+    m_Width(Other.m_Width),
+    m_Height(Other.m_Height),
+    m_Type(Other.m_Type),
+    m_Layout(Other.m_Layout),
+    m_SampleCount(Other.m_SampleCount)
+{
+    Other.m_Texture = 0;
+}
+
+WriteOnlyTexture2D& WriteOnlyTexture2D::operator=(WriteOnlyTexture2D&& Other) noexcept
+{
+    if (this == &Other)
+        return *this;
+    
+    m_Texture = Other.m_Texture;
+    m_Width = Other.m_Width;
+    m_Height = Other.m_Height;
+    m_Type = Other.m_Type;
+    m_Layout = Other.m_Layout;
+    m_SampleCount = Other.m_SampleCount;
+    
+    Other.m_Texture = 0;
+
+    return *this;
+}
+
 WriteOnlyTexture2D::~WriteOnlyTexture2D()
 {
     GLCall(glDeleteRenderbuffers(1, &m_Texture))
@@ -699,6 +757,36 @@ Texture2DArray::Texture2DArray(uint32_t width, uint32_t height, uint32_t count, 
     }
 
     UnBind(*this);
+}
+
+Texture2DArray::Texture2DArray(Texture2DArray&& Other) noexcept: 
+    m_Texture(Other.m_Texture),
+    m_Width(Other.m_Width),
+    m_Height(Other.m_Height),
+    m_LayerCount(Other.m_LayerCount),
+    m_MipCount(Other.m_MipCount),
+    m_Type(Other.m_Type),
+    m_Layout(Other.m_Layout)
+{
+    Other.m_Texture = 0;
+}
+
+Texture2DArray& Texture2DArray::operator=(Texture2DArray&& Other) noexcept
+{
+    if (this == &Other)
+        return *this;
+    
+    m_Texture = Other.m_Texture;
+    m_Width = Other.m_Width;
+    m_Height = Other.m_Height;
+    m_LayerCount = Other.m_LayerCount;
+    m_MipCount = Other.m_MipCount;
+    m_Type = Other.m_Type;
+    m_Layout = Other.m_Layout;
+    
+    Other.m_Texture = 0;
+
+    return *this;
 }
 
 Texture2DArray::~Texture2DArray()
@@ -912,6 +1000,34 @@ Texture3D::Texture3D(const ImageCube& Image, bool UseMips):
     UnBind(*this);
 }
 
+Texture3D::Texture3D(Texture3D&& Other) noexcept: 
+    m_Texture(Other.m_Texture),
+    m_Width(Other.m_Width),
+    m_Height(Other.m_Height),
+    m_Depth(Other.m_Depth),
+    m_MipCount(Other.m_MipCount),
+    m_Type(Other.m_Type),
+    m_Layout(Other.m_Layout)
+{
+    Other.m_Texture = 0;
+}
+
+Texture3D& Texture3D::operator=(Texture3D&& Other) noexcept
+{
+    if (this == &Other)
+        return *this;
+    m_Texture = Other.m_Texture;
+    m_Width = Other.m_Width;
+    m_Height = Other.m_Height;
+    m_Depth = Other.m_Depth;
+    m_MipCount = Other.m_MipCount;
+    m_Type = Other.m_Type;
+    m_Layout = Other.m_Layout;
+    Other.m_Texture = 0;
+
+    return *this;
+}
+
 Texture3D::~Texture3D()
 {
     GLCall(glDeleteTextures(1, &m_Texture))
@@ -1065,6 +1181,36 @@ TextureCube::TextureCube(std::span<const FacePair> Faces, bool UseMips):
     Data(Faces);
 }
 
+TextureCube::TextureCube(TextureCube&& Other) noexcept:
+    m_Texture(Other.m_Texture),
+    m_Width(Other.m_Width),
+    m_Height(Other.m_Height),
+    m_MipCount(Other.m_MipCount),
+    m_Type(Other.m_Type),
+    m_Layout(Other.m_Layout),
+    m_UseMips(Other.m_UseMips)
+{
+    Other.m_Texture = 0;
+}
+
+TextureCube& TextureCube::operator=(TextureCube&& Other) noexcept
+{
+    if (this == &Other)
+        return *this;
+    
+    m_Texture = Other.m_Texture;
+    m_Width = Other.m_Width;
+    m_Height = Other.m_Height;
+    m_MipCount = Other.m_MipCount;
+    m_Type = Other.m_Type;
+    m_Layout = Other.m_Layout;
+    m_UseMips = Other.m_UseMips;
+    
+    Other.m_Texture = 0;
+
+    return *this;
+}
+
 TextureCube::~TextureCube()
 {
     GLCall(glDeleteTextures(1, &m_Texture))
@@ -1140,6 +1286,36 @@ TextureCubeView::TextureCubeView(const TextureCube& texture, uint32_t MipLevel, 
     GLCall(glGenTextures(1, &m_Texture))
     
     Data(texture, MipLevel, MipCount);
+}
+
+TextureCubeView::TextureCubeView(TextureCubeView&& Other) noexcept: 
+    m_Width(Other.m_Width),
+    m_Height(Other.m_Height),
+    m_BaseMip(Other.m_BaseMip),
+    m_MipCount(Other.m_MipCount),
+    m_Type(Other.m_Type),
+    m_Layout(Other.m_Layout),
+    m_Texture(Other.m_Texture)
+{
+    Other.m_Texture = 0;
+}
+
+TextureCubeView& TextureCubeView::operator=(TextureCubeView&& Other) noexcept
+{
+    if (this == &Other)
+        return *this;
+    
+    m_Width = Other.m_Width;
+    m_Height = Other.m_Height;
+    m_BaseMip = Other.m_BaseMip;
+    m_MipCount = Other.m_MipCount;
+    m_Type = Other.m_Type;
+    m_Layout = Other.m_Layout;
+    m_Texture = Other.m_Texture;
+    
+    Other.m_Texture = 0;
+
+    return *this;
 }
 
 TextureCubeView::~TextureCubeView()

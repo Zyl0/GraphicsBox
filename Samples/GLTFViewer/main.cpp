@@ -24,7 +24,23 @@
 // for macro keys, TODO maybe abstract into an input system or module
 #include <GLFW/glfw3.h>
 
+#include "Modules/Rendering/Tools/Commands.h"
+
 using namespace Math;
+
+#define USE_FORWARD_RENDERING_PIPELINE
+
+#include "Modules/Rendering/Tools/Graph/NativeResolutionRadiance.h"
+#include "Modules/Rendering/Tools/Graph/SkylightToRadiance.h"
+#ifdef USE_FORWARD_RENDERING_PIPELINE
+#include "Modules/Rendering/Tools/Graph/MeshToSceneRadiance.h"
+#endif // USE_FORWARD_RENDERING_PIPELINE
+#ifdef USE_DIFFERED_RENDERING_PIPELINE
+#include "Modules/Rendering/Tools/Graph/MeshToGBuffer.h"
+#include "Modules/Rendering/Tools/Graph/GBufferDirectionalLightRadiance.h"
+#include "Modules/Rendering/Tools/Graph/GBufferIndirectLightRadiance.h"
+#endif // USE_DIFFERED_RENDERING_PIPELINE
+#include "Modules/Rendering/Tools/Graph/PostProcess.h"
 
 /* ____________________________________ Constants ____________________________________ */
 
@@ -36,318 +52,12 @@ constexpr uint8_t kBaseSampleCount = 4;
 /* ____________________________________ States ____________________________________ */
 
 float CameraSpeed = 1.0f;
-bool UseFrustumCulling = false;
 
 /* ____________________________________ Render Data ____________________________________ */
 
-struct DirectionalLight
-{
-    AlignedVector3f LightDir = AlignedVector3f(Normalize(Vector3f{0.8f, -1.0f, 0.9f}));
-    
-    Vector3f LightColor = {1.0f, 1.0f, 1.0f};
-    float LightIntensity = 1.0f;
-};
-
-struct CPUSceneData
-{
-    FlyCamera Camera;
-    Rendering::CameraData CameraData;
-    DirectionalLight lightsData{};
-};
-
-// TODO move to scene, referencing and building manually scene graph is bad
-struct GPuSceneBuffers
-{
-    GPuSceneBuffers(uint32_t width, uint32_t height, GLint MaxSupportedMSAASamples):
-        CurrentWidth(width), CurrentHeight(height),
-        MSAASampleCount(std::min(static_cast<uint8_t>(std::clamp(MaxSupportedMSAASamples, 0, (int)(UINT8_MAX))), kBaseSampleCount)),
-        SceneRadianceRT(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB),
-        SceneDepthRT(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D),
-        SceneDepthAttachment(SceneDepthRT),
-        SceneRadianceFB(FrameBuffer::Attachment(SceneRadianceRT, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachment),
-        SceneRadianceMSAART(CurrentWidth, CurrentHeight, Texture::Packed_R11F_G11F_B10F, Texture::RGB, MSAASampleCount),
-        SceneDepthMSAART(CurrentWidth, CurrentHeight, Texture::UnsignedInt, Texture::D, MSAASampleCount),
-        SceneDepthAttachmentMSAA(SceneDepthMSAART),
-        SceneRadianceMSAAFB(FrameBuffer::Attachment(SceneRadianceMSAART, FrameBuffer::ClearColor(0.f)), &SceneDepthAttachmentMSAA)
-    {}
-
-    // States
-    uint32_t CurrentWidth, CurrentHeight;
-    uint32_t SkylightMethod = 1;
-    uint32_t AntiAliasingMethod = kBaseAntiAliasingMethod;
-    uint8_t MSAASampleCount;
-    
-    GLTF::GPUScene Scene;
-    UniformBuffer Lights;
-    UniformBuffer Camera;
-
-    TextureCube SkylightCube{0, 0, Texture::Byte, Texture::R};
-    Texture2D SkylightHDRI{0, 0, Texture::Byte, Texture::R};
-
-    Texture2D SceneRadianceRT;
-    Texture2D SceneDepthRT;
-    FrameBuffer::DepthAttachment SceneDepthAttachment;
-        
-    FrameBuffer SceneRadianceFB;
-        
-    Texture2D SceneRadianceMSAART;
-    WriteOnlyTexture2D SceneDepthMSAART;
-    FrameBuffer::DepthAttachment SceneDepthAttachmentMSAA;
-        
-    FrameBuffer SceneRadianceMSAAFB;
-        
-    
-    Sampler BaseSampler{{}};
-};
-
 /* ____________________________________ Baking Passes ____________________________________ */
 
-/* ____________________________________ Real time Passes ____________________________________ */
-
-class DrawSky
-{
-public:
-    DrawSky() : 
-        m_PipelineCubemap(PipelineFromFile("Background sky", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "SkylightToRadiance.glsl", m_PipelineCubemapDefines)),
-        m_PipelineHDRI(PipelineFromFile("Background sky", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "SkylightToRadiance.glsl", m_PipelineHDRIDefines))
-    {}
-    
-    // void Update(double DeltaTime);
-    void Draw(const GPuSceneBuffers& SceneObjects)
-    {
-        DebugScopeMarker scope("Draw Sky");
-
-        switch (SceneObjects.SkylightMethod)
-        {
-        case 0: // Cubemap Sampling
-            Bind(m_PipelineCubemap);
-                
-            // Scene buffers
-            SetUniform(0, SceneObjects.Camera);
-            SetUniform(1, SceneObjects.Lights);
-            SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
-        
-            // Draw screen quad
-            glDrawArrays(GL_TRIANGLES, 0, 3);
-        
-            UnBind(m_PipelineCubemap);
-            break;
-            
-        case 1: // HDRI Sampling
-            Bind(m_PipelineHDRI);
-                
-            // Scene buffers
-            SetUniform(0, SceneObjects.Camera);
-            SetUniform(1, SceneObjects.Lights);
-            SetUniform(m_PipelineHDRI, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
-        
-            // Draw screen quad
-            glDrawArrays(GL_TRIANGLES, 0, 3);
-        
-            UnBind(m_PipelineHDRI);
-            break;
-        }
-    }
-    
-    void Reload()
-    {
-        PipelineUpdateFromFile(m_PipelineCubemap, "SkylightToRadiance.glsl", m_PipelineCubemapDefines);
-        PipelineUpdateFromFile(m_PipelineHDRI, "SkylightToRadiance.glsl", m_PipelineHDRIDefines);
-    }
-
-private:
-    Shader::DefineArray<1> m_PipelineCubemapDefines = {Shader::Define("USE_CUBEMAP_SKYLIGHT", "")};
-    Shader::DefineArray<1> m_PipelineHDRIDefines = {Shader::Define("USE_HDRI_SKYLIGHT", "")};
-    
-    Pipeline m_PipelineCubemap;
-    Pipeline m_PipelineHDRI;
-};
-
-class DrawScene
-{
-public:    
-    DrawScene() : 
-        m_PipelineCubemap(PipelineFromFile("Mesh To Radiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToRadiance.glsl", m_PipelineCubemapDefines)),
-        m_PipelineHDRI(PipelineFromFile("Mesh To Radiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToRadiance.glsl", m_PipelineHDRIDefines))
-    {}
-    
-    // void Update(double DeltaTime);
-    void Draw(const GPuSceneBuffers& SceneObjects, const Camera& Camera)
-    {
-        DebugScopeMarker scope("Draw Scene");
-        
-        const Pipeline* pipeline = nullptr;
-        Matrix4f ViewProj = Camera.Projection() * Camera.View();
-        
-        switch (SceneObjects.SkylightMethod)
-        {
-        case 0: // Cubemap Sampling
-            Bind(m_PipelineCubemap);
-                
-            // Scene buffers
-            SetUniform(0, SceneObjects.Camera);
-            SetUniform(1, SceneObjects.Lights);
-            SetUniform(m_PipelineCubemap, "SkyLightCubeMap", 0, SceneObjects.SkylightCube, SceneObjects.BaseSampler);
-            SetUniform(m_PipelineCubemap, "SkyLightMipCount",  SceneObjects.SkylightCube.MipCount());
-            
-            SetUniform(m_PipelineCubemap, "IndirectLightingSampleCount", m_SkyLightSampleCount);
-            
-            pipeline = &m_PipelineCubemap;
-            break;
-            
-        case 1: // HDRI Sampling
-            Bind(m_PipelineHDRI);
-                
-            // Scene buffers
-            SetUniform(0, SceneObjects.Camera);
-            SetUniform(1, SceneObjects.Lights);
-            SetUniform(m_PipelineHDRI, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
-            SetUniform(m_PipelineHDRI, "SkyLightMipCount",  SceneObjects.SkylightHDRI.MipCount());
-            
-            SetUniform(m_PipelineCubemap, "IndirectLightingSampleCount", m_SkyLightSampleCount);
-            
-            pipeline = &m_PipelineHDRI;
-            break;
-                        
-        default:
-            return;
-        }
-        
-        for (const GLTF::MeshInstance& Instance : SceneObjects.Scene.instances)
-        {
-            const MeshObject& Mesh = SceneObjects.Scene.meshes[Instance.mesh];
-            const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
-            const GLTF::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
-            const GLTF::Material& Material = SceneObjects.Scene.materials[Instance.material];
-            
-            switch (Transform.Type)
-            {
-            case GLTF::Transform::Properties:
-                {
-                    Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
-            
-                    if (UseFrustumCulling && !Rendering::frustumCullingTest(ViewProj, TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
-            
-                    SetUniform(*pipeline, "Model", TransformMatrix);
-                }
-                break;
-                
-            case GLTF::Transform::Matrix:
-                {
-                    if (UseFrustumCulling && !Rendering::frustumCullingTest(ViewProj, Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
-            
-                    SetUniform(*pipeline, "Model", Transform.Value.asMatrix);
-                }
-                break;
-                
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
-            }
-
-            
-            // Material
-            SetUniform(*pipeline, "BaseColor", Material.color.XYZ());
-            SetUniform(*pipeline, "Roughness", Material.roughness);
-            SetUniform(*pipeline, "Metalness", Material.metallic);
-            SetUniform(*pipeline, "UseColorTexture", Material.colorTexture != UINT64_MAX);
-            SetUniform(*pipeline, "UseNormalTexture", Material.normalTexture != UINT64_MAX);
-            SetUniform(*pipeline, "UseMRTexture", Material.metallicRoughnessTexture != UINT64_MAX);
-            SetUniform(*pipeline, "UseAOTexture", Material.occlusionTexture != UINT64_MAX);
-            if (Material.colorTexture != UINT64_MAX) SetUniform(*pipeline, "texColor", 1, SceneObjects.Scene.textures[Material.colorTexture], SceneObjects.BaseSampler);
-            if (Material.normalTexture != UINT64_MAX) SetUniform(*pipeline, "texNormal", 2, SceneObjects.Scene.textures[Material.normalTexture], SceneObjects.BaseSampler);
-            if (Material.metallicRoughnessTexture != UINT64_MAX) SetUniform(*pipeline, "texMR", 3, SceneObjects.Scene.textures[Material.metallicRoughnessTexture], SceneObjects.BaseSampler);
-            if (Material.occlusionTexture != UINT64_MAX) SetUniform(*pipeline, "texAO", 4, SceneObjects.Scene.textures[Material.occlusionTexture], SceneObjects.BaseSampler);
-            
-            Bind(Mesh.GetVAO());
-            if (Mesh.GetIndexBuffer().has_value())
-            {
-                const IndexBuffer& indexBuffer = Mesh.GetIndexBuffer().value();
-                Bind(indexBuffer);
-            
-                glDrawElements(ToGLGeometryType(Mesh.GetVertexType()), Group.VertexCount, ToGLIndexType(indexBuffer.GetIndexType()), (void*)(Group.FirstVertex * ToGLIndexSize(indexBuffer.GetIndexType())));
-            
-                UnBind(indexBuffer);
-            }
-            else
-            {
-                glDrawArrays(ToGLGeometryType(Mesh.GetVertexType()), Group.FirstVertex, Group.VertexCount);
-            }
-            
-            UnBind(Mesh.GetVAO());
-        }
-        
-        UnBind(*pipeline);
-    }
-    
-    void Reload()
-    {
-        PipelineUpdateFromFile(m_PipelineCubemap, "MeshToRadiance.glsl", m_PipelineCubemapDefines);
-        PipelineUpdateFromFile(m_PipelineHDRI, "MeshToRadiance.glsl", m_PipelineHDRIDefines);
-    }
-    
-    uint32_t& SkyLightSampleCount() {return m_SkyLightSampleCount;}
-    
-private:
-    Shader::DefineArray<1> m_PipelineCubemapDefines = {Shader::Define("USE_CUBEMAP_SKYLIGHT", "")};
-    Shader::DefineArray<1> m_PipelineHDRIDefines = {Shader::Define("USE_HDRI_SKYLIGHT", "")};
-    
-    Pipeline m_PipelineCubemap;
-    Pipeline m_PipelineHDRI;
-    
-    uint32_t m_SkyLightSampleCount = 32;
-};
-
-class PostProcess
-{
-public:
-
-    PostProcess() : 
-        m_Pipeline(PipelineFromFile("Post Process", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "PostProcess.glsl")),
-        m_Sampler({
-            .Magnification = Sampler::F_Nearest,
-            .Minification = Sampler::F_Nearest,
-        })
-    {}
-    
-    // void Update(double DeltaTime);
-    void Draw(const GPuSceneBuffers& SceneObjects, const Texture2D& SceneRadiance)
-    {
-        DebugScopeMarker scope("Apply Tone Mapping");
-        
-        Bind(m_Pipeline);
-        
-        // Scene buffers
-        SetUniform(0, SceneObjects.Camera);
-        SetUniform(1, SceneObjects.Lights);
-        
-        SetUniform(m_Pipeline, "SceneRadiance", 0, SceneRadiance, m_Sampler);
-        
-        // Draw screen quad
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        
-        UnBind(m_Pipeline);
-    }
-    
-    void Reload()
-    {
-        PipelineUpdateFromFile(m_Pipeline, "PostProcess.glsl");
-    }
-
-private:
-    Pipeline m_Pipeline;
-    Sampler m_Sampler;
-};
-
 /* ____________________________________ Process ____________________________________ */
-
-struct GPUDrawCalls
-{
-    GPUDrawCalls() = default;
-    ~GPUDrawCalls() = default;
-    
-    DrawSky DrawSkyPass;
-    DrawScene DrawScenePass;
-    PostProcess PostProcessPass;
-};
 
 void UpdateCamera(Window::Module& Window, double deltaTime, FlyCamera& camera)
 {
@@ -406,9 +116,19 @@ public:
         uint32_t InitialWidth, InitialHeight;
         Window->GetFrameBufferSize(InitialWidth, InitialHeight);
         
-        m_CPUSceneData.emplace();
-        m_GPUScene.emplace(InitialWidth, InitialHeight, MaxSupportedMSAASamples);
-        m_GPUDrawCalls.emplace();
+        m_CommandList.emplace();
+        TexOutput = m_CommandList->Context().Add<Texture2D>("Output", InitialWidth, InitialHeight,  Texture::UnsignedByte, Texture::RGB); // TODO introduce a way to have outputs to the graph
+        VOutputSize = m_CommandList->Context().AddVariable<Rendering::Graph::Size2D>("Output", Rendering::Graph::Size2D{InitialWidth, InitialHeight});
+        TexCubemap = m_CommandList->Context().Add<TextureCube>("Cubemap Skylight", 0u, 0u, Texture::Byte, Texture::R);
+        TexHDRi = m_CommandList->Context().Add<Texture2D>("HDRi Skylight", 0u, 0u, Texture::Byte, Texture::R);
+        
+        // TODO introduce a proper light system
+        VMainLightDirection = m_CommandList->Context().AddVariable<Vector3f>("Light Direction", Normalize(Vector3f{0.8f, -1.0f, 0.9f}));
+        VMainLightColor = m_CommandList->Context().AddVariable<Vector3f>("Light Color", {1.0f, 1.0f, 1.0f});
+        VMainLightIntensity = m_CommandList->Context().AddVariable<Rendering::Graph::Float>("Light Intensity", 1.0f);
+        
+        m_ViewportCamera.SetProjection(InitialWidth, InitialHeight, Radians(45.0f), kZNear, kZFar);
+        VMainCamera = m_CommandList->Context().AddCamera();
 
         // Load scene data
         {
@@ -419,7 +139,7 @@ public:
             // if (GetAbsoluteFilePath(std::filesystem::path("Willy") / "Splash" /"splash.gltf" ,path))
             // if (GetAbsoluteFilePath(std::filesystem::path("Willy") / "BistroGLTF" /"exterior.glb" ,path))
             {
-                AssertOrError( GLTF::LoadGPUScene(path, m_GPUScene->Scene), "Failed to load scene")
+                AssertOrError( GLTF::LoadGPUScene(path, m_CommandList->Context().Scene()), "Failed to load scene")
             }
         }
 
@@ -442,17 +162,37 @@ public:
                 TextureCube::FacePair(TextureCube::Down, Bottom),
             };
 
-            m_GPUScene->SkylightCube.Data(faces);
-
-            // Load HDRi
+            m_CommandList->Context().Get<TextureCube>(TexCubemap).Data(faces);
+        }
+        
+        // Load HDRi
+        {
+            std::filesystem::path path;
+            if (GetAbsoluteFilePath(std::filesystem::path("Textures") / "HDRi" / "san_giuseppe_bridge_4k.hdr" ,path))
             {
-                std::filesystem::path path;
-                if (GetAbsoluteFilePath(std::filesystem::path("Textures") / "HDRi" / "san_giuseppe_bridge_4k.hdr" ,path))
-                {
-                    m_GPUScene->SkylightHDRI.Data(ImageLoad(path, Image::Float));
-                }
+                m_CommandList->Context().Get<Texture2D>(TexHDRi).Data(ImageLoad(path, Image::Float));
             }
         }
+        
+        // Define rendering pipeline
+        m_CommandList->PushNode<Rendering::Graph::NativeResolutionRadiance>();
+        m_CommandList->PushNode<Rendering::Graph::SkylightToRadiance>();
+#ifdef USE_FORWARD_RENDERING_PIPELINE
+        m_CommandList->PushNode<Rendering::Graph::MeshToSceneRadiance>();
+#endif // USE_FORWARD_RENDERING_PIPELINE
+#ifdef USE_DIFFERED_RENDERING_PIPELINE
+        m_CommandList->PushNode<Rendering::Graph::MeshToGBuffer>();
+        m_CommandList->PushNode<Rendering::Graph::GBufferDirectionalLightRadiance>();
+        m_CommandList->PushNode<Rendering::Graph::GBufferIndirectLightRadiance>();
+#endif // USE_DIFFERED_RENDERING_PIPELINE
+        m_CommandList->PushNode<Rendering::Graph::ToneMappingCommand>();
+        
+        // Graph exposed variables
+        VSkyLightMethod = m_CommandList->Context().GetLocation<Rendering::Graph::UInt>("Skylight Method");
+        VUseFrustumCulling = m_CommandList->Context().GetLocation<Rendering::Graph::Bool>("UseFrustumCulling");
+        VIndirectLightSampleCount = m_CommandList->Context().GetLocation<Rendering::Graph::UInt>("Indirect Sample Count");
+        
+        m_OutputFrameBuffer.emplace(FrameBuffer::Attachment(m_CommandList->Context().Get<Texture2D>(TexOutput), FrameBuffer::ClearColor(0.0f)));
     }
 
     void Tick(double deltaTime) override
@@ -464,118 +204,111 @@ public:
         uint32_t NextWidth, NextHeight;
         if (Window->GetFrameBufferSize(NextWidth, NextHeight))
         {
-            m_CPUSceneData->Camera.SetProjection(NextWidth, NextHeight, Math::Radians(45.0f), kZNear, kZFar);
-                
-            m_GPUScene->SceneRadianceRT.Data(NextWidth, NextHeight);
-            m_GPUScene->SceneDepthRT.Data(NextWidth, NextHeight);
-            m_GPUScene->SceneRadianceFB.Resize(NextWidth, NextHeight);
-                
-            m_GPUScene->SceneRadianceMSAART.Data(NextWidth, NextHeight);
-            m_GPUScene->SceneDepthMSAART.Data(NextWidth, NextHeight);
-            m_GPUScene->SceneRadianceMSAAFB.Resize(NextWidth, NextHeight);
-
-            m_GPUScene->CurrentWidth = NextWidth;
-            m_GPUScene->CurrentHeight = NextHeight;
+            m_ViewportCamera.SetProjection(NextWidth, NextHeight, Math::Radians(45.0f), kZNear, kZFar);
+            
+            m_CommandList->Context().Get<Texture2D>(TexOutput).Data(NextWidth, NextHeight);
+            m_CommandList->Context().SetValue<Rendering::Graph::Size2D>(VOutputSize, Rendering::Graph::Size2D{NextWidth, NextHeight});
         }
 
         // Handle Shader Reload
         if (Window->ShouldRecompileShaders())
         {
-            m_GPUDrawCalls->DrawSkyPass.Reload();
-            m_GPUDrawCalls->DrawScenePass.Reload();
-            m_GPUDrawCalls->PostProcessPass.Reload();
+            m_CommandList->ReloadShaders();
         }
 
         // Update scene
         {                
-            UpdateCamera(*Window, deltaTime, m_CPUSceneData->Camera);
-            Rendering::UpdateCameraData(m_CPUSceneData->CameraData, m_CPUSceneData->Camera);
-                
-            m_GPUScene->Camera.Data(&(m_CPUSceneData->CameraData), sizeof(m_CPUSceneData->CameraData));
-            m_GPUScene->Lights.Data(&(m_CPUSceneData->lightsData), sizeof(m_CPUSceneData->lightsData));
+            UpdateCamera(*Window, deltaTime, m_ViewportCamera);
+            m_CommandList->Context().UpdateCamera(VMainCamera, m_ViewportCamera);
+            
+            m_CommandList->Update(deltaTime);
         }
 
         // Draw scene
         {
-            switch (m_GPUScene->AntiAliasingMethod)
-            {
-            case 0: // NONE
-                Bind(m_GPUScene->SceneRadianceFB);
-                m_GPUScene->SceneRadianceFB.Clear();
-                
-                m_GPUDrawCalls->DrawSkyPass.Draw(*m_GPUScene);
-                
-                glEnable(GL_CULL_FACE);
-                glEnable(GL_DEPTH_TEST);
-                glClear(GL_DEPTH_BUFFER_BIT);
-                
-                m_GPUDrawCalls->DrawScenePass.Draw(*m_GPUScene, m_CPUSceneData->Camera);
-                glDisable(GL_CULL_FACE);
-                glDisable(GL_DEPTH_TEST);
-                
-                UnBind(m_GPUScene->SceneRadianceFB);
-                break;
-                    
-            case 1: // MSAA
-                Bind(m_GPUScene->SceneRadianceMSAAFB);
-                m_GPUScene->SceneRadianceMSAAFB.Clear();
-                
-                m_GPUDrawCalls->DrawSkyPass.Draw(*m_GPUScene);
-                
-                glEnable(GL_CULL_FACE);
-                glEnable(GL_DEPTH_TEST);
-                glClear(GL_DEPTH_BUFFER_BIT);
-                
-                m_GPUDrawCalls->DrawScenePass.Draw(*m_GPUScene, m_CPUSceneData->Camera);
-                glDisable(GL_CULL_FACE);
-                glDisable(GL_DEPTH_TEST);
-                    
-                Bind(m_GPUScene->SceneRadianceFB, m_GPUScene->SceneRadianceMSAAFB);
-                    
-                glBlitFramebuffer(
-                    0, 0, m_GPUScene->CurrentWidth, m_GPUScene->CurrentHeight,
-                    0, 0, m_GPUScene->CurrentWidth, m_GPUScene->CurrentHeight,
-                    GL_COLOR_BUFFER_BIT, GL_NEAREST );
-                
-                UnBind(m_GPUScene->SceneRadianceFB);
-                break;
-                    
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported anti aliasing method")
-            }
-            
-            m_GPUDrawCalls->PostProcessPass.Draw(*m_GPUScene, m_GPUScene->SceneRadianceRT);
+            m_CommandList->Render();
         }
             
+        // Move results to viewport
+        // TODO cleanup and integrate to the engine
+        {
+            glViewport(0, 0, NextWidth, NextHeight);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            glBlitNamedFramebuffer(m_OutputFrameBuffer->Handle(), /*Main Frame buffer ??*/ 0, 
+                0, 0, NextWidth, NextHeight, 
+                0, 0, NextWidth, NextHeight, 
+                GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        }
     }
 
     void Shutdown() override
     {
-        m_GPUScene.reset();
-        m_GPUDrawCalls.reset();
-        m_CPUSceneData.reset();
+        m_OutputFrameBuffer.reset();
+        m_CommandList.reset();
     }
 
     void EditorUI() override
     {
         // Directional Light
-        ImGui::DragFloat3("Light Direction", m_CPUSceneData->lightsData.LightDir.vector.data(), 0.1f);
-        ImGui::ColorEdit3("Light Color", m_CPUSceneData->lightsData.LightColor.data());
-        ImGui::SliderFloat("Light Intensity", &m_CPUSceneData->lightsData.LightIntensity, 0.1f, 10.0f);
+        // TODO do ImGUI wrappers of graph variables
+        // TODO automate exposition of graph variables on demand
+        {
+            Vector3f Copy = m_CommandList->Context().GetValue<Vector3f>(VMainLightDirection);
+            if (ImGui::DragFloat3("Light Direction", Copy.data(), 0.1f))
+            {
+                m_CommandList->Context().SetValue<Vector3f>(VMainLightDirection, Copy);
+            }
+        }
+        {
+            Vector3f Copy = m_CommandList->Context().GetValue<Vector3f>(VMainLightColor);
+            if (ImGui::ColorEdit3("Light Color", Copy.data()))
+            {
+                m_CommandList->Context().SetValue<Vector3f>(VMainLightColor, Copy);
+            }
+        }
+        {
+            float Copy = m_CommandList->Context().GetValue<Rendering::Graph::Float>(VMainLightIntensity);
+            if (ImGui::DragFloat("Light Intensity", &Copy, 0.1f))
+            {
+                m_CommandList->Context().SetValue<Rendering::Graph::Float>(VMainLightIntensity, Copy);
+            }
+        }
 
         ImGui::Separator();
-
-        static const char* SkyLightMethodNames[] =
+        
         {
-            "Cubemap", "HDRi"
-        };
-
-        ImGui::ListBox("Sky Light Method", (int*)&m_GPUScene->SkylightMethod, SkyLightMethodNames, 2);
-        m_GPUScene->SkylightMethod = Math::Clamp(m_GPUScene->SkylightMethod, 0u, 1u);
+            static const char* SkyLightMethodNames[] =
+            {
+                "Cubemap", "HDRi"
+            };
+            
+            int Copy = m_CommandList->Context().GetValue<Rendering::Graph::UInt>(VSkyLightMethod);
+            if (ImGui::ListBox("Sky Light Method", &Copy, SkyLightMethodNames, 2))
+            {
+                Copy = Math::Clamp(Copy, 0, 1);
+                m_CommandList->Context().SetValue<Rendering::Graph::UInt>(VSkyLightMethod, (Rendering::Graph::UInt)(Copy));
+            }
+        }
+        {
+            int Copy = m_CommandList->Context().GetValue<Rendering::Graph::UInt>(VIndirectLightSampleCount);
+            if (ImGui::SliderInt("Indirect Light Sample Count", &Copy, 1, 1024))
+            {
+                Copy = Math::Clamp(Copy, 1, 1024);
+                m_CommandList->Context().SetValue<Rendering::Graph::UInt>(VIndirectLightSampleCount, (Rendering::Graph::UInt)Copy);
+            }
+        }
 
         ImGui::Separator();
 
         ImGui::SliderFloat("Camera Speed", &CameraSpeed, 0.1f, 2.0f);
-        ImGui::Checkbox("Use Frustum Culling", &UseFrustumCulling);
+        {
+            bool Copy = m_CommandList->Context().GetValue<Rendering::Graph::Bool>(VUseFrustumCulling);
+            if (ImGui::Checkbox("Use Frustum Culling", &Copy))
+            {
+                m_CommandList->Context().SetValue<Rendering::Graph::Bool>(VUseFrustumCulling, Copy);
+            }
+        }
 
         // TODO make a profiling window
         // ImGui::Text("Frame time (CPU): %f ms", frameTimeCPU);
@@ -584,10 +317,24 @@ public:
     
 private:
     GLint MaxSupportedMSAASamples;
-
-    std::optional<CPUSceneData> m_CPUSceneData;
-    std::optional<GPuSceneBuffers> m_GPUScene;
-    std::optional<GPUDrawCalls> m_GPUDrawCalls;
+    
+    std::optional<Rendering::Graph::CommandList> m_CommandList;
+    std::optional<FrameBuffer> m_OutputFrameBuffer;
+    Rendering::Graph::Location TexOutput;
+    Rendering::Graph::Location VOutputSize;
+    Rendering::Graph::Location VSkyLightMethod;
+    Rendering::Graph::Location VUseFrustumCulling;
+    Rendering::Graph::Location VIndirectLightSampleCount;
+    Rendering::Graph::Location VMainCamera;
+    Rendering::Graph::Location TexCubemap;
+    Rendering::Graph::Location TexHDRi;
+    
+    // TODO introduce a proper light system
+    Rendering::Graph::Location VMainLightDirection;
+    Rendering::Graph::Location VMainLightColor;
+    Rendering::Graph::Location VMainLightIntensity;
+    
+    FlyCamera m_ViewportCamera;
 };
 
 

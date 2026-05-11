@@ -22,4 +22,27 @@ namespace Rendering
         Data.Camera_ProjToViewport = Math::Vector2f(1.0f, -1.0f);
         Data.Camera_ViewportToProj = Math::Vector2f(1.0f, -1.0f);
     }
+
+    void CameraArray::UpdateCamera(size_t Index, const Camera& camera)
+    {
+        CameraData Payload;
+        UpdateCameraData(Payload, camera);
+        UpdateCamera(Index, Payload);
+    }
+
+    void CameraArray::UpdateCamera(size_t Index, const CameraData& camera)
+    {
+        m_Cameras.SubData(&camera, sizeof(CameraData), Index * sizeof(CameraData));
+    }
+
+    void CameraArray::UpdateCameras(std::span<CameraData> Cameras, size_t Index)
+    {
+        m_Cameras.SubData(Cameras.data(),  Cameras.size() * sizeof(CameraData), Index * sizeof(CameraData));
+    }
+
+    void CameraArray::Resize(size_t Size)
+    {
+        m_Cameras.Data(nullptr, Size * sizeof(CameraData));
+        m_Size = Size;
+    }
 }

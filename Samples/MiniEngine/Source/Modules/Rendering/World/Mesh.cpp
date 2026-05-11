@@ -1,5 +1,8 @@
 #include "Modules/Rendering/World/Mesh.h"
 
+#include "Modules/Rendering/World/Camera.h"
+#include "World/Component.h"
+
 namespace Rendering::World
 {
     bool frustumCullingTest(
@@ -79,5 +82,13 @@ namespace Rendering::World
             }
         }
         return areBoundsInFrustum && isFrustumInBounds;
+    }
+
+    void MeshComponentSystem::UpdateSystem(double DeltaTime)
+    {
+        CameraComponent& Camera = Engine::World::GetComponentSystem<CameraComponentSystem>(GetContext()).GetCurrentCamera();
+            
+        CurrentVP = Camera.Camera.Projection() * Camera.Camera.View();
+        CurrentInverseVP = Camera.Camera.InverseView() * Camera.Camera.InverseProjection();
     }
 }

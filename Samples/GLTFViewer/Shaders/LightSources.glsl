@@ -8,10 +8,4 @@ struct DirectionalLight_t
     float LightIntensity;
 };
 
-// Scene lights
-layout (binding = 1, std140)  uniform LightSources_t
-{
-    DirectionalLight_t SunLight;
-} LightSources;
-
 #endif // INCLUDE_GUARD_GLSL_LIGHT_SOURCES

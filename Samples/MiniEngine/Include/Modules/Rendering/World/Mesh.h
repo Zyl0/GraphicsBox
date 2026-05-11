@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Camera.h"
 #include "Modeling/Mesh.h"
-#include "World/Component.h"
+
+#include "Core/Scene.h"
 
 namespace Rendering::World
 {
@@ -20,26 +20,18 @@ namespace Rendering::World
     class MeshComponentSystem : public Engine::World::IComponentSystem
     {
     public:
+        COMPONENT_SYSTEM_EXPOSE_EVENTS(MeshComponentSystem);
         using Component = MeshComponent;
 
-        void Initialize(Component& Component, Engine::Handle OwningActor);
+        // void Initialize(Component& Component, Engine::Handle OwningActor);
 
-        void Update(Component& Component, Engine::Handle OwningActor, double DeltaTime)
-        {
-            
-        }
+        // void Update(Component& Component, Engine::Handle OwningActor, double DeltaTime);
 
-        void Terminate(Component& Component, Engine::Handle OwningActor);
+        //  void Terminate(Component& Component, Engine::Handle OwningActor);
 
-        void InitializeSystem();
-        void UpdateSystem(double DeltaTime)
-        {
-            CameraComponent& Camera = Engine::World::GetComponentSystem<CameraComponentSystem>(GetContext()).GetCurrentCamera();
-            
-            CurrentVP = Camera.Camera.Projection() * Camera.Camera.View();
-            CurrentInverseVP = Camera.Camera.InverseView() * Camera.Camera.InverseProjection();
-        }
-        void TerminateSystem();
+        // void InitializeSystem();
+        void UpdateSystem(double DeltaTime);
+        // void TerminateSystem();
         
     private:
         Math::Transform4f CurrentVP, CurrentInverseVP;
