@@ -430,9 +430,11 @@ group "Utilites"
 
         -- Dependencies
         dependson {
+            "Image",
             "TinyGLTF", -- "TinyGLTF3"
         }
         links {
+            "Image",
             "TinyGLTF", -- "TinyGLTF3"
         }
 
@@ -746,6 +748,43 @@ group "Samples"
             dependson {
                 "MiniEngine",
             }
+            
+           filter {"system:linux", "action:gmake"}
+                -- OpenGL, GLFW and GLEW includes are provided by the system
+                links { "GLEW", "GL" }
+            
+                links {
+                    "Camera",
+                    "Shared",
+                    "Files",
+                    "Image",
+                    "Importers",
+                    "Math",
+                    "Memory",
+                    "Modeling",
+                    "Rendering",
+                    "TinyGLTF",
+                    "ImGUI", 
+                    "stb_image",
+                    "stb_image_write"
+                }
+
+                -- Window specific 
+                if _OPTIONS["window"] == "glfw" then
+                    -- OpenGL, GLFW and GLEW includes are provided by the system -- TODO
+                    links { "glfw" }
+
+                end
+                if _OPTIONS["window"] == "sdl2" then
+                    -- OpenGL, GLFW and GLEW includes are provided by the system
+                    -- todo links { "glfw", "GLEW", "GL" }
+                        
+                end
+                if _OPTIONS["window"] == "sdl3" then
+                    -- OpenGL, GLFW and GLEW includes are provided by the system
+                    -- todo links { "glfw", "GLEW", "GL" }
+                end
+            filter { "" }
     end
 
 end
