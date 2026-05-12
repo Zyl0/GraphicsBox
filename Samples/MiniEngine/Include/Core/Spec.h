@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <memory>
+#include <list>
 #include <type_traits>
 #include <unordered_map>
 

@@ -1,5 +1,6 @@
 #include "Modules/Rendering/Tools/Commands.h"
 
+#include <cstring>
 #include "Rendering/Debug.h"
 
 namespace Rendering::Graph

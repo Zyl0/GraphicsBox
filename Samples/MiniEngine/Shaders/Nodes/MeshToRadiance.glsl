@@ -161,7 +161,7 @@ uniform sampler2D texAO;
 
 uniform vec3 LightDirection;
 uniform vec3 LightColor;
-uniform vec3 LightIntensity;
+uniform float LightIntensity;
 
 out vec4 OutColor;
 

@@ -274,11 +274,12 @@ group "Dependencies"
 
         -- Window specific code
         filter { "options:window=glfw" }
-            includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
             files {
                 path.join(project_dir, "backends", "imgui_impl_glfw.h"),
                 path.join(project_dir, "backends", "imgui_impl_glfw.cpp")
             }
+            filter { "system:windows" , "options:window=glfw" }
+                includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
         filter { "options:window=sdl2" }
             includedirs (path.join(gb_CompiledDependencyDir, "SDL2", "include"))
             files {
@@ -557,7 +558,7 @@ group "Samples"
         kind "StaticLib"
         
         -- Solution file
-        location (path.join(gb_SolutionProjectDir, "samples"))
+        location (path.join(gb_SolutionProjectDir, "Samples"))
 
         -- Project includes
         includedirs {
@@ -612,7 +613,9 @@ group "Samples"
         -- Window specific 
         if _OPTIONS["window"] == "glfw" then
             defines ("WINDOW_GLFW")
-            includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
+            filter { "system:windows" , "options:window=glfw" }
+                includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
+            filter {}
         end
         if _OPTIONS["window"] == "sdl2" then
             defines ("WINDOW_SDL2")
@@ -704,7 +707,7 @@ group "Samples"
             end
             
             -- Solution file
-            location (path.join(gb_SolutionProjectDir, "samples"))
+            location (path.join(gb_SolutionProjectDir, "Samples"))
 
             -- Project includes
             includedirs {
@@ -730,7 +733,9 @@ group "Samples"
             -- Window specific 
             if _OPTIONS["window"] == "glfw" then
                 defines ("WINDOW_GLFW")
-                includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
+                filter { "system:windows" }
+                    includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
+                filter {}
             end
             if _OPTIONS["window"] == "sdl2" then
                 defines ("WINDOW_SDL2")

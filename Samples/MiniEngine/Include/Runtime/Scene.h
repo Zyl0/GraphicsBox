@@ -21,6 +21,8 @@ namespace Engine::World
         class IComponentArray
         {
         public:
+            virtual ~IComponentArray() = 0;
+
             virtual void Initialize() = 0;
         
             virtual Handle Spawn(Handle OwningActor) = 0;
@@ -44,6 +46,8 @@ namespace Engine::World
         public:
             static_assert(ComponentSystem<CS>, "Given class needs to be a valid component system");
             
+            ~ComponentArray() override = default;
+
             using Component = CS::Component;
             using System = CS;
             

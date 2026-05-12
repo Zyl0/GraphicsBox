@@ -338,7 +338,7 @@ namespace  GLTF
         }
     }
     
-    bool GLTF::LoadCPUScene(const std::filesystem::path& path, CPUScene& scene)
+    bool LoadCPUScene(const std::filesystem::path& path, CPUScene& scene)
     {
         tinygltf::TinyGLTF loader;
 
@@ -610,6 +610,7 @@ namespace  GLTF
         for (int node : model.scenes[sceneIndex].nodes)
             LoadSceneTree(model, node, scene);
         
+        return true;
     }
     
     void LoadSceneTree(
@@ -928,7 +929,7 @@ namespace  GLTF
         }
     }
     
-    bool GLTF::LoadGPUScene(const std::filesystem::path& path, GPUScene& scene)
+    bool LoadGPUScene(const std::filesystem::path& path, GPUScene& scene)
     {
         tinygltf::TinyGLTF loader;
 
@@ -1042,7 +1043,7 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    AssertOrErrorCallF(Indexes.empty() || Indexes.front().TinyGLTFComponentType ==  model.accessors[primitive.indices].componentType, continue;, "Primitive index buffer type missmatch")
+                    AssertOrErrorCall(Indexes.empty() || Indexes.front().TinyGLTFComponentType ==  model.accessors[primitive.indices].componentType, continue;, "Primitive index buffer type missmatch")
                     
                     Indexes.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[primitive.indices].componentType, .View = CurrentView});
                 }
@@ -1063,7 +1064,7 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    AssertOrErrorCallF(Positions.empty() || Positions.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
+                    AssertOrErrorCall(Positions.empty() || Positions.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
                     Positions.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
                     
@@ -1086,7 +1087,7 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    AssertOrErrorCallF(Normals.empty() || Normals.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
+                    AssertOrErrorCall(Normals.empty() || Normals.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
                     Normals.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
                 }
@@ -1107,7 +1108,7 @@ namespace  GLTF
 
                     if(!success) continue;
                     
-                    AssertOrErrorCallF(TextCoords.empty() || TextCoords.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
+                    AssertOrErrorCall(TextCoords.empty() || TextCoords.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
                     TextCoords.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
                 }
