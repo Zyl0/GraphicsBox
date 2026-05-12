@@ -1,51 +1,48 @@
 #pragma once
 
-#include "Importers/GLTF/SceneLoader.h"
-#include "Modules/Rendering/Tools/Commands.h"
-#include "Modules/Rendering/Tools/FrustumCulling.h"
-#include "Rendering/FrameBuffers.h"
-#include "Rendering/Pipelines.h"
-#include "Rendering/Sampler.h"
-#include "Rendering/Uniforms.h"
+#include "Modules/FrameGraph/Commands.h"
 
-namespace Rendering::Graph
+namespace FrameGraph
 {
-    class MeshToGBuffer : public Command
+    class MeshToSceneRadiance : public ICommand
     {
     public:
-        MeshToGBuffer(CommandContext& Resources): 
-            Command(Resources),
+        MeshToSceneRadiance(CommandContext& Resources): 
+            ICommand(Resources),
             GBufferSize(Resources.GetValue<Size2D>("Scene Radiance")),
-            GBufferAlbedo(Resources.Add<Texture2D>("GBufferAlbedo", GBufferSize.x, GBufferSize.y, Texture::Type::Packed_R11F_G11F_B10F, Texture::Layout::RGB)),
-            GBufferNormal(Resources.Add<Texture2D>("GBufferNormal", GBufferSize.x, GBufferSize.y, Texture::Type::Half, Texture::Layout::RGB)),
-            GBufferProperties(Resources.Add<Texture2D>("GBufferProperties", GBufferSize.x, GBufferSize.y, Texture::Type::Packed_R11F_G11F_B10F, Texture::Layout::RGB)),
+            VDirectionalLightDirection(Resources.GetLocation<Math::Vector3f>("Light Direction")),
+            VDirectionalLightColor(Resources.GetLocation<Math::Vector3f>("Light Color")),
+            VDirectionalLightIntensity(Resources.GetLocation<Float>("Light Intensity")),
+            VIndirectLightSamples(Resources.AddVariable<UInt>("Indirect Sample Count", 32)),
+            VSkylightMethod(Resources.GetLocation<UInt>("Skylight Method")),
             VUseFrustumCulling(Resources.AddVariable("UseFrustumCulling", true)),
+            Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
+            HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),
             FBDepthAttachment(Resources.Get<Texture2D>("Scene Depth")),
             FrameBuffer(std::array{
-                FrameBuffer::Attachment(Resources.Get<Texture2D>(GBufferAlbedo), FrameBuffer::ClearColor(0.0)),
-                FrameBuffer::Attachment(Resources.Get<Texture2D>(GBufferNormal), FrameBuffer::ClearColor(0.0)),
-                FrameBuffer::Attachment(Resources.Get<Texture2D>(GBufferProperties), FrameBuffer::ClearColor(0.0))
+                FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance"), FrameBuffer::ClearColor(0.0)),
             }, &FBDepthAttachment),
-            Pipeline(PipelineFromFile("GLTF Mesh to GBuffer", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToGBuffer.glsl")),
+            CubemapPipeline(PipelineFromFile("Skylight To Radiance Cubemap", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineCubemapDefines)),
+            HDRiPipeline(PipelineFromFile("Skylight To Radiance HDRi", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineHDRIDefines)),
             Sampler(Sampler::Params{})
         {
         }
 
+        ~MeshToSceneRadiance() override = default;
+
     protected:
         void OnReloadShaders(CommandContext& Resources) override
         {
-            PipelineUpdateFromFile(Pipeline, "Nodes/MeshToGBuffer.glsl");
+            PipelineUpdateFromFile(CubemapPipeline, "Nodes/MeshToRadiance.glsl", PipelineCubemapDefines);
+            PipelineUpdateFromFile(HDRiPipeline, "Nodes/MeshToRadiance.glsl", PipelineHDRIDefines);
         }
         
         void OnUpdate(CommandContext& Resources, double DeltaTime) override
         {
             if (Resources.HasChanged<Size2D>("Scene Radiance"))
             {
-                GBufferSize = Resources.GetValue<Size2D>("Scene Radiance");
-                Resources.Get<Texture2D>(GBufferAlbedo).Data(GBufferSize.x, GBufferSize.y);
-                Resources.Get<Texture2D>(GBufferNormal).Data(GBufferSize.x, GBufferSize.y);
-                Resources.Get<Texture2D>(GBufferProperties).Data(GBufferSize.x, GBufferSize.y);
-                FrameBuffer.Resize(GBufferSize.x, GBufferSize.y);
+                Size2D SceneRadianceSize = Resources.GetValue<Size2D>("Scene Radiance");
+                FrameBuffer.Resize(SceneRadianceSize.x, SceneRadianceSize.y);
             }
         }
         
@@ -53,28 +50,56 @@ namespace Rendering::Graph
         {
             Bind(FrameBuffer);
             
+            const Pipeline* pipeline = nullptr;
+            
+            switch (Resources.GetValue<UInt>(VSkylightMethod))
+            {
+            case 0: // Cubemap Sampling
+                Bind(CubemapPipeline);
+                
+                SetUniform(CubemapPipeline, "SkyLightCubeMap", 0, Resources.Get<TextureCube>(Cubemap), Sampler);
+                
+                pipeline = &CubemapPipeline;
+                break;
+            
+            case 1: // HDRI Sampling
+                Bind(HDRiPipeline);
+                
+                SetUniform(HDRiPipeline, "SkyLightHDRi", 0, Resources.Get<Texture2D>(HDRi), Sampler);
+                
+                pipeline = &HDRiPipeline;
+                break;
+                        
+            default:
+                return;
+            }
+            
             glEnable(GL_CULL_FACE);
             glEnable(GL_DEPTH_TEST);
             glClear(GL_DEPTH_BUFFER_BIT); // Color clear is done when drawing the skylight
             
-            Bind(Pipeline);
-            
             // States settings
             bool UseFrustumCulling = Resources.GetValue<Bool>(VUseFrustumCulling);
             
+            // Light properties
+            SetUniform(*pipeline, "LightDirection", Resources.GetValue<Math::Vector3f>(VDirectionalLightDirection));
+            SetUniform(*pipeline, "LightColor", Resources.GetValue<Math::Vector3f>(VDirectionalLightColor));
+            SetUniform(*pipeline, "LightIntensity", Resources.GetValue<Float>(VDirectionalLightIntensity));
+            SetUniform(*pipeline, "IndirectLightingSampleCount", Resources.GetValue<UInt>(VIndirectLightSamples));
+            
             // Uniform Data
-            GLint GLTFBaseColor = GetUniformLocation(Pipeline, "BaseColor");
-            GLint GLTFRoughness = GetUniformLocation(Pipeline, "Roughness");
-            GLint GLTFMetalness = GetUniformLocation(Pipeline, "Metalness");
-            GLint GLTFUseColorTexture = GetUniformLocation(Pipeline, "UseColorTexture");
-            GLint GLTFUseNormalTexture = GetUniformLocation(Pipeline, "UseNormalTexture");
-            GLint GLTFUseMRTexture = GetUniformLocation(Pipeline, "UseMRTexture");
-            GLint GLTFUseAOTexture = GetUniformLocation(Pipeline, "UseAOTexture");
-            GLint GLTFTexColor = GetUniformLocation(Pipeline, "texColor");
-            GLint GLTFTexNormal = GetUniformLocation(Pipeline, "texNormal");
-            GLint GLTFTexMR = GetUniformLocation(Pipeline, "texMR");
-            GLint GLTFTexAO = GetUniformLocation(Pipeline, "texAO");
-            GLint GLTFModelMatrix = GetUniformLocation(Pipeline, "Model");
+            GLint GLTFBaseColor = GetUniformLocation(*pipeline, "BaseColor");
+            GLint GLTFRoughness = GetUniformLocation(*pipeline, "Roughness");
+            GLint GLTFMetalness = GetUniformLocation(*pipeline, "Metalness");
+            GLint GLTFUseColorTexture = GetUniformLocation(*pipeline, "UseColorTexture");
+            GLint GLTFUseNormalTexture = GetUniformLocation(*pipeline, "UseNormalTexture");
+            GLint GLTFUseMRTexture = GetUniformLocation(*pipeline, "UseMRTexture");
+            GLint GLTFUseAOTexture = GetUniformLocation(*pipeline, "UseAOTexture");
+            GLint GLTFTexColor = GetUniformLocation(*pipeline, "texColor");
+            GLint GLTFTexNormal = GetUniformLocation(*pipeline, "texNormal");
+            GLint GLTFTexMR = GetUniformLocation(*pipeline, "texMR");
+            GLint GLTFTexAO = GetUniformLocation(*pipeline, "texAO");
+            GLint GLTFModelMatrix = GetUniformLocation(*pipeline, "Model");
             
             // Scene storage buffers
             SetUniform(0, Resources.GetCameraBuffer());
@@ -95,7 +120,7 @@ namespace Rendering::Graph
                     {
                         Math::Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
                 
-                        if (UseFrustumCulling && !frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+                        if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
                 
                         SetUniform(GLTFModelMatrix, TransformMatrix);
                     }
@@ -103,7 +128,7 @@ namespace Rendering::Graph
                     
                 case GLTF::Transform::Matrix:
                     {
-                        if (UseFrustumCulling && !frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+                        if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
                 
                         SetUniform(GLTFModelMatrix, Transform.Value.asMatrix);
                     }
@@ -148,19 +173,27 @@ namespace Rendering::Graph
             glDisable(GL_CULL_FACE);
             glDisable(GL_DEPTH_TEST);
             
-            UnBind(Pipeline);
+            
+            UnBind(*pipeline);
             UnBind(FrameBuffer);
         }
-    
+
     private:
         Size2D GBufferSize;
-        Location GBufferAlbedo;
-        Location GBufferNormal;
-        Location GBufferProperties;
+        Location VDirectionalLightDirection;
+        Location VDirectionalLightColor;
+        Location VDirectionalLightIntensity;
+        Location VIndirectLightSamples;
+        Location VSkylightMethod;
         Location VUseFrustumCulling;
+        Location Cubemap;
+        Location HDRi;
         FrameBuffer::DepthAttachment FBDepthAttachment;
         FrameBuffer FrameBuffer;
-        Pipeline Pipeline;
+        Shader::DefineArray<1> PipelineCubemapDefines = {Shader::Define("USE_CUBEMAP_SKYLIGHT", "")};
+        Shader::DefineArray<1> PipelineHDRIDefines = {Shader::Define("USE_HDRI_SKYLIGHT", "")};
+        Pipeline CubemapPipeline;
+        Pipeline HDRiPipeline;
         Sampler Sampler;
     };
 }

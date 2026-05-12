@@ -1,18 +1,18 @@
 ﻿#pragma once
 
-#include "Modules/Rendering/Tools/Commands.h"
+#include "Modules/FrameGraph/Commands.h"
 
-namespace Rendering::Graph
+namespace FrameGraph
 {
-    class NativeResolutionRadiance  : public Command
+    class NativeResolutionRadiance  : public ICommand
     {
     public:
         NativeResolutionRadiance(CommandContext& Resources):
-            Command(Resources),
+            ICommand(Resources),
             SceneRadianceSize(Resources.GetValue<Size2D>("Output")),
+            VSceneRadianceSize(Resources.AddVariable<Size2D>("Scene Radiance", SceneRadianceSize)),
             SceneRadiance(Resources.Add<Texture2D>("Scene Radiance", SceneRadianceSize.x, SceneRadianceSize.y, Texture::Type::Packed_R11F_G11F_B10F, Texture::Layout::RGB)),
-            SceneDepth(Resources.Add<Texture2D>("Scene Depth", SceneRadianceSize.x, SceneRadianceSize.y, Texture::Type::UnsignedInt, Texture::Layout::D)),
-            VSceneRadianceSize(Resources.AddVariable<Size2D>("Scene Radiance", SceneRadianceSize))
+            SceneDepth(Resources.Add<Texture2D>("Scene Depth", SceneRadianceSize.x, SceneRadianceSize.y, Texture::Type::UnsignedInt, Texture::Layout::D))
         {}
         
         ~NativeResolutionRadiance() override = default;

@@ -24,23 +24,23 @@
 // for macro keys, TODO maybe abstract into an input system or module
 #include <GLFW/glfw3.h>
 
-#include "Modules/Rendering/Tools/Commands.h"
+#include "Modules/FrameGraph/Commands.h"
 
 using namespace Math;
 
 #define USE_FORWARD_RENDERING_PIPELINE
 
-#include "Modules/Rendering/Tools/Graph/NativeResolutionRadiance.h"
-#include "Modules/Rendering/Tools/Graph/SkylightToRadiance.h"
+#include "Modules/FrameGraph/Nodes/NativeResolutionRadiance.h"
+#include "Modules/FrameGraph/Nodes/SkylightToRadiance.h"
 #ifdef USE_FORWARD_RENDERING_PIPELINE
-#include "Modules/Rendering/Tools/Graph/MeshToSceneRadiance.h"
+#include "Modules/FrameGraph/Nodes/MeshToSceneRadiance.h"
 #endif // USE_FORWARD_RENDERING_PIPELINE
 #ifdef USE_DIFFERED_RENDERING_PIPELINE
-#include "Modules/Rendering/Tools/Graph/MeshToGBuffer.h"
-#include "Modules/Rendering/Tools/Graph/GBufferDirectionalLightRadiance.h"
-#include "Modules/Rendering/Tools/Graph/GBufferIndirectLightRadiance.h"
+#include "Modules/FrameGraph/Nodes/MeshToGBuffer.h"
+#include "Modules/FrameGraph/Nodes/GBufferDirectionalLightRadiance.h"
+#include "Modules/FrameGraph/Nodes/GBufferIndirectLightRadiance.h"
 #endif // USE_DIFFERED_RENDERING_PIPELINE
-#include "Modules/Rendering/Tools/Graph/PostProcess.h"
+#include "Modules/FrameGraph/Nodes/PostProcess.h"
 
 /* ____________________________________ Constants ____________________________________ */
 
@@ -118,14 +118,14 @@ public:
         
         m_CommandList.emplace();
         TexOutput = m_CommandList->Context().Add<Texture2D>("Output", InitialWidth, InitialHeight,  Texture::UnsignedByte, Texture::RGB); // TODO introduce a way to have outputs to the graph
-        VOutputSize = m_CommandList->Context().AddVariable<Rendering::Graph::Size2D>("Output", Rendering::Graph::Size2D{InitialWidth, InitialHeight});
+        VOutputSize = m_CommandList->Context().AddVariable<FrameGraph::Size2D>("Output", FrameGraph::Size2D{InitialWidth, InitialHeight});
         TexCubemap = m_CommandList->Context().Add<TextureCube>("Cubemap Skylight", 0u, 0u, Texture::Byte, Texture::R);
         TexHDRi = m_CommandList->Context().Add<Texture2D>("HDRi Skylight", 0u, 0u, Texture::Byte, Texture::R);
         
         // TODO introduce a proper light system
         VMainLightDirection = m_CommandList->Context().AddVariable<Vector3f>("Light Direction", Normalize(Vector3f{0.8f, -1.0f, 0.9f}));
         VMainLightColor = m_CommandList->Context().AddVariable<Vector3f>("Light Color", {1.0f, 1.0f, 1.0f});
-        VMainLightIntensity = m_CommandList->Context().AddVariable<Rendering::Graph::Float>("Light Intensity", 1.0f);
+        VMainLightIntensity = m_CommandList->Context().AddVariable<FrameGraph::Float>("Light Intensity", 1.0f);
         
         m_ViewportCamera.SetProjection(InitialWidth, InitialHeight, Radians(45.0f), kZNear, kZFar);
         VMainCamera = m_CommandList->Context().AddCamera();
@@ -175,22 +175,22 @@ public:
         }
         
         // Define rendering pipeline
-        m_CommandList->PushNode<Rendering::Graph::NativeResolutionRadiance>();
-        m_CommandList->PushNode<Rendering::Graph::SkylightToRadiance>();
+        m_CommandList->PushNode<FrameGraph::NativeResolutionRadiance>();
+        m_CommandList->PushNode<FrameGraph::SkylightToRadiance>();
 #ifdef USE_FORWARD_RENDERING_PIPELINE
-        m_CommandList->PushNode<Rendering::Graph::MeshToSceneRadiance>();
+        m_CommandList->PushNode<FrameGraph::MeshToSceneRadiance>();
 #endif // USE_FORWARD_RENDERING_PIPELINE
 #ifdef USE_DIFFERED_RENDERING_PIPELINE
-        m_CommandList->PushNode<Rendering::Graph::MeshToGBuffer>();
-        m_CommandList->PushNode<Rendering::Graph::GBufferDirectionalLightRadiance>();
-        m_CommandList->PushNode<Rendering::Graph::GBufferIndirectLightRadiance>();
+        m_CommandList->PushNode<FrameGraph::MeshToGBuffer>();
+        m_CommandList->PushNode<FrameGraph::GBufferDirectionalLightRadiance>();
+        m_CommandList->PushNode<FrameGraph::GBufferIndirectLightRadiance>();
 #endif // USE_DIFFERED_RENDERING_PIPELINE
-        m_CommandList->PushNode<Rendering::Graph::ToneMappingCommand>();
+        m_CommandList->PushNode<FrameGraph::ToneMappingCommand>();
         
         // Graph exposed variables
-        VSkyLightMethod = m_CommandList->Context().GetLocation<Rendering::Graph::UInt>("Skylight Method");
-        VUseFrustumCulling = m_CommandList->Context().GetLocation<Rendering::Graph::Bool>("UseFrustumCulling");
-        VIndirectLightSampleCount = m_CommandList->Context().GetLocation<Rendering::Graph::UInt>("Indirect Sample Count");
+        VSkyLightMethod = m_CommandList->Context().GetLocation<FrameGraph::UInt>("Skylight Method");
+        VUseFrustumCulling = m_CommandList->Context().GetLocation<FrameGraph::Bool>("UseFrustumCulling");
+        VIndirectLightSampleCount = m_CommandList->Context().GetLocation<FrameGraph::UInt>("Indirect Sample Count");
         
         m_OutputFrameBuffer.emplace(FrameBuffer::Attachment(m_CommandList->Context().Get<Texture2D>(TexOutput), FrameBuffer::ClearColor(0.0f)));
     }
@@ -207,7 +207,7 @@ public:
             m_ViewportCamera.SetProjection(NextWidth, NextHeight, Math::Radians(45.0f), kZNear, kZFar);
             
             m_CommandList->Context().Get<Texture2D>(TexOutput).Data(NextWidth, NextHeight);
-            m_CommandList->Context().SetValue<Rendering::Graph::Size2D>(VOutputSize, Rendering::Graph::Size2D{NextWidth, NextHeight});
+            m_CommandList->Context().SetValue<FrameGraph::Size2D>(VOutputSize, FrameGraph::Size2D{NextWidth, NextHeight});
         }
 
         // Handle Shader Reload
@@ -268,10 +268,10 @@ public:
             }
         }
         {
-            float Copy = m_CommandList->Context().GetValue<Rendering::Graph::Float>(VMainLightIntensity);
+            float Copy = m_CommandList->Context().GetValue<FrameGraph::Float>(VMainLightIntensity);
             if (ImGui::DragFloat("Light Intensity", &Copy, 0.1f))
             {
-                m_CommandList->Context().SetValue<Rendering::Graph::Float>(VMainLightIntensity, Copy);
+                m_CommandList->Context().SetValue<FrameGraph::Float>(VMainLightIntensity, Copy);
             }
         }
 
@@ -283,19 +283,19 @@ public:
                 "Cubemap", "HDRi"
             };
             
-            int Copy = m_CommandList->Context().GetValue<Rendering::Graph::UInt>(VSkyLightMethod);
+            int Copy = m_CommandList->Context().GetValue<FrameGraph::UInt>(VSkyLightMethod);
             if (ImGui::ListBox("Sky Light Method", &Copy, SkyLightMethodNames, 2))
             {
                 Copy = Math::Clamp(Copy, 0, 1);
-                m_CommandList->Context().SetValue<Rendering::Graph::UInt>(VSkyLightMethod, (Rendering::Graph::UInt)(Copy));
+                m_CommandList->Context().SetValue<FrameGraph::UInt>(VSkyLightMethod, (FrameGraph::UInt)(Copy));
             }
         }
         {
-            int Copy = m_CommandList->Context().GetValue<Rendering::Graph::UInt>(VIndirectLightSampleCount);
+            int Copy = m_CommandList->Context().GetValue<FrameGraph::UInt>(VIndirectLightSampleCount);
             if (ImGui::SliderInt("Indirect Light Sample Count", &Copy, 1, 1024))
             {
                 Copy = Math::Clamp(Copy, 1, 1024);
-                m_CommandList->Context().SetValue<Rendering::Graph::UInt>(VIndirectLightSampleCount, (Rendering::Graph::UInt)Copy);
+                m_CommandList->Context().SetValue<FrameGraph::UInt>(VIndirectLightSampleCount, (FrameGraph::UInt)Copy);
             }
         }
 
@@ -303,10 +303,10 @@ public:
 
         ImGui::SliderFloat("Camera Speed", &CameraSpeed, 0.1f, 2.0f);
         {
-            bool Copy = m_CommandList->Context().GetValue<Rendering::Graph::Bool>(VUseFrustumCulling);
+            bool Copy = m_CommandList->Context().GetValue<FrameGraph::Bool>(VUseFrustumCulling);
             if (ImGui::Checkbox("Use Frustum Culling", &Copy))
             {
-                m_CommandList->Context().SetValue<Rendering::Graph::Bool>(VUseFrustumCulling, Copy);
+                m_CommandList->Context().SetValue<FrameGraph::Bool>(VUseFrustumCulling, Copy);
             }
         }
 
@@ -318,21 +318,21 @@ public:
 private:
     GLint MaxSupportedMSAASamples;
     
-    std::optional<Rendering::Graph::CommandList> m_CommandList;
+    std::optional<FrameGraph::CommandList> m_CommandList;
     std::optional<FrameBuffer> m_OutputFrameBuffer;
-    Rendering::Graph::Location TexOutput;
-    Rendering::Graph::Location VOutputSize;
-    Rendering::Graph::Location VSkyLightMethod;
-    Rendering::Graph::Location VUseFrustumCulling;
-    Rendering::Graph::Location VIndirectLightSampleCount;
-    Rendering::Graph::Location VMainCamera;
-    Rendering::Graph::Location TexCubemap;
-    Rendering::Graph::Location TexHDRi;
+    FrameGraph::Location TexOutput;
+    FrameGraph::Location VOutputSize;
+    FrameGraph::Location VSkyLightMethod;
+    FrameGraph::Location VUseFrustumCulling;
+    FrameGraph::Location VIndirectLightSampleCount;
+    FrameGraph::Location VMainCamera;
+    FrameGraph::Location TexCubemap;
+    FrameGraph::Location TexHDRi;
     
     // TODO introduce a proper light system
-    Rendering::Graph::Location VMainLightDirection;
-    Rendering::Graph::Location VMainLightColor;
-    Rendering::Graph::Location VMainLightIntensity;
+    FrameGraph::Location VMainLightDirection;
+    FrameGraph::Location VMainLightColor;
+    FrameGraph::Location VMainLightIntensity;
     
     FlyCamera m_ViewportCamera;
 };

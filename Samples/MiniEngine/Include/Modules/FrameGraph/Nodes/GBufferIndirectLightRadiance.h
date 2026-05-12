@@ -1,18 +1,18 @@
 ﻿#pragma once
 
-#include "Modules/Rendering/Tools/Commands.h"
+#include "Modules/FrameGraph/Commands.h"
 #include "Rendering/FrameBuffers.h"
 #include "Rendering/Pipelines.h"
 #include "Rendering/Sampler.h"
 #include "Rendering/Uniforms.h"
 
-namespace Rendering::Graph
+namespace FrameGraph
 {
-    class GBufferIndirectLightRadiance  : public Command
+    class GBufferIndirectLightRadiance  : public ICommand
     {
     public:
         GBufferIndirectLightRadiance(CommandContext& Resources) :
-            Command(Resources),
+            ICommand(Resources),
             VSkylightMethod(Resources.GetLocation<UInt>("Skylight Method")),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
             HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),

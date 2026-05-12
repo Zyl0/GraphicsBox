@@ -1,18 +1,18 @@
 ﻿#pragma once
 
-#include "Modules/Rendering/Tools/Commands.h"
+#include "Modules/FrameGraph/Commands.h"
 #include "Rendering/FrameBuffers.h"
 #include "Rendering/Pipelines.h"
 #include "Rendering/Sampler.h"
 #include "Rendering/Uniforms.h"
 
-namespace Rendering::Graph
+namespace FrameGraph
 {
-    class GBufferDirectionalLightRadiance  : public Command
+    class GBufferDirectionalLightRadiance  : public ICommand
     {
     public:
         GBufferDirectionalLightRadiance(CommandContext& Resources) :
-            Command(Resources),
+            ICommand(Resources),
             GBufferAlbedo(Resources.GetLocation<Texture2D>("GBufferAlbedo")),
             GBufferNormal(Resources.GetLocation<Texture2D>("GBufferNormal")),
             GBufferProperties(Resources.GetLocation<Texture2D>("GBufferProperties")),

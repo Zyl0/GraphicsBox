@@ -1,18 +1,19 @@
 ﻿#pragma once
 
-#include "Modules/Rendering/Tools/Commands.h"
+#include "Modules/FrameGraph/Commands.h"
+
 #include "Rendering/FrameBuffers.h"
 #include "Rendering/Pipelines.h"
 #include "Rendering/Sampler.h"
 #include "Rendering/Uniforms.h"
 
-namespace Rendering::Graph
+namespace FrameGraph
 {
-    class SkylightToRadiance : public Command
+    class SkylightToRadiance : public ICommand
     {
     public:
         SkylightToRadiance(CommandContext& Resources): 
-            Command(Resources),
+            ICommand(Resources),
             VSkylightMethod(Resources.AddVariable<UInt>("Skylight Method", /* HDRi */ 1)),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
             HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),

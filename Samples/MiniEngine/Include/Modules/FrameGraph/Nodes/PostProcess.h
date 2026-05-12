@@ -1,18 +1,18 @@
 #pragma once
 
-#include "Modules/Rendering/Tools/Commands.h"
+#include "Modules/FrameGraph/Commands.h"
 
 #include "Rendering/FrameBuffers.h"
 #include "Rendering/Pipelines.h"
 #include "Rendering/Uniforms.h"
 
-namespace Rendering::Graph
+namespace FrameGraph
 {
-    class ToneMappingCommand : public Command
+    class ToneMappingCommand : public ICommand
     {
     public:
         ToneMappingCommand(CommandContext& Resources): 
-            Command(Resources),
+            ICommand(Resources),
             FrameBuffer(FrameBuffer::Attachment(Resources.Get<Texture2D>("Output"), FrameBuffer::ClearColor(0.0f))),
             Pipeline(PipelineFromFile("Post Process", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/PostProcess.glsl")),
             Sampler({
