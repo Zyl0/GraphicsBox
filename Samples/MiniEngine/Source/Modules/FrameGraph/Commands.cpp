@@ -310,7 +310,7 @@ namespace FrameGraph
         return VariableList<Math::Vector3f>().Add(Name, BaseValue);
     }
 
-    void CommandList::ReloadShaders()
+    void CommandPool::ReloadShaders()
     {
         for (auto& command : m_Commands)
         {
@@ -318,7 +318,7 @@ namespace FrameGraph
         }
     }
 
-    void CommandList::Update(double DeltaTime)
+    void CommandPool::Update(double DeltaTime)
     {
         for (auto& command : m_Commands)
         {
@@ -329,7 +329,7 @@ namespace FrameGraph
         m_Context.ConsumeVariableChanges();
     }
 
-    void CommandList::Render() const
+    void CommandPool::Render() const
     {
         for (const auto& command : m_Commands)
         {

@@ -298,7 +298,7 @@ namespace FrameGraph
     class CommandContext
     {
     public:
-        friend class CommandList;
+        friend class CommandPool;
         
         CommandContext() = default;
         ~CommandContext() = default;
@@ -497,7 +497,7 @@ namespace FrameGraph
     class ICommand
     {
     public:
-        friend class CommandList;
+        friend class CommandPool;
         
         virtual ~ICommand() = default;
         
@@ -509,23 +509,25 @@ namespace FrameGraph
         virtual void OnExecute(const CommandContext& Resources) = 0;
     };
 
-    class CommandList
+    class CommandPool
     {
     public:
-        CommandList() = default;
-        ~CommandList() = default;
-        CommandList(const CommandList& Other) = delete;
-        CommandList(CommandList&& Other) noexcept = delete;
-        CommandList& operator=(const CommandList& Other) = delete;
-        CommandList& operator=(CommandList&& Other) noexcept = delete;
+        CommandPool() = default;
+        ~CommandPool() = default;
+        CommandPool(const CommandPool& Other) = delete;
+        CommandPool(CommandPool&& Other) noexcept = delete;
+        CommandPool& operator=(const CommandPool& Other) = delete;
+        CommandPool& operator=(CommandPool&& Other) noexcept = delete;
 
         // Used to add, set or get variables
         CommandContext& Context() {return m_Context;}
         
         template<typename T> requires (std::is_base_of_v<ICommand, T>)
-        void PushNode()
+        Location PushNode()
         {
+            Location Index = m_Commands.size();
             m_Commands.emplace_back(ctti::nameof<T>(), std::make_unique<T>(m_Context));
+            return Index;
         }
         
         void ReloadShaders();
@@ -541,5 +543,20 @@ namespace FrameGraph
         
         CommandContext m_Context;
         std::vector<CommandInst> m_Commands;
+    };
+
+    class CommandList
+    {
+    public:
+        void Clear() {m_List.clear();}
+
+        void Add(Location Command) {m_List.push_back(Command);}
+
+        void Reserve(size_t Count) {m_List.reserve(Count);}
+
+        std::span<const Location> Data() const {return m_List;}
+
+    private:
+        std::vector<Location> m_List;
     };
 }
