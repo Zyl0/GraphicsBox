@@ -9,19 +9,20 @@ namespace FrameGraph
     public:
         MeshToSceneRadiance(CommandContext& Resources): 
             ICommand(Resources),
-            GBufferSize(Resources.GetValue<Size2D>("Scene Radiance")),
             VDirectionalLightDirection(Resources.GetLocation<Math::Vector3f>("Light Direction")),
             VDirectionalLightColor(Resources.GetLocation<Math::Vector3f>("Light Color")),
             VDirectionalLightIntensity(Resources.GetLocation<Float>("Light Intensity")),
             VIndirectLightSamples(Resources.AddVariable<UInt>("Indirect Sample Count", 32)),
             VSkylightMethod(Resources.GetLocation<UInt>("Skylight Method")),
             VUseFrustumCulling(Resources.AddVariable("UseFrustumCulling", true)),
+            VUseMSAA(Resources.GetLocation<Bool>("Use MSAA")),
+            VMSAASampleCount(Resources.GetLocation<UInt>("MSAA Sample Count")),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
             HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),
             FBDepthAttachment(Resources.Get<Texture2D>("Scene Depth")),
-            FrameBuffer(std::array{
-                FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance"), FrameBuffer::ClearColor(0.0)),
-            }, &FBDepthAttachment),
+            FBDepthAttachmentMSAA(Resources.Get<Texture2D>("Scene Depth MSAA")),
+            SceneRadianceFB(FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance"), FrameBuffer::ClearColor(0.0)), &FBDepthAttachment),
+            SceneRadianceMSAAFB(FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance MSAA"), FrameBuffer::ClearColor(0.0)), &FBDepthAttachmentMSAA),
             CubemapPipeline(PipelineFromFile("Skylight To Radiance Cubemap", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineCubemapDefines)),
             HDRiPipeline(PipelineFromFile("Skylight To Radiance HDRi", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineHDRIDefines)),
             Sampler(Sampler::Params{})
@@ -42,13 +43,41 @@ namespace FrameGraph
             if (Resources.HasChanged<Size2D>("Scene Radiance"))
             {
                 Size2D SceneRadianceSize = Resources.GetValue<Size2D>("Scene Radiance");
-                FrameBuffer.Resize(SceneRadianceSize.x, SceneRadianceSize.y);
+                SceneRadianceFB.Resize(SceneRadianceSize.x, SceneRadianceSize.y);
+                SceneRadianceMSAAFB.Resize(SceneRadianceSize.x, SceneRadianceSize.y);
             }
+
+            // if (Resources.HasChanged<Bool>(VUseMSAA)) // || Resources.HasChanged<UInt>(VMSAASampleCount)
+            // {
+            //     Bool UseMSAA = Resources.GetValue<Bool>(VUseMSAA);
+            //     // UInt SampleCount = Resources.GetValue<UInt>(VMSAASampleCount);
+            // 
+            //     // SampleCount = UseMSAA ? SampleCount : 0;
+            //     
+            //     FBDepthAttachmentMSAA = FrameBuffer::DepthAttachment(Resources.Get<Texture2D>("Scene Depth MSAA"));
+            //     if (UseMSAA)
+            //     {
+            //         SceneRadianceMSAAFB.Retarget(FrameBuffer::RetargetAttachment(Resources.Get<Texture2D>("Scene Radiance MSAA")), &FBDepthAttachmentMSAA);
+            //         SceneRadianceFB.Retarget(FrameBuffer::RetargetAttachment(Resources.Get<Texture2D>("Scene Radiance")), nullptr);
+            //     }
+            //     else
+            //     {
+            //         SceneRadianceFB.Retarget(FrameBuffer::RetargetAttachment(Resources.Get<Texture2D>("Scene Radiance")), &FBDepthAttachment);
+            //     }
+            // }
         }
         
         void OnExecute(const CommandContext& Resources) override
         {
-            Bind(FrameBuffer);
+            Bool UseMSAA = Resources.GetValue<Bool>(VUseMSAA);
+            if (UseMSAA)
+            {
+                Bind(SceneRadianceMSAAFB);
+            }
+            else
+            {
+                Bind(SceneRadianceFB);
+            }
             
             const Pipeline* pipeline = nullptr;
             
@@ -177,21 +206,37 @@ namespace FrameGraph
             
             
             UnBind(*pipeline);
-            UnBind(FrameBuffer);
+
+            if (UseMSAA)
+            {
+                Size2D SceneRadianceSize = Resources.GetValue<Size2D>("Scene Radiance");
+
+                Bind(SceneRadianceFB, SceneRadianceMSAAFB);
+                    
+                glBlitFramebuffer(
+                    0, 0, SceneRadianceSize.x, SceneRadianceSize.y,
+                    0, 0, SceneRadianceSize.x, SceneRadianceSize.y,
+                    GL_COLOR_BUFFER_BIT, GL_NEAREST );
+            }
+
+            UnBind(SceneRadianceFB);
         }
 
     private:
-        Size2D GBufferSize;
         Location VDirectionalLightDirection;
         Location VDirectionalLightColor;
         Location VDirectionalLightIntensity;
         Location VIndirectLightSamples;
         Location VSkylightMethod;
         Location VUseFrustumCulling;
+        Location VUseMSAA;
+        Location VMSAASampleCount;
         Location Cubemap;
         Location HDRi;
         FrameBuffer::DepthAttachment FBDepthAttachment;
-        FrameBuffer FrameBuffer;
+        FrameBuffer::DepthAttachment FBDepthAttachmentMSAA;
+        FrameBuffer SceneRadianceFB;
+        FrameBuffer SceneRadianceMSAAFB;
         Shader::DefineArray<1> PipelineCubemapDefines = {Shader::Define("USE_CUBEMAP_SKYLIGHT", "")};
         Shader::DefineArray<1> PipelineHDRIDefines = {Shader::Define("USE_HDRI_SKYLIGHT", "")};
         Pipeline CubemapPipeline;

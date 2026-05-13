@@ -200,7 +200,10 @@ public:
         VSkyLightMethod = FrameGraph->Resources().GetLocation<FrameGraph::UInt>("Skylight Method");
         VUseFrustumCulling = FrameGraph->Resources().GetLocation<FrameGraph::Bool>("UseFrustumCulling");
         VIndirectLightSampleCount = FrameGraph->Resources().GetLocation<FrameGraph::UInt>("Indirect Sample Count");
-
+        
+        CurrentAntiAliasing = 0;
+        VUseMSAA = FrameGraph->Resources().GetLocation<FrameGraph::Bool>("Use MSAA");
+        VMSAASampleCount = FrameGraph->Resources().GetLocation<FrameGraph::UInt>("MSAA Sample Count");
     }
 
     void Tick(double deltaTime) override
@@ -238,8 +241,7 @@ public:
         FrameGraph::Module* FrameGraph = Engine::GetModule<FrameGraph::Module>(Context());
         AssertOrError(FrameGraph != nullptr, "FrameGraph is null")
 
-        ImGui::Separator();
-
+        
         {
             static const char* FramePipelineNames[] =
             {
@@ -251,9 +253,80 @@ public:
             {
                 Copy = Math::Clamp(Copy, 0, 1);
                 NextFramePipeline = Copy;
+
+                // TODO For now Deffered does not support MSAA, falling back to No AA
+                if (NextFramePipeline == 1)
+                {
+                    FrameGraph->Resources().SetValue<FrameGraph::Bool>(VUseMSAA, false);
+                    CurrentAntiAliasing = 0;
+                }
             }
         }
-        
+        {
+            static const char* AntiAliasingMethodNames[] =
+            {
+                "None", "MSAA"
+            };
+            int Copy = CurrentAntiAliasing;
+            if (ImGui::ListBox("Anti Aliasing Method", (int*)&Copy, AntiAliasingMethodNames, 2))
+            {
+                CurrentAntiAliasing = Math::Clamp(Copy, 0, 1);
+                switch (CurrentAntiAliasing)
+                {
+                case 0:
+                    FrameGraph->Resources().SetValue<FrameGraph::Bool>(VUseMSAA, false);
+                    break;
+
+                case 1:
+                    FrameGraph->Resources().SetValue<FrameGraph::Bool>(VUseMSAA, true);
+                    break;
+                }
+            }
+        }
+        if (FrameGraph->Resources().GetValue<FrameGraph::Bool>(VUseMSAA))
+        {
+            static const char* SampleCountNames[] =
+            {
+                "1 Sample", "2 Samples", "4 Samples", "8 Samples", "16 Samples", "32 Samples", "64 Samples"
+            };
+            
+            int CurrentSampleCountName;
+            switch (FrameGraph->Resources().GetValue<FrameGraph::UInt>(VMSAASampleCount))
+            {
+            case 1: CurrentSampleCountName = 0; break;
+            case 2: CurrentSampleCountName = 1; break;
+            case 4: CurrentSampleCountName = 2; break;
+            case 8: CurrentSampleCountName = 3; break;
+            case 16: CurrentSampleCountName = 4; break;
+            case 32:CurrentSampleCountName = 5; break;
+            case 64:CurrentSampleCountName = 6; break;
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported MSAA sample count")
+            }
+            
+            if (ImGui::ListBox("MSAA Sample count", &CurrentSampleCountName, SampleCountNames, 7))
+            {
+                FrameGraph::UInt NewSampleCount;
+                switch (CurrentSampleCountName)
+                {
+                case 0: NewSampleCount = 1; break;
+                case 1: NewSampleCount = 2; break;
+                case 2: NewSampleCount = 4; break;
+                case 3: NewSampleCount = 8; break;
+                case 4: NewSampleCount = 16; break;
+                case 5: NewSampleCount = 32; break;
+                case 6: NewSampleCount = 64; break;
+            
+                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported MSAA sample count")
+                }
+
+                NewSampleCount = std::min(static_cast<int>(std::clamp(NewSampleCount, 0u, (FrameGraph::UInt)(UINT8_MAX))), MaxSupportedMSAASamples);
+                FrameGraph->Resources().SetValue<FrameGraph::UInt>(VMSAASampleCount, NewSampleCount);
+            }
+        }
+
+        ImGui::Separator();
+
+
         // Directional Light
         // TODO do ImGUI wrappers of graph variables
         // TODO automate exposition of graph variables on demand
@@ -350,6 +423,10 @@ private:
     FrameGraph::Location VMainLightDirection;
     FrameGraph::Location VMainLightColor;
     FrameGraph::Location VMainLightIntensity;
+    
+    FrameGraph::UInt CurrentAntiAliasing;
+    FrameGraph::Location VUseMSAA;
+    FrameGraph::Location VMSAASampleCount;
     
     FlyCamera m_ViewportCamera;
 };
