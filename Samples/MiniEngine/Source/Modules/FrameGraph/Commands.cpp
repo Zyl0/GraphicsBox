@@ -329,10 +329,12 @@ namespace FrameGraph
         m_Context.ConsumeVariableChanges();
     }
 
-    void CommandPool::Render() const
+    void CommandPool::Render(std::span<const Location> CommandList) const
     {
-        for (const auto& command : m_Commands)
+        for (Location commandIndex : CommandList)
         {
+            const auto& command = m_Commands[commandIndex];
+
             DebugScopeMarker scope(std::string_view(command.name.begin(), command.name.end()));
             
             command.node->OnExecute(m_Context);

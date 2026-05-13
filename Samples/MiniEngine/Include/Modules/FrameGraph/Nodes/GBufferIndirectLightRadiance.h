@@ -14,6 +14,7 @@ namespace FrameGraph
         GBufferIndirectLightRadiance(CommandContext& Resources) :
             ICommand(Resources),
             VSkylightMethod(Resources.GetLocation<UInt>("Skylight Method")),
+            VIndirectLightSamples(Resources.AddVariable<UInt>("Indirect Sample Count", 32)),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
             HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),
             GBufferAlbedo(Resources.GetLocation<Texture2D>("GBufferAlbedo")),
@@ -52,7 +53,7 @@ namespace FrameGraph
             FrameBuffer.Clear();
             
             glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            glBlendFunc(GL_SRC_COLOR, GL_ONE);
             
             const Pipeline* pipeline = nullptr;
             
@@ -63,6 +64,7 @@ namespace FrameGraph
                 
                 // Scene texture buffers
                 SetUniform(CubemapPipeline, "SkyLightCubeMap", 4, Resources.Get<TextureCube>(Cubemap), Sampler);
+                SetUniform(CubemapPipeline, "SkyLightMipCount", Resources.Get<TextureCube>(Cubemap).MipCount());
             
                 pipeline = &CubemapPipeline;
                 break;
@@ -72,6 +74,7 @@ namespace FrameGraph
                 
                 // Scene texture buffers
                 SetUniform(HDRiPipeline, "SkyLightHDRi", 4, Resources.Get<Texture2D>(HDRi), Sampler);
+                SetUniform(HDRiPipeline, "SkyLightMipCount", Resources.Get<Texture2D>(HDRi).MipCount());
             
                 pipeline = &HDRiPipeline;
                 break;
@@ -79,12 +82,14 @@ namespace FrameGraph
             default:
                 return;
             }
+
+            SetUniform(*pipeline, "IndirectLightingSampleCount", Resources.GetValue<UInt>(VIndirectLightSamples));
             
             // Scene storage buffers
             SetUniform(0, Resources.GetCameraBuffer());
             
             SetUniform(*pipeline, "GBufferAlbedo", 0, Resources.Get<Texture2D>(GBufferAlbedo), Sampler);
-            SetUniform(*pipeline, "GBufferNormal", 1, Resources.Get<Texture2D>(GBufferNormal), Sampler);
+            SetUniform(*pipeline, "GPackedNormalTangent", 1, Resources.Get<Texture2D>(GBufferNormal), Sampler);
             SetUniform(*pipeline, "GBufferProperties", 2, Resources.Get<Texture2D>(GBufferProperties), Sampler);
             SetUniform(*pipeline, "GBufferDepth", 3, Resources.Get<Texture2D>(GBufferDepth), Sampler);
             
@@ -99,6 +104,7 @@ namespace FrameGraph
         
     private:
         Location VSkylightMethod;
+        Location VIndirectLightSamples;
         Location Cubemap;
         Location HDRi;
         Location GBufferAlbedo;

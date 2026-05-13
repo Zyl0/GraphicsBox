@@ -57,7 +57,7 @@ namespace FrameGraph
         
             // GBuffer
             SetUniform(Pipeline, "GBufferAlbedo", 0, Resources.Get<Texture2D>(GBufferAlbedo), Sampler);
-            SetUniform(Pipeline, "GBufferNormal", 1, Resources.Get<Texture2D>(GBufferNormal), Sampler);
+            SetUniform(Pipeline, "GPackedNormalTangent", 1, Resources.Get<Texture2D>(GBufferNormal), Sampler);
             SetUniform(Pipeline, "GBufferProperties", 2, Resources.Get<Texture2D>(GBufferProperties), Sampler);
             SetUniform(Pipeline, "GBufferDepth", 3, Resources.Get<Texture2D>(GBufferDepth), Sampler);
             

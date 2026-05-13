@@ -53,8 +53,11 @@ namespace FrameGraph
         // Update scene            
         m_CommandPool->Update(deltaTime);
         
-        // Draw scene
-        m_CommandPool->Render();
+        // Execute commands
+        for (const auto& CommandList : m_CommandLists)
+        {
+            m_CommandPool->Render(CommandList);
+        }
 
         // Move results to viewport
         // TODO cleanup and integrate an engine viewport

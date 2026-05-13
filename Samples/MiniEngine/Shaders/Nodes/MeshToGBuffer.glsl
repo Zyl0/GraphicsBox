@@ -95,6 +95,17 @@ void main( )
 
 #ifdef FRAGMENT_SHADER
 
+#include "Include/Math.glsl"
+const mat3 RotationX = mat3(
+    1,0,0,
+    0,0,-1,
+    0,1,0
+
+    // 1,0,0,
+    // 0,cos (M_PI / 2.0), -sin(M_PI / 2.0),
+    // 0,sin(M_PI / 2.0),cos (M_PI / 2.0)
+);
+
 layout(location= 0) in vec3 FragWorldPosition;
 layout(location= 1) in vec3 FragNormal;
 layout(location= 2) in vec3 FragTangent;
@@ -118,7 +129,7 @@ uniform sampler2D texMR;
 uniform sampler2D texAO;
 
 layout(location= 0) out vec3 OutColor;
-layout(location= 1) out vec3 OutNormal;
+layout(location= 1) out vec4 OutPackedNormalTangent;
 layout(location= 2) out vec3 OutProperties;
 
 void main()
@@ -146,19 +157,24 @@ void main()
     // Clamp roughness
     PixRoughness = max(PixRoughness, 0.004);
 
-    // Hit point Material settings
-    vec3 DiffuseColor = mix(BaseColor, vec3(0), PixBaseColor);
-    vec3 F0 = mix(vec3(0.04), PixBaseColor, PixMetalness);
-    float Alpha = PixRoughness * PixRoughness;
-
-    OutNormal =  FragNormal;
+    vec3 LocalNormal = vec3(0,0,1);
     if (UseNormalTexture == 1)
     {
-        vec3 LocalNormal = (texture(texNormal, UV0).xyz * 2.f - 1.f);
+        LocalNormal = (texture(texNormal, UV0).xyz * 2.f - 1.f);
         LocalNormal.x *= -1;
         LocalNormal.y *= -1;
-        OutNormal = normalize(FragTBN * LocalNormal);
     }
+
+    // TODO verify if getting the tangent by a single rotation is valid
+    vec3 LocalTangent = (RotationX * LocalNormal);
+    vec3 LocalBiTangent = cross(LocalNormal, LocalTangent);
+    mat3 LocalTBN = mat3(LocalTangent, LocalBiTangent, LocalNormal);
+
+    vec3 v = normalize(CameraWorldPosition(cameras[0]) - FragWorldPosition);
+    mat3 TBN =  FragTBN * LocalTBN;
+
+    // Encode into a pair of ochtahedron
+    OutPackedNormalTangent = vec4(EncodeOctahedron(/*Normal*/ TBN[2]), EncodeOctahedron(/*Tangent*/ TBN[0]));
 
     OutProperties.x = PixRoughness;
     OutProperties.y = PixMetalness;

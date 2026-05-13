@@ -18,4 +18,18 @@ float RGBToLuminance(vec3 color)
     return color.x * 0.3086 + color.y * 0.6094 + color.z * 0.0820;
 }
 
+vec2 EncodeOctahedron(vec3 v) 
+{
+    v /= (abs(v.x) + abs(v.y) + abs(v.z));
+    v.xy = v.z >= 0.0 ? v.xy : (1.0 - abs(v.yx)) * sign(v.xy);
+    return v.xy;
+}
+
+vec3 DecodeOctahedron(vec2 f) 
+{
+    vec3 v = vec3(f.xy, 1.0 - abs(f.x) - abs(f.y));
+    if (v.z < 0.0) v.xy = (1.0 - abs(v.yx)) * sign(v.xy);
+    return normalize(v);
+}
+
 #endif // INCLUDE_GUARD_GLSL_MATH

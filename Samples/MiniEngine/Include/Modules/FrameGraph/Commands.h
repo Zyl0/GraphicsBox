@@ -509,6 +509,21 @@ namespace FrameGraph
         virtual void OnExecute(const CommandContext& Resources) = 0;
     };
 
+    class CommandList
+    {
+    public:
+        void Clear() {m_List.clear();}
+
+        void Add(Location Command) {m_List.push_back(Command);}
+
+        void Reserve(size_t Count) {m_List.reserve(Count);}
+
+        std::span<const Location> Data() const {return m_List;}
+
+    private:
+        std::vector<Location> m_List;
+    };
+
     class CommandPool
     {
     public:
@@ -532,7 +547,8 @@ namespace FrameGraph
         
         void ReloadShaders();
         void Update(double DeltaTime);
-        void Render() const;
+        void Render(std::span<const Location> CommandList) const;
+        INLINE void Render(const CommandList& CommandList) const {Render(CommandList.Data());}
         
     private:
         struct CommandInst
@@ -543,20 +559,5 @@ namespace FrameGraph
         
         CommandContext m_Context;
         std::vector<CommandInst> m_Commands;
-    };
-
-    class CommandList
-    {
-    public:
-        void Clear() {m_List.clear();}
-
-        void Add(Location Command) {m_List.push_back(Command);}
-
-        void Reserve(size_t Count) {m_List.reserve(Count);}
-
-        std::span<const Location> Data() const {return m_List;}
-
-    private:
-        std::vector<Location> m_List;
     };
 }

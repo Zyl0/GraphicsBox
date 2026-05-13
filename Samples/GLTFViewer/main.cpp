@@ -31,14 +31,10 @@ using namespace Math;
 
 #include "Modules/FrameGraph/Nodes/NativeResolutionRadiance.h"
 #include "Modules/FrameGraph/Nodes/SkylightToRadiance.h"
-#ifdef USE_FORWARD_RENDERING_PIPELINE
 #include "Modules/FrameGraph/Nodes/MeshToSceneRadiance.h"
-#endif // USE_FORWARD_RENDERING_PIPELINE
-#ifdef USE_DIFFERED_RENDERING_PIPELINE
 #include "Modules/FrameGraph/Nodes/MeshToGBuffer.h"
 #include "Modules/FrameGraph/Nodes/GBufferDirectionalLightRadiance.h"
 #include "Modules/FrameGraph/Nodes/GBufferIndirectLightRadiance.h"
-#endif // USE_DIFFERED_RENDERING_PIPELINE
 #include "Modules/FrameGraph/Nodes/PostProcess.h"
 
 /* ____________________________________ Constants ____________________________________ */
@@ -124,7 +120,7 @@ public:
         // TODO introduce a proper light system
         VMainLightDirection = FrameGraph->Resources().AddVariable<Vector3f>("Light Direction", Normalize(Vector3f{0.8f, -1.0f, 0.9f}));
         VMainLightColor = FrameGraph->Resources().AddVariable<Vector3f>("Light Color", {1.0f, 1.0f, 1.0f});
-        VMainLightIntensity = FrameGraph->Resources().AddVariable<FrameGraph::Float>("Light Intensity", 1.0f);
+        VMainLightIntensity = FrameGraph->Resources().AddVariable<FrameGraph::Float>("Light Intensity", 4.3f);
         
         m_ViewportCamera.SetProjection(InitialWidth, InitialHeight, Radians(45.0f), kZNear, kZFar);
         VMainCamera = FrameGraph->Resources().AddCamera();
@@ -174,22 +170,37 @@ public:
         }
         
         // Define rendering pipeline
-        FrameGraph->PushNode<FrameGraph::NativeResolutionRadiance>();
-        FrameGraph->PushNode<FrameGraph::SkylightToRadiance>();
-#ifdef USE_FORWARD_RENDERING_PIPELINE
-        FrameGraph->PushNode<FrameGraph::MeshToSceneRadiance>();
-#endif // USE_FORWARD_RENDERING_PIPELINE
-#ifdef USE_DIFFERED_RENDERING_PIPELINE
-        FrameGraph->PushNode<FrameGraph::MeshToGBuffer>();
-        FrameGraph->PushNode<FrameGraph::GBufferDirectionalLightRadiance>();
-        FrameGraph->PushNode<FrameGraph::GBufferIndirectLightRadiance>();
-#endif // USE_DIFFERED_RENDERING_PIPELINE
-        FrameGraph->PushNode<FrameGraph::ToneMappingCommand>();
+        FrameGraph::Location NativeResolutionRadianceNode = FrameGraph->PushNode<FrameGraph::NativeResolutionRadiance>();
+        FrameGraph::Location SkylightToRadianceNode = FrameGraph->PushNode<FrameGraph::SkylightToRadiance>();
+        FrameGraph::Location MeshToSceneRadianceNode = FrameGraph->PushNode<FrameGraph::MeshToSceneRadiance>();
+        FrameGraph::Location MeshToGBufferNode = FrameGraph->PushNode<FrameGraph::MeshToGBuffer>();
+        FrameGraph::Location GBufferDirectionalLightRadianceNode = FrameGraph->PushNode<FrameGraph::GBufferDirectionalLightRadiance>();
+        FrameGraph::Location GBufferIndirectLightRadianceNode = FrameGraph->PushNode<FrameGraph::GBufferIndirectLightRadiance>();
+        FrameGraph::Location ToneMappingCommandNode = FrameGraph->PushNode<FrameGraph::ToneMappingCommand>();
         
+        // Forward command list (frame pipeline 0)
+        FrameForward.Add(NativeResolutionRadianceNode);
+        FrameForward.Add(SkylightToRadianceNode);
+        FrameForward.Add(MeshToSceneRadianceNode);
+        FrameForward.Add(ToneMappingCommandNode);
+
+        // Defered command list (frame pipeline 1)
+        FrameDeffered.Add(NativeResolutionRadianceNode);
+        FrameDeffered.Add(SkylightToRadianceNode);
+        FrameDeffered.Add(MeshToGBufferNode);
+        FrameDeffered.Add(GBufferDirectionalLightRadianceNode);
+        // FrameDeffered.Add(GBufferIndirectLightRadianceNode);
+        FrameDeffered.Add(ToneMappingCommandNode);
+
+        // Set current frame pipeline 
+        NextFramePipeline = 0;
+        RefreshActiveFramePipeline(*FrameGraph);
+
         // Graph exposed variables
         VSkyLightMethod = FrameGraph->Resources().GetLocation<FrameGraph::UInt>("Skylight Method");
         VUseFrustumCulling = FrameGraph->Resources().GetLocation<FrameGraph::Bool>("UseFrustumCulling");
         VIndirectLightSampleCount = FrameGraph->Resources().GetLocation<FrameGraph::UInt>("Indirect Sample Count");
+
     }
 
     void Tick(double deltaTime) override
@@ -210,6 +221,12 @@ public:
         // Update scene    
         UpdateCamera(*Window, deltaTime, m_ViewportCamera);
         FrameGraph->Resources().UpdateCamera(VMainCamera, m_ViewportCamera);
+
+        // Update frame pipeline if needed
+        if (CurrentFramePipeline != NextFramePipeline)
+        {
+            RefreshActiveFramePipeline(*FrameGraph);
+        }
     }
 
     void Shutdown() override
@@ -220,6 +237,22 @@ public:
     {
         FrameGraph::Module* FrameGraph = Engine::GetModule<FrameGraph::Module>(Context());
         AssertOrError(FrameGraph != nullptr, "FrameGraph is null")
+
+        ImGui::Separator();
+
+        {
+            static const char* FramePipelineNames[] =
+            {
+                "Forward", "Deffered"
+            };
+            
+            int Copy = NextFramePipeline;
+            if (ImGui::ListBox("Frame Pipeline", &Copy, FramePipelineNames, 2))
+            {
+                Copy = Math::Clamp(Copy, 0, 1);
+                NextFramePipeline = Copy;
+            }
+        }
         
         // Directional Light
         // TODO do ImGUI wrappers of graph variables
@@ -287,7 +320,24 @@ public:
     }
     
 private:
+    void RefreshActiveFramePipeline(FrameGraph::Module& FrameGraph)
+    {
+        FrameGraph.ClearCommandLists();
+        switch (NextFramePipeline)
+        {
+        case 0: FrameGraph.AddCommandList(FrameForward); break;
+        case 1: FrameGraph.AddCommandList(FrameDeffered); break;
+        }
+
+        CurrentFramePipeline = NextFramePipeline;
+    }
+
     GLint MaxSupportedMSAASamples;
+
+    FrameGraph::UInt CurrentFramePipeline;
+    FrameGraph::UInt NextFramePipeline;
+    FrameGraph::CommandList FrameForward;
+    FrameGraph::CommandList FrameDeffered;
 
     FrameGraph::Location VSkyLightMethod;
     FrameGraph::Location VUseFrustumCulling;

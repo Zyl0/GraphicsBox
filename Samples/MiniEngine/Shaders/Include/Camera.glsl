@@ -58,6 +58,16 @@ vec3 ViewToWorld(in CameraData Camera, vec3 Vector)
     return (Camera.Camera_ViewToWorld * vec4(Vector, 0.0f)).xyz;
 }
 
+vec4 ProjToView(in CameraData Camera, vec4 Position)
+{
+    return Camera.Camera_ProjToView * Position;
+}
+
+vec3 ProjToView(in CameraData Camera, vec3 Vector)
+{
+    return (Camera.Camera_ProjToView * vec4(Vector, 0.0f)).xyz;
+}
+
 vec4 ProjToWorld(in CameraData Camera, vec4 Position)
 {
     return Camera.Camera_ProjToWorld * Position;

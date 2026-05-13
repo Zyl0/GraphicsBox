@@ -33,9 +33,13 @@ namespace FrameGraph
 
         INLINE CommandContext& Resources() {return m_CommandPool->Context();}
 
+        void ClearCommandLists() {m_CommandLists.clear();}
+        void AddCommandList(const CommandList& CommandList) {m_CommandLists.push_back(CommandList.Data());}
+
     private:
         std::optional<CommandPool> m_CommandPool;
         std::optional<FrameBuffer> m_OutputFrameBuffer;
+        std::vector<std::span<const Location>> m_CommandLists;
         Location TexOutput;
         Location VOutputSize;
     };

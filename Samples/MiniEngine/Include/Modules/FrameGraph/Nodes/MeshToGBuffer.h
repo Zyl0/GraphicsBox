@@ -17,7 +17,7 @@ namespace FrameGraph
             ICommand(Resources),
             GBufferSize(Resources.GetValue<Size2D>("Scene Radiance")),
             GBufferAlbedo(Resources.Add<Texture2D>("GBufferAlbedo", GBufferSize.x, GBufferSize.y, Texture::Type::Packed_R11F_G11F_B10F, Texture::Layout::RGB)),
-            GBufferNormal(Resources.Add<Texture2D>("GBufferNormal", GBufferSize.x, GBufferSize.y, Texture::Type::Half, Texture::Layout::RGB)),
+            GBufferNormal(Resources.Add<Texture2D>("GBufferNormal", GBufferSize.x, GBufferSize.y, Texture::Type::Half, Texture::Layout::RGBA)),
             GBufferProperties(Resources.Add<Texture2D>("GBufferProperties", GBufferSize.x, GBufferSize.y, Texture::Type::Packed_R11F_G11F_B10F, Texture::Layout::RGB)),
             VUseFrustumCulling(Resources.AddVariable("UseFrustumCulling", true)),
             FBDepthAttachment(Resources.Get<Texture2D>("Scene Depth")),
@@ -52,10 +52,11 @@ namespace FrameGraph
         void OnExecute(const CommandContext& Resources) override
         {
             Bind(FrameBuffer);
+            FrameBuffer.Clear();
             
             glEnable(GL_CULL_FACE);
             glEnable(GL_DEPTH_TEST);
-            glClear(GL_DEPTH_BUFFER_BIT); // Color clear is done when drawing the skylight
+            glClear(GL_DEPTH_BUFFER_BIT);
             
             Bind(Pipeline);
             
@@ -95,7 +96,7 @@ namespace FrameGraph
                     {
                         Math::Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
                 
-                        if (UseFrustumCulling && !frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+                        if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
                 
                         SetUniform(GLTFModelMatrix, TransformMatrix);
                     }
@@ -103,7 +104,7 @@ namespace FrameGraph
                     
                 case GLTF::Transform::Matrix:
                     {
-                        if (UseFrustumCulling && !frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
+                        if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
                 
                         SetUniform(GLTFModelMatrix, Transform.Value.asMatrix);
                     }

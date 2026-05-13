@@ -58,6 +58,7 @@ namespace FrameGraph
                 Bind(CubemapPipeline);
                 
                 SetUniform(CubemapPipeline, "SkyLightCubeMap", 0, Resources.Get<TextureCube>(Cubemap), Sampler);
+                SetUniform(CubemapPipeline, "SkyLightMipCount", Resources.Get<TextureCube>(Cubemap).MipCount());
                 
                 pipeline = &CubemapPipeline;
                 break;
@@ -66,6 +67,7 @@ namespace FrameGraph
                 Bind(HDRiPipeline);
                 
                 SetUniform(HDRiPipeline, "SkyLightHDRi", 0, Resources.Get<Texture2D>(HDRi), Sampler);
+                SetUniform(HDRiPipeline, "SkyLightMipCount", Resources.Get<Texture2D>(HDRi).MipCount());
                 
                 pipeline = &HDRiPipeline;
                 break;
