@@ -226,7 +226,7 @@ void main()
     PixRoughness = max(PixRoughness, 0.004);
     
     // Hit point Material settings
-    vec3 DiffuseColor = mix(BaseColor, vec3(0), PixBaseColor);
+    vec3 DiffuseColor = mix(PixBaseColor, vec3(0), PixMetalness);
     vec3 F0 = mix(vec3(0.04), PixBaseColor, PixMetalness);
     float Alpha = PixRoughness * PixRoughness;
     
