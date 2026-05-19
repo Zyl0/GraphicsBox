@@ -64,7 +64,7 @@ namespace FrameGraph
         glViewport(0, 0, NextWidth, NextHeight);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBlitNamedFramebuffer(m_OutputFrameBuffer->Handle(), /*Main Frame buffer ??*/ 0, 
+        glBlitNamedFramebuffer(m_OutputFrameBuffer->Handle(), Window->ViewportFrameBuffer(), 
             0, 0, NextWidth, NextHeight, 
             0, 0, NextWidth, NextHeight, 
                 GL_COLOR_BUFFER_BIT, GL_NEAREST);

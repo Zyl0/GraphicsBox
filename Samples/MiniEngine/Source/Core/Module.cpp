@@ -9,4 +9,8 @@ namespace Engine
         return Context._GetEngine()->GetModule(ModuleID);
     }
 
+    std::string_view GetModuleName(Context& Context, TypeHash ModuleID)
+    {
+        return Context._GetEngine()->GetModuleName(ModuleID);
+    }
 }

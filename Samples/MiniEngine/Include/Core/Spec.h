@@ -31,7 +31,10 @@ namespace Engine
                 return;
             }
             
-            auto it = Modules.try_emplace(ctti::type_id<T>().hash(), std::make_unique<T>());
+            Modules.try_emplace(ctti::type_id<T>().hash(), std::make_unique<T>());
+            
+            auto name = ctti::nameof<T>();
+            ModuleNames.try_emplace(ctti::type_id<T>().hash(), std::string_view(name.begin(), name.end()));
             
             if (CurrentReferencer != 0)
             {
@@ -71,6 +74,7 @@ namespace Engine
             UpdateOrder.insert(RefIt, ID);
         }
         
+        std::unordered_map<TypeHash, std::string_view> ModuleNames;
         std::unordered_map<TypeHash, std::unique_ptr<IModule>> Modules;
         std::list<TypeHash> UpdateOrder;
 

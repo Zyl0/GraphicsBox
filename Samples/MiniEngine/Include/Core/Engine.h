@@ -14,13 +14,20 @@ namespace Engine
         Engine(Spec&& spec);
 
         IModule* GetModule(TypeHash ModuleID);
-
+        std::string_view GetModuleName(TypeHash ModuleID);
+        
         template<class Module> requires std::is_base_of_v<IModule, Module>
         Module* GetModule()
         {
             IModule* Inst = GetModule(GetModuleID<Module>());
 
             return dynamic_cast<Module*>(Inst);
+        }
+        
+        template<class Module> requires std::is_base_of_v<IModule, Module>
+        INLINE std::string_view GetModuleName()
+        {
+            return GetModuleName(GetModuleID<Module>());
         }
         
         Context GetContext()
@@ -37,6 +44,7 @@ namespace Engine
         void TerminateScene() const;
         
         World::_World::Scene m_Scene;
+        std::unordered_map<TypeHash, std::string_view> m_ModuleNames;
         std::unordered_map<TypeHash, std::unique_ptr<IModule>> m_Modules;
         std::vector<TypeHash> m_UpdateOrder;
     };

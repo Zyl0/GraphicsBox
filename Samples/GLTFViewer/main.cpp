@@ -4,13 +4,11 @@
 #include "Modeling/Mesh.h"
 #include "Rendering/Rendering.h"
 #include "Importers/GLTF/SceneLoader.h"
-#include "Image/ColorSpaces.h"
 #include "Camera/FlyCamera.h"
 
 #include <imgui.h>
 
 #include "Modules/Rendering/Shaders/Camera.h"
-
 
 #include "App.h"
 #include "Core/Engine.h"
@@ -25,9 +23,9 @@
 // for macro keys, TODO maybe abstract into an input system or module
 #include <GLFW/glfw3.h>
 
-using namespace Math;
+#include "Modules/Editor/Module.h"
 
-#define USE_FORWARD_RENDERING_PIPELINE
+using namespace Math;
 
 #include "Modules/FrameGraph/Nodes/NativeResolutionRadiance.h"
 #include "Modules/FrameGraph/Nodes/SkylightToRadiance.h"
@@ -447,8 +445,11 @@ int main(int argc, char* argv[])
     Specification.Register<FrameGraph::Module>();
     Specification.Register<AppModule>();
     Specification.Register<ImGui::Module>();
+    Specification.Register<Editor::Module>();
     
     Engine::App App(std::move(Specification));
     
     App.Run();
+    
+    return 0;
 }

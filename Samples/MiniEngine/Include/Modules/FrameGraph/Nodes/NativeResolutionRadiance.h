@@ -42,9 +42,12 @@ namespace FrameGraph
                 UInt SampleCount = Resources.GetValue<UInt>(VMSAASampleCount);
 
                 SampleCount = UseMSAA ? SampleCount : 0;
-
-                Resources.Get<Texture2D>(SceneRadianceMSAA).Data((uint8_t) SampleCount);
-                Resources.Get<Texture2D>(SceneDepthMSAA).Data((uint8_t) SampleCount);
+                
+                if (UseMSAA)
+                {
+                    Resources.Get<Texture2D>(SceneRadianceMSAA).Data((uint8_t) SampleCount);
+                    Resources.Get<Texture2D>(SceneDepthMSAA).Data((uint8_t) SampleCount);
+                }                
             }
         }
         

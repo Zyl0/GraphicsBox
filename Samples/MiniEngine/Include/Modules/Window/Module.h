@@ -1,13 +1,17 @@
 ﻿#pragma once
 #include "Core/Module.h"
 
+// TODO not sure if we want to have the complete Rendering lib as a dependency of the window module, maybe move to raw GL objects
+#include "Rendering/Textures.h"
+#include "Rendering/FrameBuffers.h"
+
 namespace Window
 {
     class Module : public Engine::IModule
     {
     public:
         Module() = default;
-        ~Module() override {}
+        ~Module() override = default;
         void RegisterDependencies(Engine::Spec& spec) override {}
         
         void Initialize() override;
@@ -28,16 +32,33 @@ namespace Window
 
         bool ShouldRecompileShaders();
         
+        INLINE GLuint ViewportFrameBuffer() const {return m_IsCurrentViewportSubViewport ? SubViewportFrameBuffer() : MainWindowFrameBuffer();}
+        INLINE GLuint MainWindowFrameBuffer() const {return 0;}
+        INLINE GLuint SubViewportFrameBuffer() const {return m_SubViewportFrameBuffer.has_value() ? m_SubViewportFrameBuffer->Handle() : 0;}
+        INLINE GLuint SubViewportWriteBuffer() const {return m_SubViewportWriteBuffer.has_value() ? m_SubViewportWriteBuffer->Handle() : 0;}
+        
 #ifdef WINDOW_GLFW
         bool GLFWGetKey(int code);
 #endif // WINDOW_GLFW
 
         INLINE void* _Handle() {return m_Window;}
         
+        void _EnableSubViewport(uint32_t Width, uint32_t Height);
+        void _SetViewportMainWindow();
+        void _SetViewportSubViewport(uint32_t Width = 0, uint32_t Height = 0);
+        void _DisableSubViewport();
+        
     private:
         void* m_Window;
         uint32_t m_Width, m_Height;
         bool m_IsReduced;
         bool m_ShouldResize;
+        
+        bool m_IsCurrentViewportSubViewport = false;
+        bool m_ShouldResizeSubViewport = false;
+        uint32_t m_SubWidth = 0, m_SubHeight = 0;
+        
+        std::optional<Texture2D> m_SubViewportWriteBuffer;
+        std::optional<FrameBuffer> m_SubViewportFrameBuffer;
     };
 }

@@ -49,4 +49,12 @@ namespace Engine
 
         return dynamic_cast<Module*>(Inst);
     }
+    
+    std::string_view GetModuleName(Context& Context, TypeHash ModuleID);
+
+    template<class Module> requires std::is_base_of_v<IModule, Module>
+    std::string_view GetModuleName(Context& Context)
+    {
+        return GetModuleName(Context, GetModuleID<Module>());
+    }
 }

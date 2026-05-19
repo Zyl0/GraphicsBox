@@ -163,6 +163,14 @@ terminate_glfw_window:
     
     bool Module::GetFrameBufferSize(uint32_t& width, uint32_t& height)
     {
+        if (m_IsCurrentViewportSubViewport)
+        {
+            width = m_SubWidth;
+            height = m_SubHeight;
+            
+            return m_ShouldResizeSubViewport;
+        }
+        
         width = m_Width;
         height = m_Height;
         
@@ -180,6 +188,49 @@ terminate_glfw_window:
         GLFWwindow* window = (GLFWwindow*)m_Window;
         
         return glfwGetKey(window, code);
+    }
+
+    void Module::_EnableSubViewport(uint32_t Width, uint32_t Height)
+    {
+        m_SubWidth = Width;
+        m_SubHeight = Height;
+        
+        // TODO verify 
+        m_SubViewportWriteBuffer.emplace(Width, Height, Texture::Type::UnsignedByte, Texture::RGB);
+        m_SubViewportFrameBuffer.emplace(FrameBuffer::Attachment(*m_SubViewportWriteBuffer, FrameBuffer::ClearColor(0.0f)));
+        
+        m_ShouldResizeSubViewport = true;
+    }
+
+    void Module::_SetViewportMainWindow()
+    {
+        m_IsCurrentViewportSubViewport = false;
+        m_ShouldResizeSubViewport = false;
+    }
+
+    void Module::_SetViewportSubViewport(uint32_t Width, uint32_t Height)
+    {
+        AssertOrErrorCall(m_SubViewportFrameBuffer.has_value() && m_SubViewportWriteBuffer.has_value(), return;, "Tried to set sub viewport as the main rendering viewport but sub viewport have not been initialised.")
+        
+        if (m_SubWidth != Width || m_SubHeight != Height)
+        {
+            m_SubViewportWriteBuffer->Data(Width, Height);
+            m_SubViewportFrameBuffer->Resize(Width, Height);
+            m_SubWidth = Width;
+            m_SubHeight = Height;
+            m_ShouldResizeSubViewport = true;
+        }
+        
+        m_IsCurrentViewportSubViewport = true;
+    }
+
+    void Module::_DisableSubViewport()
+    {
+        m_SubViewportFrameBuffer.reset();
+        m_SubViewportWriteBuffer.reset();
+        m_SubWidth = 0;
+        m_SubHeight = 0;
+        m_IsCurrentViewportSubViewport = false;
     }
 #endif // WINDOW_GLFW
 }

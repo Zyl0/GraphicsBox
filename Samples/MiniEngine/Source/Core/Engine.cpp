@@ -6,7 +6,8 @@ namespace Engine
 {
     Engine::Engine(Spec&& spec):
         m_Scene(GetContext()),
-        m_Modules(std::move(spec.Modules))
+        m_Modules(std::move(spec.Modules)),
+        m_ModuleNames(std::move(spec.ModuleNames))
     {
         for (auto & module : m_Modules)
         {
@@ -25,6 +26,13 @@ namespace Engine
         AssertOrWarnCall(m_Modules.contains(ModuleID), return nullptr, "Could not find module")
 
         return m_Modules[ModuleID].get();
+    }
+
+    std::string_view Engine::GetModuleName(TypeHash ModuleID)
+    {
+        AssertOrWarnCall(m_ModuleNames.contains(ModuleID), return nullptr, "Could not find module")
+
+        return m_ModuleNames[ModuleID];
     }
 
     void Engine::InitializeScene() const
