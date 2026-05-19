@@ -4,6 +4,7 @@
 [submodule "imgui"]
 	path = Dependencies/LibSources/imgui
 	url = https://github.com/ocornut/imgui.git
+	branch = docking
 [submodule "STBImage"]
 	path = Dependencies/LibSources/TinyGLTF
 	url = https://github.com/syoyo/tinygltf.git
