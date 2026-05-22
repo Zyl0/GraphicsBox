@@ -1,7 +1,7 @@
 #include "MathSimt/Types.h"
 #include "MathSimt/Functions.h"
 
-#include "Shared/Logger.h"
+#include <cstdio>
 
 using namespace Math::Simt;
 
@@ -14,15 +14,15 @@ int main(int argc, char* argv[])
 
     for (size_t i = 0; i < A.kThreadCount; ++i)
     {
-        EngineLoggerLogF("%f", C[i]);
+        printf("%f", C[i]);
     }
-    EngineLoggerLog("");
+    printf("");
 
     Scalar<float, 8> D = SmoothStep(C / 8.0f);
 
     for (size_t i = 0; i < A.kThreadCount; ++i)
     {
-        EngineLoggerLogF("%f", D[i]);
+        printf("%f", D[i]);
     }
 
     return 0;

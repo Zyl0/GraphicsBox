@@ -106,8 +106,8 @@ solution "GraphicsBox"
             linkoptions { "-g"}
        
         filter { "system:linux" , "configurations:Release" }
-            buildoptions { "-fopenmp -O3 -mavx512f" } -- TODO evaluate -flto optimisation
-            linkoptions { "-fopenmp -O3 -mavx512f" }  -- TODO evaluate -flto optimisation
+            buildoptions { "-O3 -mavx512f" } -- TODO evaluate -flto optimisation --TODO -fopenmp and define USE_OPENMP
+            linkoptions { "-O3 -mavx512f" }  -- TODO evaluate -flto optimisation --TODO -fopenmp and define USE_OPENMP
         
         filter {"system:linux", "action:cmake"}
             staticruntime "On"
