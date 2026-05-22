@@ -117,7 +117,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Abs(Scalar<DataType, ThreadCount> v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::abs(v.m[i]);
@@ -129,7 +129,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Sqrt(Scalar<DataType, ThreadCount> v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::sqrt(v.m[i]);
@@ -141,7 +141,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Pow(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> exp)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::pow(v.m[i], exp.m[i]);
@@ -153,7 +153,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Pow(Scalar<DataType, ThreadCount> v, DataType exp)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::pow(v.m[i], exp);
@@ -165,7 +165,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Pow2(Scalar<DataType, ThreadCount> v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = v.m[i] * v.m[i];
@@ -177,7 +177,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Log(Scalar<DataType, ThreadCount> v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::log(v.m[i]);
@@ -189,7 +189,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Exp(Scalar<DataType, ThreadCount> v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::exp(v.m[i]);
@@ -201,7 +201,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Radians(Scalar<DataType, ThreadCount> v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = Math::Radians(v.m[i]);
@@ -213,7 +213,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Degrees(Scalar<DataType, ThreadCount> v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = Math::Degrees(v.m[i]);
@@ -226,7 +226,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Min(Scalar<DataType, ThreadCount> v, DataType min)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::min(v.m[i], min);
@@ -238,7 +238,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Min(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> min)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::min(v.m[i], min);
@@ -250,7 +250,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Max(Scalar<DataType, ThreadCount> v, DataType max)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::max(v.m[i], max);
@@ -262,7 +262,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Max(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> max)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = std::max(v.m[i], max);
@@ -274,7 +274,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Clamp(Scalar<DataType, ThreadCount> v, DataType min, DataType max)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = (v.m[i] > max ? max : v.m[i] < min ? min : v.m[i]);
@@ -286,7 +286,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Clamp(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> min, DataType max)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = (v.m[i] > max ? max : v.m[i] < min.m[i] ? min.m[i] : v.m[i]);
@@ -298,7 +298,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Clamp(Scalar<DataType, ThreadCount> v, DataType min, Scalar<DataType, ThreadCount> max)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = (v.m[i] > max.m[i] ? max.m[i] : v.m[i] < min ? min : v.m[i]);
@@ -310,7 +310,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Clamp(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> min, Scalar<DataType, ThreadCount> max)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             v.m[i] = (v.m[i] > max.m[i] ? max.m[i] : v.m[i] < min.m[i] ? min.m[i] : v.m[i]);

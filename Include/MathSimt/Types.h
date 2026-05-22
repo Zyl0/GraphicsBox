@@ -16,6 +16,13 @@
 #define USE_AVX512 0
 #endif // !USE_INTRINSICS
 
+#ifdef USE_OPENMP
+#include <omp.h>
+#define MATH_SIMT_SIMDIFY_FOR #pragma omp simd
+#else // USE_OPENMP
+#define MATH_SIMT_SIMDIFY_FOR
+#endif // !USE_OPENMP
+
 namespace Math::Simt
 {
     using half = _Float16;
@@ -56,7 +63,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>::Scalar(Type v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             m[i] = v;
@@ -70,7 +77,7 @@ namespace Math::Simt
         {
             Type value = *(vs.begin());
 
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
             for (size_t i = 0; i < ThreadCount; ++i)
             {
                 m[i] = value;
@@ -99,7 +106,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator=(Type v)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] = v;
@@ -115,7 +122,7 @@ namespace Math::Simt
         {
             Type v = *(vs.begin());
 
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
             for (size_t i = 0; i < ThreadCount; ++i)
             {
                 m[i] = v;
@@ -135,7 +142,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator + (Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] + b.m[i];
@@ -147,7 +154,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator - (Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] - b.m[i];
@@ -159,7 +166,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator * (Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] * b.m[i];
@@ -171,7 +178,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator / (Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] / b.m[i];
@@ -183,7 +190,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator + (Scalar<DataType, ThreadCount> a, DataType b)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] + b;
@@ -195,7 +202,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator + (DataType b, Scalar<DataType, ThreadCount> a)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] + b;
@@ -207,7 +214,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator - (Scalar<DataType, ThreadCount> a, DataType b)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] - b;
@@ -219,7 +226,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator - (DataType b, Scalar<DataType, ThreadCount> a)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = b - a.m[i];
@@ -231,7 +238,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator * (Scalar<DataType, ThreadCount> a, DataType b)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] * b;
@@ -243,7 +250,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator * (DataType b, Scalar<DataType, ThreadCount> a)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] * b;
@@ -255,7 +262,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator / (Scalar<DataType, ThreadCount> a, DataType b)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = a.m[i] / b;
@@ -267,7 +274,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> operator / (DataType b, Scalar<DataType, ThreadCount> a)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             a.m[i] = b / a.m[i];
@@ -279,7 +286,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator+=(Scalar other)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] += other.m[i];
@@ -291,7 +298,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator-=(Scalar other)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] -= other.m[i];
@@ -303,7 +310,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator*=(Scalar other)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] *= other.m[i];
@@ -315,7 +322,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator/=(Scalar other)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] /= other.m[i];
@@ -327,7 +334,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator+=(Type other)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] += other;
@@ -339,7 +346,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator-=(Type other)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] -= other;
@@ -351,7 +358,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator*=(Type other)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] *= other;
@@ -363,7 +370,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator/=(Type other)
     {
-#pragma omp simd
+MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] /= other;
