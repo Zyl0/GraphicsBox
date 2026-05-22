@@ -102,12 +102,12 @@ solution "GraphicsBox"
             linkoptions { "-g"}
 
         filter { "system:linux" , "configurations:Development" }
-            buildoptions { "-g", "-O3", "-mavx" } 
+            buildoptions { "-g", "-O3", "-mavx512f" }
             linkoptions { "-g"}
        
         filter { "system:linux" , "configurations:Release" }
-            buildoptions { "-fopenmp -O3 -mavx" } -- TODO evaluate -flto optimisation
-            linkoptions { "-fopenmp -O3 -mavx" }  -- TODO evaluate -flto optimisation
+            buildoptions { "-fopenmp -O3 -mavx512f" } -- TODO evaluate -flto optimisation
+            linkoptions { "-fopenmp -O3 -mavx512f" }  -- TODO evaluate -flto optimisation
         
         filter {"system:linux", "action:cmake"}
             staticruntime "On"
@@ -401,6 +401,30 @@ group "Utilites"
             path.join(gb_SrcDir, "Math", "**.cpp"),
         }
 
+
+    project "MathSimt"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
+
+        -- Project includes
+        includedirs {
+            gb_IncludeDir,
+            path.join(gb_IncludeDir, "MathSimt")
+        }
+
+        -- Project files
+        files {
+            path.join(gb_IncludeDir, "MathSimt", "**.h"),
+            path.join(gb_IncludeDir, "MathSimt", "**.hpp"),
+            path.join(gb_SrcDir, "MathSimt", "**.h"),
+            path.join(gb_SrcDir, "MathSimt", "**.hpp"),
+            path.join(gb_SrcDir, "MathSimt", "**.c"),
+            path.join(gb_SrcDir, "MathSimt", "**.cpp"),
+        }
+
     project "Modeling"
         language "C++"
         kind "StaticLib"
@@ -690,6 +714,7 @@ group "Samples"
             "Image",
             "Importers",
             "Math",
+            "MathSimt",
             "Memory",
             "Modeling",
             "RayTracing",
@@ -705,6 +730,7 @@ group "Samples"
             "Image",
             "Importers",
             "Math",
+            "MathSimt",
             "Memory",
             "Modeling",
             "RayTracing",
@@ -785,6 +811,7 @@ group "Samples"
     SampleProjects = {
         "AntiAliasing",
         "GLTFViewer",
+        "MathSimtTests",
         "MiniEngineCooker",
         "MiniEngineSample",
         "PBR",

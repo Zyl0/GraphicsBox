@@ -82,5 +82,13 @@
 //alignas(Alignment)
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define ALIGNED_VECTOR(Stride, Alignment) __attribute__((__vector_size__(Stride), aligned(Alignment)))
+#elif defined(_MSC_VER)
+
+#else
+#define ALIGNED_VECTOR(Stride, Alignment)
+#endif
+
 #define DYNAMIC_LIB_EXPORT PLATFORM_LIB_EXPORT
 #define DYNAMIC_LIB_IMPORT PLATFORM_LIB_IMPORT
