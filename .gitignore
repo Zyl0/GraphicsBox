@@ -8,6 +8,15 @@
 # Premake
 Premake
 
+# CMake
+cmake-build-*
+CMakeFiles
+.ninja*
+build.ninja
+compile_commands.json
+Testing
+CMakeCache.txt
+
 # Project files
 Solution
 *.vcxproj

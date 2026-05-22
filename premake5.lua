@@ -110,12 +110,12 @@ solution "GraphicsBox"
             linkoptions { "-g"}
 
         filter { "system:linux" , "configurations:Development" }
-            buildoptions { "-g", "-O3", "-mavx" } 
+            buildoptions { "-g", "-O3", "-mavx512f" }
             linkoptions { "-g"}
        
         filter { "system:linux" , "configurations:Release" }
-            buildoptions { "-fopenmp -O3 -mavx" } -- TODO evaluate -flto optimisation
-            linkoptions { "-fopenmp -O3 -mavx" }  -- TODO evaluate -flto optimisation
+            buildoptions { "-fopenmp -O3 -mavx512f" } -- TODO evaluate -flto optimisation
+            linkoptions { "-fopenmp -O3 -mavx512f" }  -- TODO evaluate -flto optimisation
         
         filter {"system:linux", "action:cmake"}
             staticruntime "On"
@@ -184,6 +184,7 @@ group "Dependencies"
             path.join(gb_LibsImplementDir, "stb_image_write.cpp")
         }
     
+if _ACTION ~= "cmake" then
     project "CTTI"
         language "C++"
         kind "StaticLib"
@@ -200,6 +201,7 @@ group "Dependencies"
         files {
             path.join(gb_SourceDependencyDir, "ctti", "include", "**.hpp")
         }
+end
     
     project "TinyGLTF"
         language "C++"
@@ -342,6 +344,30 @@ group "Utilites"
             path.join(gb_SrcDir, "Math", "**.hpp"),
             path.join(gb_SrcDir, "Math", "**.c"),
             path.join(gb_SrcDir, "Math", "**.cpp"),
+        }
+
+
+    project "MathSimt"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
+
+        -- Project includes
+        includedirs {
+            gb_IncludeDir,
+            path.join(gb_IncludeDir, "MathSimt")
+        }
+
+        -- Project files
+        files {
+            path.join(gb_IncludeDir, "MathSimt", "**.h"),
+            path.join(gb_IncludeDir, "MathSimt", "**.hpp"),
+            path.join(gb_SrcDir, "MathSimt", "**.h"),
+            path.join(gb_SrcDir, "MathSimt", "**.hpp"),
+            path.join(gb_SrcDir, "MathSimt", "**.c"),
+            path.join(gb_SrcDir, "MathSimt", "**.cpp"),
         }
 
     project "Modeling"
@@ -589,6 +615,7 @@ group "Samples"
             "Image",
             "Importers",
             "Math",
+            "MathSimt",
             "Memory",
             "Modeling",
             "Rendering",
@@ -603,6 +630,7 @@ group "Samples"
             "Image",
             "Importers",
             "Math",
+            "MathSimt",
             "Memory",
             "Modeling",
             "Rendering",
@@ -682,6 +710,7 @@ group "Samples"
     SampleProjects = {
         "AntiAliasing",
         "GLTFViewer",
+        "MathSimtTests",
         "MiniEngineSample",
         "PBR",
         "SpectralRendering",
