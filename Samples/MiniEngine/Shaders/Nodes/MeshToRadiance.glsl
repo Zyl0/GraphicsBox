@@ -98,7 +98,6 @@ void main( )
 #include "Include/Math.glsl"
 #include "Include/FresnelSchlick.glsl"
 #include "Include/GGX.glsl"
-#include "LightSources.glsl"
 #include "Include/PBRLightingModel.glsl"
 
 // Skylight method switch

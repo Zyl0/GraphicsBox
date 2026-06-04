@@ -12,7 +12,7 @@
 #include "Rendering/VertexBuffer.h"
 #include "Rendering/IndexBuffer.h"
 #include "Rendering/VertexArrayObject.h"
-#include "Rendering/MeshObject.h"
+// #include "Rendering/MeshObject.h"
 #include "Rendering/StorageBuffer.h"
 #include "Rendering/Textures.h"
 #include "Rendering/UniformBuffer.h"
@@ -20,6 +20,7 @@
 #include "Modules/Rendering/Shaders/Camera.h"
 
 #include "Types.h"
+#include "Core/Types.h"
 
 namespace FrameGraph
 {
@@ -35,10 +36,20 @@ namespace FrameGraph
             {
                 return m_NamesToObject.at(Name);
             }
-            
+
             FrameGraph::Location GetLocation(std::string_view Name) const
             {
                 return m_NamesToObject.at(FrameGraph::ToName(Name));
+            }
+            
+            bool Has(FrameGraph::Name Name) const
+            {
+                return m_NamesToObject.contains(Name);
+            }
+
+            bool Has(std::string_view Name) const
+            {
+                return m_NamesToObject.contains(FrameGraph::ToName(Name));
             }
             
             template <typename ...Args>
@@ -250,6 +261,81 @@ namespace FrameGraph
             std::vector<std::optional<Element>> m_Resources;
             uint64_t m_FreeCount = 0;
         };
+
+        struct ReflectedField
+        {
+            std::string_view FieldName;
+            std::string_view Description;
+            Location Location;
+            FrameGraph::Name HashedName;
+        };
+
+        template <typename T>
+        struct ReflectedObject : ReflectedField
+        {
+            using Type = T;
+        };
+        
+        template <typename T>
+        struct ReflectedVariable : ReflectedField
+        {
+            using Type = T;
+            
+            T BaseValue;
+        };
+
+        template <>
+        struct ReflectedVariable<UInt> : ReflectedField
+        {
+            using Type = UInt;
+            
+            UInt BaseValue;
+            UInt MinValue;
+            UInt MaxValue;
+        };
+
+        template <>
+        struct ReflectedVariable<Int> : ReflectedField
+        {
+            using Type = Int;
+            
+            Int BaseValue;
+            Int MinValue;
+            Int MaxValue;
+        };
+
+        template <>
+        struct ReflectedVariable<Float> : ReflectedField
+        {
+            using Type = Float;
+            
+            Float BaseValue;
+            Float MinValue;
+            Float MaxValue;
+        };
+        
+        struct ReflectionData
+        {
+            // Graph managed objects
+            std::vector<ReflectedObject<VertexBuffer>>        m_VertexBuffers;
+            std::vector<ReflectedObject<IndexBuffer>>         m_IndexBuffers;
+            std::vector<ReflectedObject<VertexArrayObject>>   m_VAOs;
+            std::vector<ReflectedObject<UniformBuffer>>       m_UniformBuffers;
+            std::vector<ReflectedObject<StorageBuffer>>       m_StorageBuffers;
+            std::vector<ReflectedObject<Texture2D>>           m_Textures2D;
+            std::vector<ReflectedObject<Texture2DArray>>      m_Textures2DArray;
+            std::vector<ReflectedObject<Texture3D>>           m_Textures3D;
+            std::vector<ReflectedObject<TextureCube>>         m_TexturesCube;
+        
+            // Graph variables
+            std::vector<ReflectedVariable<FrameGraph::Bool>>      m_BoolVariables;
+            std::vector<ReflectedVariable<FrameGraph::UInt>>      m_UIntVariables;
+            std::vector<ReflectedVariable<FrameGraph::Int>>       m_IntVariables;
+            std::vector<ReflectedVariable<FrameGraph::Float>>     m_FloatVariables;
+            std::vector<ReflectedVariable<FrameGraph::Size2D>>    m_Size2DVariables;
+            std::vector<ReflectedVariable<FrameGraph::Rect>>      m_RectVariables;
+            std::vector<ReflectedVariable<Math::Vector3f>>        m_Vec3Variables;
+        };
     }
 
     class CameraArray
@@ -300,7 +386,7 @@ namespace FrameGraph
     public:
         friend class CommandPool;
         
-        CommandContext() = default;
+        CommandContext(bool RequireReflectionData = false);
         ~CommandContext() = default;
         CommandContext(const CommandContext& Other) = delete;
         CommandContext(CommandContext&& Other) noexcept = delete;
@@ -313,7 +399,7 @@ namespace FrameGraph
         template<typename T> T& Get(std::string_view Name) {return ObjectList<T>().Get(FrameGraph::ToName(Name));}
         template<typename T> const T& Get(std::string_view Name) const {return ObjectList<T>().Get(FrameGraph::ToName(Name));}
         
-        template<typename T, typename ...Args> FrameGraph::Location AddVariable(std::string_view Name, const T& BaseValue, Args ...Params) {static_assert(sizeof(T) == 0, "Unsupported object type or parameters");}
+        template<typename T, typename ...Args> FrameGraph::Location AddVariable(std::string_view Name, const T& BaseValue, Args ...Params) {static_assert(sizeof(T) == 0, "Unsupported variable type or parameters");}
         template<typename T> const T& GetValue(FrameGraph::Location Index) const {return VariableList<T>().Get(Index);}
         template<typename T> const T& GetValue(std::string_view Name) const {return VariableList<T>().Get(VariableList<T>().GetLocation(Name));}
         
@@ -347,6 +433,13 @@ namespace FrameGraph
         // TODO move to use the Mini Engine Scene instead
         INLINE const GLTF::GPUScene& Scene() const {return m_SceneTree;}
         INLINE GLTF::GPUScene& Scene() {return m_SceneTree;}
+
+        INLINE bool HasReflection() const {return m_ReflectionData.has_value();}
+        
+        template <typename T>
+        std::span<const _Graph::ReflectedObject<T>> ReflectedObjects() const {static_assert(sizeof(T) == 0, "Unsupported object type or parameters"); return {};}
+        template <typename T>
+        std::span<const _Graph::ReflectedVariable<T>> ReflectedVariables() const {static_assert(sizeof(T) == 0, "Unsupported variable type or parameters"); return {};}
         
     private:
         template <typename T> _Graph::ObjectPool<T>& ObjectList() {static_assert(sizeof(T) == 0, "Unsupported object type");}        
@@ -379,24 +472,35 @@ namespace FrameGraph
         _Graph::VariablePool<FrameGraph::Rect>      m_RectVariables;
         _Graph::VariablePool<Math::Vector3f>        m_Vec3Variables;
 
+        std::optional<_Graph::ReflectionData>       m_ReflectionData;
+
         // Scene
         FrameGraph::CameraArray m_CameraArray;
         GLTF::GPUScene m_SceneTree;
     };
 
     template<> FrameGraph::Location CommandContext::Add<VertexBuffer>(std::string_view Name);
+    template<> FrameGraph::Location CommandContext::Add<VertexBuffer>(std::string_view Name, std::string_view Description);
 
     template<> FrameGraph::Location CommandContext::Add<IndexBuffer>(std::string_view Name);
+    template<> FrameGraph::Location CommandContext::Add<IndexBuffer>(std::string_view Name, std::string_view Description);
 
     template<> FrameGraph::Location CommandContext::Add<VertexArrayObject>(std::string_view Name);
+    template<> FrameGraph::Location CommandContext::Add<VertexArrayObject>(std::string_view Name, std::string_view Description);
 
     template<> FrameGraph::Location CommandContext::Add<UniformBuffer>(std::string_view Name);
     template<> FrameGraph::Location CommandContext::Add<UniformBuffer>(std::string_view Name, uint32_t Size);
     template<> FrameGraph::Location CommandContext::Add<UniformBuffer>(std::string_view Name, uint32_t Size, const void* data);
+    template<> FrameGraph::Location CommandContext::Add<UniformBuffer>(std::string_view Name, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<UniformBuffer>(std::string_view Name, uint32_t Size, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<UniformBuffer>(std::string_view Name, uint32_t Size, const void* data, std::string_view Description);
 
     template<> FrameGraph::Location CommandContext::Add<StorageBuffer>(std::string_view Name);
     template<> FrameGraph::Location CommandContext::Add<StorageBuffer>(std::string_view Name, uint32_t Size);
     template<> FrameGraph::Location CommandContext::Add<StorageBuffer>(std::string_view Name, uint32_t Size, const void* data);
+    template<> FrameGraph::Location CommandContext::Add<StorageBuffer>(std::string_view Name, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<StorageBuffer>(std::string_view Name, uint32_t Size, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<StorageBuffer>(std::string_view Name, uint32_t Size, const void* data, std::string_view Description);
 
     // template<> FrameGraph::Location CommandContext::Add<MeshObject>(std::string_view Name);
     // template<> FrameGraph::Location CommandContext::Add<MeshObject>(std::string_view Name, const Mesh& Mesh);
@@ -407,18 +511,33 @@ namespace FrameGraph
     template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, const Image& Image, bool UseMips);
     template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize);
     template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips);
+    template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, const Image& Image, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, const Image& Image, bool UseMips, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips, std::string_view Description);
 
     template<> FrameGraph::Location CommandContext::Add<Texture2DArray>(std::string_view Name, uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout);
     template<> FrameGraph::Location CommandContext::Add<Texture2DArray>(std::string_view Name, uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, bool UseMips);
+    template<> FrameGraph::Location CommandContext::Add<Texture2DArray>(std::string_view Name, uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<Texture2DArray>(std::string_view Name, uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, bool UseMips, std::string_view Description);
 
     template<> FrameGraph::Location CommandContext::Add<Texture3D>(std::string_view Name, uint32_t width, uint32_t height, uint32_t depth, Texture::Type type, Texture::Layout layout);
     template<> FrameGraph::Location CommandContext::Add<Texture3D>(std::string_view Name, const ImageCube& Image);
     template<> FrameGraph::Location CommandContext::Add<Texture3D>(std::string_view Name, const ImageCube& Image, bool UseMips);
+    template<> FrameGraph::Location CommandContext::Add<Texture3D>(std::string_view Name, uint32_t width, uint32_t height, uint32_t depth, Texture::Type type, Texture::Layout layout, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<Texture3D>(std::string_view Name, const ImageCube& Image, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<Texture3D>(std::string_view Name, const ImageCube& Image, bool UseMips, std::string_view Description);
 
     template<> FrameGraph::Location CommandContext::Add<TextureCube>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout);
     template<> FrameGraph::Location CommandContext::Add<TextureCube>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips);
     template<> FrameGraph::Location CommandContext::Add<TextureCube>(std::string_view Name, std::span<const TextureCube::FacePair> Faces);
     template<> FrameGraph::Location CommandContext::Add<TextureCube>(std::string_view Name, std::span<const TextureCube::FacePair> Faces, bool UseMips);
+    template<> FrameGraph::Location CommandContext::Add<TextureCube>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<TextureCube>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<TextureCube>(std::string_view Name, std::span<const TextureCube::FacePair> Faces, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::Add<TextureCube>(std::string_view Name, std::span<const TextureCube::FacePair> Faces, bool UseMips, std::string_view Description);
 
     // template<> FrameGraph::Location CommandContext::Add<TextureCubeView>(std::string_view Name, const TextureCube& texture, uint32_t MipLevel);
     // template<> FrameGraph::Location CommandContext::Add<TextureCubeView>(std::string_view Name, const TextureCube& texture, uint32_t MipLevel, uint32_t MipCount); 
@@ -428,12 +547,22 @@ namespace FrameGraph
     // template<> FrameGraph::Location CommandContext::Add<TextureCubeView>(std::string_view Name, FrameGraph::Location texture, uint32_t MipLevel, uint32_t MipCount);
 
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Bool>(std::string_view Name, const FrameGraph::Bool& BaseValue);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Bool>(std::string_view Name, const FrameGraph::Bool& BaseValue, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::UInt>(std::string_view Name, const FrameGraph::UInt& BaseValue);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::UInt>(std::string_view Name, const FrameGraph::UInt& BaseValue, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::UInt>(std::string_view Name, const FrameGraph::UInt& BaseValue, const FrameGraph::UInt& Min, const FrameGraph::UInt& Max, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Int>(std::string_view Name, const FrameGraph::Int& BaseValue);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Int>(std::string_view Name, const FrameGraph::Int& BaseValue, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Int>(std::string_view Name, const FrameGraph::Int& BaseValue, const FrameGraph::Int& Min, const FrameGraph::Int& Max, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Float>(std::string_view Name, const FrameGraph::Float& BaseValue);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Float>(std::string_view Name, const FrameGraph::Float& BaseValue, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Float>(std::string_view Name, const FrameGraph::Float& BaseValue, const FrameGraph::Float& Min, const FrameGraph::Float& Max, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Size2D>(std::string_view Name, const FrameGraph::Size2D& BaseValue);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Size2D>(std::string_view Name, const FrameGraph::Size2D& BaseValue, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Rect>(std::string_view Name, const FrameGraph::Rect& BaseValue);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Rect>(std::string_view Name, const FrameGraph::Rect& BaseValue, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<Math::Vector3f>(std::string_view Name, const Math::Vector3f& BaseValue);
+    template<> FrameGraph::Location CommandContext::AddVariable<Math::Vector3f>(std::string_view Name, const Math::Vector3f& BaseValue, std::string_view Description);
 
     template<> INLINE _Graph::ObjectPool<VertexBuffer>&            CommandContext::ObjectList<VertexBuffer>()      {return m_VertexBuffers;}
     template<> INLINE _Graph::ObjectPool<IndexBuffer>&             CommandContext::ObjectList<IndexBuffer>()       {return m_IndexBuffers;}
@@ -465,7 +594,7 @@ namespace FrameGraph
     template<> INLINE _Graph::VariablePool<FrameGraph::Float>&              CommandContext::VariableList<FrameGraph::Float>()           {return m_FloatVariables;}
     template<> INLINE _Graph::VariablePool<FrameGraph::Size2D>&             CommandContext::VariableList<FrameGraph::Size2D>()          {return m_Size2DVariables;}
     template<> INLINE _Graph::VariablePool<FrameGraph::Rect>&               CommandContext::VariableList<FrameGraph::Rect>()            {return m_RectVariables;}
-    template<> INLINE _Graph::VariablePool<Math::Vector3f>&         CommandContext::VariableList<Math::Vector3f>()  {return m_Vec3Variables;}
+    template<> INLINE _Graph::VariablePool<Math::Vector3f>&                 CommandContext::VariableList<Math::Vector3f>()  {return m_Vec3Variables;}
 
     template<> INLINE const _Graph::VariablePool<FrameGraph::Bool>&         CommandContext::VariableList<FrameGraph::Bool>()            const {return m_BoolVariables;}
     template<> INLINE const _Graph::VariablePool<FrameGraph::UInt>&         CommandContext::VariableList<FrameGraph::UInt>()            const {return m_UIntVariables;}
@@ -473,7 +602,7 @@ namespace FrameGraph
     template<> INLINE const _Graph::VariablePool<FrameGraph::Float>&        CommandContext::VariableList<FrameGraph::Float>()           const {return m_FloatVariables;}
     template<> INLINE const _Graph::VariablePool<FrameGraph::Size2D>&       CommandContext::VariableList<FrameGraph::Size2D>()          const {return m_Size2DVariables;}
     template<> INLINE const _Graph::VariablePool<FrameGraph::Rect>&         CommandContext::VariableList<FrameGraph::Rect>()            const {return m_RectVariables;}
-    template<> INLINE const _Graph::VariablePool<Math::Vector3f>&   CommandContext::VariableList<Math::Vector3f>()  const {return m_Vec3Variables;}
+    template<> INLINE const _Graph::VariablePool<Math::Vector3f>&           CommandContext::VariableList<Math::Vector3f>()  const {return m_Vec3Variables;}
 
     template<> INLINE FrameGraph::Location CommandContext::GetLocation<VertexBuffer>(FrameGraph::Name Name) const      {return ObjectList<VertexBuffer>().GetLocation(Name);}
     template<> INLINE FrameGraph::Location CommandContext::GetLocation<IndexBuffer>(FrameGraph::Name Name) const       {return ObjectList<IndexBuffer>().GetLocation(Name);}
@@ -494,6 +623,94 @@ namespace FrameGraph
     template<> INLINE FrameGraph::Location CommandContext::GetLocation<FrameGraph::Rect>(FrameGraph::Name Name) const              {return VariableList<FrameGraph::Rect>().GetLocation(Name);}
     template<> INLINE FrameGraph::Location CommandContext::GetLocation<Math::Vector3f>(FrameGraph::Name Name) const    {return VariableList<Math::Vector3f>().GetLocation(Name);}
 
+    template <> std::span<const _Graph::ReflectedObject<VertexBuffer>>      CommandContext::ReflectedObjects<VertexBuffer>() const;
+    template <> std::span<const _Graph::ReflectedObject<IndexBuffer>>       CommandContext::ReflectedObjects<IndexBuffer>() const;
+    template <> std::span<const _Graph::ReflectedObject<VertexArrayObject>> CommandContext::ReflectedObjects<VertexArrayObject>() const;
+    template <> std::span<const _Graph::ReflectedObject<UniformBuffer>>     CommandContext::ReflectedObjects<UniformBuffer>() const;
+    template <> std::span<const _Graph::ReflectedObject<StorageBuffer>>     CommandContext::ReflectedObjects<StorageBuffer>() const;
+    template <> std::span<const _Graph::ReflectedObject<Texture2D>>         CommandContext::ReflectedObjects<Texture2D>() const;
+    template <> std::span<const _Graph::ReflectedObject<Texture2DArray>>    CommandContext::ReflectedObjects<Texture2DArray>() const;
+    template <> std::span<const _Graph::ReflectedObject<Texture3D>>         CommandContext::ReflectedObjects<Texture3D>() const;
+    template <> std::span<const _Graph::ReflectedObject<TextureCube>>       CommandContext::ReflectedObjects<TextureCube>() const;
+    template <> std::span<const _Graph::ReflectedVariable<Bool>>            CommandContext::ReflectedVariables<Bool>() const;
+    template <> std::span<const _Graph::ReflectedVariable<UInt>>            CommandContext::ReflectedVariables<UInt>() const;
+    template <> std::span<const _Graph::ReflectedVariable<Int>>             CommandContext::ReflectedVariables<Int>() const;
+    template <> std::span<const _Graph::ReflectedVariable<Float>>           CommandContext::ReflectedVariables<Float>() const;
+    template <> std::span<const _Graph::ReflectedVariable<Size2D>>          CommandContext::ReflectedVariables<Size2D>() const;
+    template <> std::span<const _Graph::ReflectedVariable<Rect>>            CommandContext::ReflectedVariables<Rect>() const;
+    template <> std::span<const _Graph::ReflectedVariable<Math::Vector3f>>  CommandContext::ReflectedVariables<Math::Vector3f>() const;
+
+    class ICommand;
+    class ICommandDebugView
+    {
+    public:
+        friend class CommandPool;
+        friend class CommandDebugViewList;
+        
+        virtual ~ICommandDebugView() = default;
+        
+    protected:
+        ICommandDebugView(CommandContext& Resources) {}
+
+        virtual void OnReloadShaders(CommandContext& Resources) = 0;
+        virtual void OnUpdate(CommandContext& Resources, double DeltaTime) = 0;
+        virtual void OnPrepare(CommandContext& Resources, const ICommand& Caller, double DeltaTime) = 0;
+        virtual void OnExecute(const CommandContext& Resources, const ICommand& Caller) = 0;
+        virtual void EditorUI() {}
+    };
+    
+    class CommandDebugViewList
+    {
+    public:
+        friend class CommandPool;
+
+        struct Link
+        {
+            Location Command;
+            Location DebugView;
+        };
+
+        template<typename T> requires (std::is_base_of_v<ICommandDebugView, T>)
+        void PushDebugView(CommandContext& Resources)
+        {
+            {
+                auto Name = ctti::nameof<T>();
+                for (Location Index = 0; Index < m_DebugViews.size(); ++Index)
+                {
+                    const auto& view = m_DebugViewsNames[Index];
+                    if (view.hash() == Name.hash())
+                    {
+                        // Only link debug view and command
+                        m_DebugViewLinks.emplace_back(m_CurrentCommand, Index);
+                        return;
+                    }
+                }
+            }
+            
+            Location Index = m_DebugViews.size();
+            m_DebugViews.emplace_back(std::make_unique<T>(Resources));
+            m_DebugViewsNames.emplace_back(ctti::nameof<T>());
+            m_DebugViewLinks.emplace_back(m_CurrentCommand, Index);
+        }
+
+        INLINE std::span<const ctti::detail::cstring> DebugViews() const {return m_DebugViewsNames;}
+        INLINE std::span<const Link> DebugViewReferences() const {return m_DebugViewLinks;}
+        
+    private:        
+        void SetCurrentCommand(Location Command) {m_CurrentCommand = Command;}
+        bool IsDebugViewContextValid(Location Caller, Location DebugView);
+        void Update(CommandContext& Resources, double DeltaTime);
+        void PrepareDebugView(CommandContext& Resources, double deltaTime, const ICommand& Caller, Location DebugView);
+        void RunDebugView(const CommandContext& Resources, const ICommand& Caller, std::string_view CallerName, Location DebugView);
+        void ReloadShaders(CommandContext& Resources);
+        void EditorUI(Location DebugView);
+
+        std::vector< ctti::detail::cstring> m_DebugViewsNames;
+        std::vector<std::unique_ptr<ICommandDebugView>> m_DebugViews;
+        std::vector<Link> m_DebugViewLinks;
+        Location m_CurrentCommand = 0;
+    };
+    
     class ICommand
     {
     public:
@@ -503,10 +720,12 @@ namespace FrameGraph
         
     protected:
         ICommand(CommandContext& Resources) {}
-        
+
+        virtual void RegisterDebugViews(CommandContext& Resources, CommandDebugViewList& DebugViews) {}
         virtual void OnReloadShaders(CommandContext& Resources) = 0;
         virtual void OnUpdate(CommandContext& Resources, double DeltaTime) = 0;
         virtual void OnExecute(const CommandContext& Resources) = 0;
+        virtual void EditorUI() {}
     };
 
     class CommandList
@@ -524,10 +743,81 @@ namespace FrameGraph
         std::vector<Location> m_List;
     };
 
+    class IGraphDebugView
+    {
+    public:
+        friend class GraphDebugViewList;
+        friend class CommandPool;
+        
+        virtual ~IGraphDebugView() = default;
+        
+    protected:
+        IGraphDebugView(CommandContext& Resources) {}
+
+        virtual void OnReloadShaders(CommandContext& Resources) = 0;
+        virtual void OnUpdate(CommandContext& Resources, double DeltaTime) = 0;
+        virtual void OnExecute(const CommandContext& Resources) = 0;
+        virtual void EditorUI() {}
+    };
+
+    class GraphDebugViewList
+    {
+    public:
+        friend class CommandPool;
+
+        template<typename T> requires (std::is_base_of_v<IGraphDebugView, T>)
+        Location PushDebugView(CommandContext& Resources)
+        {
+            {
+                auto Name = ctti::nameof<T>();
+                for (Location Index = 0; Index < m_DebugViews.size(); ++Index)
+                {
+                    const auto& view = m_DebugViewsNames[Index];
+                    if (view.hash() == Name.hash())
+                    {
+                        return Index;
+                    }
+                }
+            }
+            
+            Location Index = m_DebugViews.size();
+            m_DebugViews.emplace_back(std::make_unique<T>(Resources));
+            m_DebugViewsNames.emplace_back(ctti::nameof<T>());
+
+            return Index;
+        }
+
+        IGraphDebugView* GetDebugView(Location DebugView) const
+        {
+            if (DebugView >= m_DebugViews.size()) return nullptr;
+
+            return m_DebugViews[DebugView].get();
+        }
+
+        template<typename T> requires (std::is_base_of_v<IGraphDebugView, T>)
+        T* GetDebugView(Location DebugView) const
+        {
+            IGraphDebugView* View = GetDebugView(DebugView);
+
+            return dynamic_cast<T*>(View);
+        }
+
+        INLINE std::span<const ctti::detail::cstring> DebugViews() const {return m_DebugViewsNames;}
+        
+    private:        
+        void Update(CommandContext& Resources, double deltaTime);
+        void RunDebugView(const CommandContext& Resources, Location DebugView);
+        void ReloadShaders(CommandContext& Resources);
+        void EditorUI(Location DebugView);
+
+        std::vector< ctti::detail::cstring> m_DebugViewsNames;
+        std::vector<std::unique_ptr<IGraphDebugView>> m_DebugViews;
+    };
+
     class CommandPool
     {
     public:
-        CommandPool() = default;
+        CommandPool(bool EnableReflectionData = false, bool EnableDebugViews = false);
         ~CommandPool() = default;
         CommandPool(const CommandPool& Other) = delete;
         CommandPool(CommandPool&& Other) noexcept = delete;
@@ -541,23 +831,64 @@ namespace FrameGraph
         Location PushNode()
         {
             Location Index = m_Commands.size();
-            m_Commands.emplace_back(ctti::nameof<T>(), std::make_unique<T>(m_Context));
+            m_CommandNames.emplace_back(ctti::nameof<T>());
+            m_Commands.emplace_back(std::make_unique<T>(m_Context));
+            if (HasCommandDebugViews())
+            {
+                m_Commands[Index]->RegisterDebugViews(m_Context,*m_CommandDebugViews);
+            }
             return Index;
+        }
+
+        template<typename T> requires (std::is_base_of_v<IGraphDebugView, T>)
+        Location PushDebugView()
+        {
+            if (!HasGraphDebugViews()) return std::numeric_limits<Location>::max();
+            
+            return m_GraphDebugViews->PushDebugView<T>(m_Context);
         }
         
         void ReloadShaders();
         void Update(double DeltaTime);
         void Render(std::span<const Location> CommandList) const;
         INLINE void Render(const CommandList& CommandList) const {Render(CommandList.Data());}
-        
-    private:
-        struct CommandInst
+
+        void RenderToCommandDebugView(double DeltaTime, std::span<const Location> CommandList, Location Command, Location DebugView);
+        INLINE void RenderToCommandDebugView(double DeltaTime, const CommandList& CommandList, Location Command, Location DebugView)
         {
-            ctti::detail::cstring name;
-            std::unique_ptr<ICommand> node;
-        };
-        
+            RenderToCommandDebugView(DeltaTime, CommandList.Data(), Command, DebugView);
+        }
+
+        void RenderToGraphDebugView(std::span<const Location> CommandList, Location Command, Location DebugView);
+        INLINE void RenderToGraphDebugView(const CommandList& CommandList, Location Command, Location DebugView)
+        {
+            RenderToGraphDebugView(CommandList.Data(), Command, DebugView);
+        }
+
+        INLINE bool HasCommandDebugViews() const {return m_CommandDebugViews.has_value();}
+        INLINE bool HasGraphDebugViews() const {return m_GraphDebugViews.has_value();}
+        const CommandDebugViewList& CommandDebugViews() const {return *m_CommandDebugViews;}
+        const GraphDebugViewList& GraphDebugViews() const {return *m_GraphDebugViews;}
+        INLINE std::span<const ctti::detail::cstring> CommandNames() const {return m_CommandNames;}
+
+        IGraphDebugView* GetDebugView(Location DebugView) const;
+
+        template<typename T> requires (std::is_base_of_v<IGraphDebugView, T>)
+        T* GetDebugView(Location DebugView) const
+        {
+            if (!HasGraphDebugViews()) return nullptr;
+
+            return m_GraphDebugViews->GetDebugView<T>(DebugView);
+        }
+
+        void CommandDebugViewEditorUI(Location DebugView);
+        void GraphDebugViewEditorUI(Location DebugView);
+    
+    private:
         CommandContext m_Context;
-        std::vector<CommandInst> m_Commands;
+        std::optional<CommandDebugViewList> m_CommandDebugViews;
+        std::optional<GraphDebugViewList> m_GraphDebugViews;
+        std::vector<std::unique_ptr<ICommand>> m_Commands;
+        std::vector<ctti::detail::cstring> m_CommandNames;
     };
 }

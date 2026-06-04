@@ -36,6 +36,8 @@ namespace Math
         const type* data() const
             {return &x;}
 
+        type* data(){return &x;}
+
         Vector2t& operator *=(float s)
         {
             x *= s;

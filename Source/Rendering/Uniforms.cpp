@@ -43,6 +43,12 @@ void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector2i 
 {
     SetUniform(GetUniformLocation(Pipeline, name), value);
 }
+
+void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector2t<uint32_t> value)
+{
+    SetUniform(GetUniformLocation(Pipeline, name), value);
+}
+
 void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector2f value)
 {
     SetUniform(GetUniformLocation(Pipeline, name), value);
@@ -55,6 +61,12 @@ void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector3i 
 {
     SetUniform(GetUniformLocation(Pipeline, name), value);
 }
+
+void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector3t<uint32_t> value)
+{
+    SetUniform(GetUniformLocation(Pipeline, name), value);
+}
+
 void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector3f value)
 {
     SetUniform(GetUniformLocation(Pipeline, name), value);
@@ -79,6 +91,12 @@ void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector4i 
 {
     SetUniform(GetUniformLocation(Pipeline, name), value);
 }
+
+void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector4t<uint32_t> value)
+{
+    SetUniform(GetUniformLocation(Pipeline, name), value);
+}
+
 void SetUniform(const Pipeline& Pipeline, std::string_view name, Math::Vector4f value)
 {
     SetUniform(GetUniformLocation(Pipeline, name), value);
@@ -164,6 +182,10 @@ void SetUniform(GLint Location, Math::Vector2i value)
 {
     if(Location >= 0) glUniform2iv(Location, 1, value.data());
 }
+void SetUniform(GLint Location, Math::Vector2t<uint32_t> value)
+{
+    if(Location >= 0) glUniform2uiv(Location, 1, value.data());
+}
 void SetUniform(GLint Location, Math::Vector2f value)
 {
     if(Location >= 0) glUniform2fv(Location, 1, value.data());
@@ -175,6 +197,10 @@ void SetUniform(GLint Location, Math::Vector2d value)
 void SetUniform(GLint Location, Math::Vector3i value)
 {
     if(Location >= 0) glUniform3iv(Location, 1, value.data());
+}
+void SetUniform(GLint Location, Math::Vector3t<uint32_t> value)
+{
+    if(Location >= 0) glUniform3uiv(Location, 1, value.data());
 }
 void SetUniform(GLint Location, Math::Vector3f value)
 {
@@ -200,6 +226,12 @@ void SetUniform(GLint Location, Math::Vector4i value)
 {
     if(Location >= 0) glUniform4iv(Location, 1, value.data());
 }
+
+void SetUniform(GLint Location, Math::Vector4t<uint32_t> value)
+{
+    if(Location >= 0) glUniform4uiv(Location, 1, value.data());
+}
+
 void SetUniform(GLint Location, Math::Vector4f value)
 {
     if(Location >= 0) glUniform4fv(Location, 1, value.data());

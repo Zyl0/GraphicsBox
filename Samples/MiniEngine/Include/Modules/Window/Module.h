@@ -19,6 +19,8 @@ namespace Window
         void Tick(double deltaTime) override;
 
         void Shutdown() override;
+
+        void EditorUI() override;
         
         bool ShouldClose();
         

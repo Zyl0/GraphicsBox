@@ -37,10 +37,34 @@ namespace FrameGraph
         void AddCommandList(const CommandList& CommandList) {m_CommandLists.push_back(CommandList.Data());}
 
     private:
+        enum ETextureViewer_TexType : uint8_t
+        {
+            T2D, TCube, T3D
+        };
+        
+        void UnsetDebugView();
+        void SetDebugViewTexture(Location Texture, ETextureViewer_TexType TexType, size_t Mip, size_t Depth, size_t Index, size_t Sample);
+        void SelectLatestCommands();
+        
         std::optional<CommandPool> m_CommandPool;
         std::optional<FrameBuffer> m_OutputFrameBuffer;
         std::vector<std::span<const Location>> m_CommandLists;
         Location TexOutput;
         Location VOutputSize;
+
+        // Debug Views
+        bool m_CommandDebugView;
+        bool m_GraphDebugView;
+        Location m_CurrentDebugView;
+        Location m_UpToCommandList;
+        Location m_UpToCommand;
+
+        // Texture visualizer
+        Location m_TextureViewer;
+        ETextureViewer_TexType m_TextureViewerTexType;
+        Location m_TextureViewerResource;
+
+        // Editor
+        int m_EditorCurrentCommand;
     };
 }

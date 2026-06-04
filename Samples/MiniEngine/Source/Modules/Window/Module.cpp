@@ -11,6 +11,8 @@
 #include "Core/Engine.h"
 #include "Modules/Rendering/Module.h"
 
+#include "imgui.h"
+
 namespace Window
 {
     // TODO expose
@@ -144,6 +146,11 @@ terminate_glfw_window:
         
         m_Window = nullptr;
 #endif // WINDOW_GLFW
+    }
+
+    void Module::EditorUI()
+    {
+        if (ImGui::Button("Recompile Shaders")) RequestShaderReload = true;
     }
 
     bool Module::ShouldClose()
