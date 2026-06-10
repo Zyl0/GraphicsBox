@@ -507,6 +507,29 @@ group "Utilites"
             path.join(gb_SrcDir, "Camera", "**.c"),
             path.join(gb_SrcDir, "Camera", "**.cpp"),
         }
+    
+    project "RayTracing"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
+
+        -- Project includes
+        includedirs {
+            gb_IncludeDir,
+            path.join(gb_IncludeDir, "RayTracing")
+        }
+
+        -- Project files
+        files {
+            path.join(gb_IncludeDir, "RayTracing", "**.h"),
+            path.join(gb_IncludeDir, "RayTracing", "**.hpp"),
+            path.join(gb_SrcDir, "RayTracing", "**.h"),
+            path.join(gb_SrcDir, "RayTracing", "**.hpp"),
+            path.join(gb_SrcDir, "RayTracing", "**.c"),
+            path.join(gb_SrcDir, "RayTracing", "**.cpp"),
+        }
 
     project "Rendering"
         language "C++"

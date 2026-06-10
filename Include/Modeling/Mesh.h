@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "Math/Vector.h"
@@ -127,16 +128,34 @@ public:
     void AddVertexPosition(const Math::Point3f &p);
     
     /**
+     * @brief Add multiple position vertex data to the mesh. The mesh needs to be in edit mode to perform this operation.
+     * @param ps vertex positions
+     */
+    void AddVertexPositions(std::span<const Math::Point3f> ps);
+    
+    /**
      * @brief Add a normal vector vertex data to the mesh. The mesh needs to be in edit mode to perform this operation.
      * @param n vertex normal
      */
     void AddVertexNormal(const Math::Vector3f &n);
     
     /**
+     * @brief Add multiple normal vector vertex data to the mesh. The mesh needs to be in edit mode to perform this operation.
+     * @param ns vertex normals
+     */
+    void AddVertexNormals(std::span<const Math::Vector3f> ns);
+    
+    /**
      * @brief Add a texture coordinate vertex data to the mesh. The mesh needs to be in edit mode to perform this operation.
-     * @param uv vertex data
+     * @param uv vertex UV
      */
     void AddVertexTextureCoordinate(const Math::Vector2f &uv);
+    
+    /**
+     * @brief Add a texture coordinate vertex data to the mesh. The mesh needs to be in edit mode to perform this operation.
+     * @param uvs vertex UVs
+     */
+    void AddVertexTextureCoordinates(std::span<const Math::Vector2f> uvs);
 
     /**
      * @brief Add a vertex group to the mesh. The mesh needs to be in edit mode to perform this operation.
@@ -150,6 +169,12 @@ public:
      * @param index vertex index
      */
     void AddVertexPolygonIndex(unsigned int index);
+    
+    /**
+     * @brief Add a polygon vertex index to the mesh. This is for indexed mesh only. The mesh needs to be in edit mode to perform this operation.
+     * @param indexes vertex indexes
+     */
+    void AddVertexPolygonIndexes(std::span<const unsigned int> indexes);
 
     /**
      * @brief Modify the vertex position of a mesh. The mesh needs to be in edit mode to perform this operation.

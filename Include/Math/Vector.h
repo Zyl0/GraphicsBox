@@ -247,7 +247,7 @@ namespace Math
     {return Vector3t(v.x * s, v.y * s, v.z * s);}
 
     template<typename type>
-    inline Vector3t<type> operator /(const Vector3t<type>& v, float s)
+    inline Vector3t<type> operator /(const Vector3t<type>& v, type s)
         {return Vector3t(v.x / s, v.y / s, v.z / s);}
     
     template<typename type>
@@ -265,6 +265,10 @@ namespace Math
     template<typename type>
     inline Vector3t<type> Normalize(const Vector3t<type>& v)
         {return v / Magnitude(v);}
+    
+    template<typename type>
+    inline Vector3t<type> Abs(const Vector3t<type>& v)
+        {return Vector3t<type>(abs(v.x), abs(v.y), abs(v.z));}
 
     template<typename type>
     inline Vector3t<type> operator +(const Vector3t<type>& a,  type s)

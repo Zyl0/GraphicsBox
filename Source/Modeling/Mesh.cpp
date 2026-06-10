@@ -49,13 +49,8 @@ void Mesh::BeginMesh(VertexType meshType)
     AssertOrError(meshType != 0, "Invalid GL Mesh Type")
     m_mesh_type = meshType;
     
-    m_positions.clear();
-    m_normals.clear();
-    m_texture_coordinates.clear();
-    m_indexes.clear();
-    m_vertex_group.clear();
-    
     bIsInEditMode = true;
+    Clear();
 }
 
 void Mesh::EditMesh()
@@ -71,6 +66,15 @@ void Mesh::AddVertexPosition(const Math::Point3f& p)
     m_positions.push_back(p);
 }
 
+void Mesh::AddVertexPositions(std::span<const Math::Point3f> ps)
+{
+    AssertOrError(bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.")
+    
+    size_t CurrentSize = m_positions.size();
+    m_positions.resize(m_positions.size() + ps.size());
+    std::memcpy(&(m_positions[CurrentSize]), ps.data(), ps.size() * sizeof(Math::Point3f)); 
+}
+
 void Mesh::AddVertexNormal(const Math::Vector3f& n)
 {
     AssertOrError(bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.")
@@ -78,11 +82,29 @@ void Mesh::AddVertexNormal(const Math::Vector3f& n)
     m_normals.push_back(n);
 }
 
+void Mesh::AddVertexNormals(std::span<const Math::Vector3f> ns)
+{
+    AssertOrError(bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.")
+    
+    size_t CurrentSize = m_normals.size();
+    m_normals.resize(m_normals.size() + ns.size());
+    std::memcpy(&(m_normals[CurrentSize]), ns.data(), ns.size() * sizeof(Math::Vector3f)); 
+}
+
 void Mesh::AddVertexTextureCoordinate(const Math::Vector2f& uv)
 {
     AssertOrError(bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.")
 
     m_texture_coordinates.push_back(uv);
+}
+
+void Mesh::AddVertexTextureCoordinates(std::span<const Math::Vector2f> uvs)
+{
+    AssertOrError(bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.")
+    
+    size_t CurrentSize = m_texture_coordinates.size();
+    m_texture_coordinates.resize(m_texture_coordinates.size() + uvs.size());
+    std::memcpy(&(m_texture_coordinates[CurrentSize]), uvs.data(), uvs.size() * sizeof(Math::Vector2f)); 
 }
 
 void Mesh::AddVertexGroup(unsigned first, unsigned count)
@@ -97,6 +119,15 @@ void Mesh::AddVertexPolygonIndex(unsigned index)
     AssertOrError(bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.")
 
     m_indexes.push_back(index);
+}
+
+void Mesh::AddVertexPolygonIndexes(std::span<const unsigned int> indexes)
+{
+    AssertOrError(bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.")
+    
+    size_t CurrentSize = m_indexes.size();
+    m_indexes.resize(m_indexes.size() + indexes.size());
+    std::memcpy(&(m_indexes[CurrentSize]), indexes.data(), indexes.size() * sizeof(unsigned int)); 
 }
 
 void Mesh::SetVertexPosition(unsigned i, const Math::Point3f& p)
@@ -579,6 +610,28 @@ void Mesh::CommitMesh()
         m_vertex_group.push_back({0,  IsIndexedMesh() ? static_cast<unsigned int>(m_indexes.size()) : static_cast<unsigned int>(m_positions.size())});
 
     GenerateBounds();    
+}
+
+void Mesh::Clear(bool ResizeToZero)
+{
+    AssertOrWarnCall(!bIsInEditMode, return, "Attempted to edit a mesh that is already in edit mode.")
+    
+    if (ResizeToZero)
+    {
+        m_positions.resize(0);
+        m_normals.resize(0);
+        m_texture_coordinates.resize(0);
+        m_indexes.resize(0);
+        m_vertex_group.resize(0);
+    }
+    else
+    {
+        m_positions.clear();
+        m_normals.clear();
+        m_texture_coordinates.clear();
+        m_indexes.clear();
+        m_vertex_group.clear();
+    }
 }
 
 void Mesh::GenerateBounds()
