@@ -43,8 +43,8 @@ public:
         B(B),
         radius(Radius)
     {
-        C = (A + B) / 2;
-        D = (B - A) / 2;
+        C = (A + B) / 2.;
+        D = (B - A) / 2.;
     }
 
     double Value(const Math::Vector3d& v) const override;

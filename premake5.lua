@@ -183,24 +183,26 @@ group "Dependencies"
         files {
             path.join(gb_LibsImplementDir, "stb_image_write.cpp")
         }
-    
+
+if _ACTION ~= "cmake" then
     project "CTTI"
         language "C++"
         kind "StaticLib"
-        
+
         -- Solution file
         location (path.join(gb_SolutionProjectDir, "Dependencies"))
-        
+
         -- Project includes
         includedirs {
             path.join(gb_SourceDependencyDir, "ctti", "include")
         }
 
-        -- Project files    
+        -- Project files
         files {
             path.join(gb_SourceDependencyDir, "ctti", "include", "**.hpp")
         }
-    
+end
+
     project "TinyGLTF"
         language "C++"
         kind "StaticLib"
@@ -555,6 +557,7 @@ group "Utilites"
             path.join(gb_SrcDir, "Rendering", "**.cpp"),
         }
 
+        links { "Image" }
         
         filter {"system:linux"}
             -- OpenGL, GLFW and GLEW includes are provided by the system
@@ -708,6 +711,7 @@ group "Samples"
         "MiniEngineSample",
         "PBR",
         "SpectralRendering",
+        "SignedDistanceField",
         "ShadowMapping"
     }
 

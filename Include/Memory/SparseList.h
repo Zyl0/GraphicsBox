@@ -43,8 +43,9 @@ public:
     void RemoveAt(size_t Index);
     
     void Clear();
+    void ShrinkToFit();
     
-    bool IsValid(size_t Index);
+    bool IsValid(size_t Index) const;
     T& operator[](size_t Index);
     const T& operator[](size_t Index) const;
     T* At(size_t Index);
@@ -54,12 +55,13 @@ public:
     size_t Capacity() const;
     
     INLINE std::span<const T> Data() const {return std::span<const T>(At(0), sizeof(MemType) * m_Data.size());}
+    INLINE std::span<T> Data() {return std::span<T>(At(0), sizeof(MemType) * m_Data.size());}
     INLINE const std::vector<bool>& Validity() const {return m_Validity;}
     
     void Swap(size_t Index1, size_t Index2);
     
 private:
-    using MemType = uint8_t[sizeof(T)];
+    struct MemType {uint8_t cell[sizeof(T)];};
     
     std::vector<MemType> m_Data;
     std::vector<bool> m_Validity;
@@ -232,7 +234,7 @@ void SparseList<T, UseFreeList>::EmplaceBack() requires (std::is_default_constru
     m_Data.emplace_back();
     std::construct_at(At(Size() - 1));
     
-    m_Validity.reserve(true);
+    m_Validity.emplace_back(true);
 }
 
 template <typename T, bool UseFreeList>
@@ -241,7 +243,7 @@ void SparseList<T, UseFreeList>::EmplaceBack(T&& Value)
     m_Data.emplace_back();
     std::construct_at(At(Size() - 1), std::move(Value));
     
-    m_Validity.reserve(true);
+    m_Validity.emplace_back(true);
 }
 
 template <typename T, bool UseFreeList>
@@ -251,7 +253,7 @@ void SparseList<T, UseFreeList>::EmplaceBack(Args&&... Params)
     m_Data.emplace_back();
     std::construct_at(At(Size() - 1), std::forward<Args>(Params)...);
     
-    m_Validity.reserve(true);
+    m_Validity.emplace_back(true);
 }
 
 template <typename T, bool UseFreeList>
@@ -295,7 +297,16 @@ void SparseList<T, UseFreeList>::Clear()
 }
 
 template <typename T, bool UseFreeList>
-bool SparseList<T, UseFreeList>::IsValid(size_t Index)
+void SparseList<T, UseFreeList>::ShrinkToFit()
+{
+    if (Capacity() == Size()) return;
+
+    m_Data.shrink_to_fit();
+    m_Validity.shrink_to_fit();
+}
+
+template <typename T, bool UseFreeList>
+bool SparseList<T, UseFreeList>::IsValid(size_t Index) const
 {
     return Index < m_Validity.size() && m_Validity[Index];
 }

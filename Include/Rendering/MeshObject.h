@@ -28,6 +28,7 @@ struct MeshObject
     void UnsetIndexBuffer();
     size_t AddVertexGroup(const Mesh::VertexGroup& VertexGroup);
     void SetVertexGroup(size_t index, const Mesh::VertexGroup& VertexGroup);
+    void ClearVertexGroups();
     void EndMesh();
 
     INLINE const VertexArrayObject& GetVAO() const {return m_Vao;}

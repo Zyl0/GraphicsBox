@@ -1,9 +1,11 @@
 ﻿#pragma once
 
+#include <type_traits>
+
 #include "Implicit.h"
 #include "Primitives.h"
-#include "Transforms.h"
 
+#include "Math/Transforms.h"
 #include "Memory/SparseList.h"
 
 class HierarchalDistanceFieldNode;
@@ -43,6 +45,10 @@ public:
         
         return m_CachedValues[Index];
     }
+    INLINE void SetCachedValue(size_t Index, double value)
+    {
+        m_CachedValues[Index] = value;
+    }
     
     virtual AnalyticScalarField& operator[](size_t Index) = 0;
     virtual const AnalyticScalarField& operator[](size_t Index) const = 0;
@@ -69,9 +75,9 @@ protected:
     
     void UpdateCache(void* PoolData)
     {
-        size_t size = Size();
         if (m_UseOutputCache)
         {
+            size_t size = Size();
             m_CachedValues.resize(size); 
         }
         else if (m_CachedValues.capacity() > 0)
@@ -82,6 +88,7 @@ protected:
         
         if (m_UseTransformedInputs)
         {
+            size_t size = Size();
             m_TransformedInputs.resize(size);
         }
         else if (m_TransformedInputs.capacity() > 0)
@@ -111,6 +118,7 @@ struct ScalarFieldRef
     bool IsValid() const {return pool != nullptr;}
     double Value(const Math::Vector3d& v) const {return pool->Value(index, v);}
     double CachedValue() const {return pool->CachedValue(index);}
+    INLINE void SetCachedOutput(double v) const {pool->SetCachedValue(index, v);}
     INLINE void SetCachedInput(const Math::Vector3d& p) const {pool->SetInput(index, p);}
     
     AnalyticScalarField& operator*() {return pool->operator[](index);}
@@ -134,7 +142,7 @@ public:
     ScalarFieldPool() : IScalarFieldPool()
     {
         m_IsTreeNode = std::is_base_of_v<HierarchalDistanceFieldNode, ScalarField>;
-        m_PoolData = m_Pool.Data();
+        m_PoolData = (uint8_t*)(m_Pool.Data().data());
         m_ObjectSize = sizeof(ScalarField);
     }
     
@@ -142,7 +150,7 @@ public:
     double Value(size_t Index, const Math::Vector3d& v) const override
     {
 #ifndef CONFIG_RELEASE
-        AssertOrError(m_Pool.IsValid(Index));
+        AssertOrError(m_Pool.IsValid(Index), "Index out of range");
 #endif // CONFIG_RELEASE
         
         return m_Pool[Index].Value(v);
@@ -167,7 +175,7 @@ public:
         
         for (size_t i = Start; i < Start + Count; ++i)
         {
-            m_CachedValues[i] = m_Pool[i].Value(v);
+            const_cast<double&>(m_CachedValues[i]) = m_Pool[i].Value(v);
         }
     }
     
@@ -190,7 +198,7 @@ public:
         
         for (size_t i = 0; i < Count; ++i)
         {
-            m_CachedValues[Start + i] = m_Pool[Start + i].Value(vs[i]);
+            const_cast<double&>(m_CachedValues[Start + i]) = m_Pool[Start + i].Value(vs[i]);
         }
     }
 
@@ -206,7 +214,7 @@ public:
             AssertOrError(m_Pool.IsValid(i), "Evaluation on invalid object")
 #endif // CONFIG_RELEASE
             
-            m_CachedValues[Index] = m_Pool[Index].Value(v);
+            const_cast<double&>(m_CachedValues[Index]) = m_Pool[Index].Value(v);
         }
     }
     
@@ -222,7 +230,7 @@ public:
             AssertOrError(m_Pool.IsValid(Index), "Evaluation on invalid object")
 #endif // CONFIG_RELEASE
             
-            m_CachedValues[Index] = m_Pool[Index].Value(vs[i]);
+            const_cast<double&>(m_CachedValues[Index]) = m_Pool[Index].Value(vs[i]);
         }
     }
 
@@ -245,7 +253,7 @@ public:
         
         for (size_t i = Start; i < Start + Count; ++i)
         {
-            m_CachedValues[i] = m_Pool[i].Value(m_TransformedInputs[i]);
+            const_cast<double&>(m_CachedValues[i]) = m_Pool[i].Value(m_TransformedInputs[i]);
         }
     }
     
@@ -261,7 +269,7 @@ public:
             AssertOrError(m_Pool.IsValid(Index), "Evaluation on invalid object")
 #endif // CONFIG_RELEASE
             
-            m_CachedValues[Index] = m_Pool[Index].Value(m_TransformedInputs[Index]);
+            const_cast<double&>(m_CachedValues[Index]) = m_Pool[Index].Value(m_TransformedInputs[Index]);
         }
     }
     
@@ -280,17 +288,34 @@ public:
     {
         size_t Size = m_Pool.AddEmplace(std::forward<Args>(params)...);
         
-        UpdateCache(m_Pool.Data());
+        UpdateCache(m_Pool.Data().data());
         
         return {.pool = this, .index = Size};
     }
+
+    ScalarField& Get(size_t Index) {return m_Pool[Index];}
+    const ScalarField& Get(size_t Index) const {return m_Pool[Index];}
     
     void Remove(size_t Index)
     {
-        m_Pool.Remove(Index);
+        m_Pool.RemoveAt(Index);
     }
     
-protected:
+    void Reserve(size_t Size)
+    {
+        m_Pool.Reserve(Size);
+    }
+
+    void CLear()
+    {
+        m_Pool.Clear();
+    }
+
+    void ShrinkToFit()
+    {
+        m_Pool.ShrinkToFit();
+    }
+
     size_t Size() const override
     {
         return m_Pool.Size();
@@ -433,20 +458,104 @@ public:
     
     double Value(const Math::Vector3d& Point) const override;
 
+    ScalarFieldRef AddSphere(double Radius = 1.0, Math::Vector3d Center = Math::Vector3d(0));
+    ScalarFieldRef AddCapsule(double Radius = 1.0, Math::Vector3d A = Math::Vector3d(0), Math::Vector3d B = Math::Vector3d(0));
+    ScalarFieldRef AddBox(double Radius = 1.0, Math::Vector3d A = Math::Vector3d(0), Math::Vector3d B = Math::Vector3d(0));
+    ScalarFieldRef AddTore(double inerRadius = 0.75, double outerRadius = 1.0, Math::Vector3d center = Math::Vector3d(0));
+    ScalarFieldRef AddHDFUnion(ScalarFieldRef Left, ScalarFieldRef Right);
+    ScalarFieldRef AddHDFIntersection(ScalarFieldRef Left, ScalarFieldRef Right);
+    ScalarFieldRef AddHDFDifference(ScalarFieldRef Left, ScalarFieldRef Right);
+    ScalarFieldRef AddHDFSmoothUnion(ScalarFieldRef Left, ScalarFieldRef Right, double blendRadius = 0.5);
+    ScalarFieldRef AddHDFSmoothDifference(ScalarFieldRef Left, ScalarFieldRef Right, double blendRadius = 0.5);
+    ScalarFieldRef AddTransform(ScalarFieldRef Transformee, const Math::Transform4d& Transform);
+
+    ScalarFieldRef GetSphereRef(size_t Index);
+    ScalarFieldRef GetCapsuleRef(size_t Index);
+    ScalarFieldRef GetBoxRef(size_t Index);
+    ScalarFieldRef GetToreRef(size_t Index);
+    ScalarFieldRef GetHDFUnionRef(size_t Index);
+    ScalarFieldRef GetHDFIntersectionRef(size_t Index);
+    ScalarFieldRef GetHDFDifferenceRef(size_t Index);
+    ScalarFieldRef GetHDFSmoothUnionRef(size_t Index);
+    ScalarFieldRef GetHDFSmoothDifferenceRef(size_t Index);
+    ScalarFieldRef GetTransformRef(size_t Index);
+
+    SDFSphere& GetSphere(size_t Index);
+    SDFCapsule& GetCapsule(size_t Index);
+    SDFBox& GetBox(size_t Index);
+    SDFTore& GetTore(size_t Index);
+    HDFUnion& GetHDFUnion(size_t Index);
+    HDFIntersection& GetHDFIntersection(size_t Index);
+    HDFDiff& GetHDFDifference(size_t Index);
+    HDFBlend& GetHDFSmoothUnion(size_t Index);
+    HDFSmoothUnion& GetHDFSmoothDifference(size_t Index);
+    HDFTransform& GetTransform(size_t Index);
+
+    INLINE SDFSphere& GetSphere(ScalarFieldRef Element) {return GetSphere(Element.index);}
+    INLINE SDFCapsule& GetCapsule(ScalarFieldRef Element) {return GetCapsule(Element.index);}
+    INLINE SDFBox& GetBox(ScalarFieldRef Element) {return GetBox(Element.index);}
+    INLINE SDFTore& GetTore(ScalarFieldRef Element) {return GetTore(Element.index);}
+    INLINE HDFUnion& GetHDFUnion(ScalarFieldRef Element) {return GetHDFUnion(Element.index);}
+    INLINE HDFIntersection& GetHDFIntersection(ScalarFieldRef Element) {return GetHDFIntersection(Element.index);}
+    INLINE HDFDiff& GetHDFDifference(ScalarFieldRef Element) {return GetHDFDifference(Element.index);}
+    INLINE HDFBlend& GetHDFSmoothUnion(ScalarFieldRef Element) {return GetHDFSmoothUnion(Element.index);}
+    INLINE HDFSmoothUnion& GetHDFSmoothDifference(ScalarFieldRef Element) {return GetHDFSmoothDifference(Element.index);}
+    INLINE HDFTransform& GetTransform(ScalarFieldRef Element) {return GetTransform(Element.index);}
+
+    const SDFSphere& GetSphere(size_t Index) const;
+    const SDFCapsule& GetCapsule(size_t Index) const;
+    const SDFBox& GetBox(size_t Index) const;
+    const SDFTore& GetTore(size_t Index) const;
+    const HDFUnion& GetHDFUnion(size_t Index) const;
+    const HDFIntersection& GetHDFIntersection(size_t Index) const;
+    const HDFDiff& GetHDFDifference(size_t Index) const;
+    const HDFBlend& GetHDFSmoothUnion(size_t Index) const;
+    const HDFSmoothUnion& GetHDFSmoothDifference(size_t Index) const;
+    const HDFTransform& GetTransform(size_t Index) const;
+
+    INLINE const SDFSphere& GetSphere(ScalarFieldRef Element) const {return GetSphere(Element.index);}
+    INLINE const SDFCapsule& GetCapsule(ScalarFieldRef Element) const {return GetCapsule(Element.index);}
+    INLINE const SDFBox& GetBox(ScalarFieldRef Element) const {return GetBox(Element.index);}
+    INLINE const SDFTore& GetTore(ScalarFieldRef Element) const {return GetTore(Element.index);}
+    INLINE const HDFUnion& GetHDFUnion(ScalarFieldRef Element) const {return GetHDFUnion(Element.index);}
+    INLINE const HDFIntersection& GetHDFIntersection(ScalarFieldRef Element) const {return GetHDFIntersection(Element.index);}
+    INLINE const HDFDiff& GetHDFDifference(ScalarFieldRef Element) const {return GetHDFDifference(Element.index);}
+    INLINE const HDFBlend& GetHDFSmoothUnion(ScalarFieldRef Element) const {return GetHDFSmoothUnion(Element.index);}
+    INLINE const HDFSmoothUnion& GetHDFSmoothDifference(ScalarFieldRef Element) const {return GetHDFSmoothDifference(Element.index);}
+    INLINE const HDFTransform& GetTransform(ScalarFieldRef Element) const {return GetTransform(Element.index);}
+
+    ScalarFieldRef Head() const {return m_Head;}
+    void SetHead(ScalarFieldRef Head);
+
+    void RemoveSphere(ScalarFieldRef Element);
+    void RemoveCapsule(ScalarFieldRef Element);
+    void RemoveBox(ScalarFieldRef Element);
+    void RemoveTore(ScalarFieldRef Element);
+    void RemoveHDFUnion(ScalarFieldRef Element);
+    void RemoveHDFIntersection(ScalarFieldRef Element);
+    void RemoveHDFDifference(ScalarFieldRef Element);
+    void RemoveHDFSmoothUnion(ScalarFieldRef Element);
+    void RemoveHDFSmoothDifference(ScalarFieldRef Element);
+    void RemoveTransform(ScalarFieldRef Element);
+
+    void Clear();
+    void ShrinkToFit();
+
 private:
-    ScalarFieldRef m_Head;
+    ScalarFieldRef m_Head = ScalarFieldRef::Null();
     
     // Primitives (leafs)
     ScalarFieldPool<SDFSphere> m_Spheres;
     ScalarFieldPool<SDFCapsule> m_Capsules;
-    ScalarFieldPool<SDFSphere> m_SDFBoxes;
-    ScalarFieldPool<SDFSphere> m_SDFTores;
+    ScalarFieldPool<SDFBox> m_Boxes;
+    ScalarFieldPool<SDFTore> m_Tores;
     
     // Nodes
     ScalarFieldPool<HDFUnion> m_HDFUnions;
     ScalarFieldPool<HDFIntersection> m_HDFIntersections;
-    ScalarFieldPool<HDFBlend> m_HDFBlend;
-    ScalarFieldPool<HDFSmoothUnion> m_HDFSmoothUnions;
+    ScalarFieldPool<HDFDiff> m_HDFDifference;
+    ScalarFieldPool<HDFBlend> m_HDFSmoothUnion;
+    ScalarFieldPool<HDFSmoothUnion> m_HDFSmoothDifferences;
     ScalarFieldPool<HDFTransform> m_HDFTransforms;
     
     // Params

@@ -1,5 +1,7 @@
 #include <cmath>
 
+#include <cstring>
+
 #include "Modeling/Mesh.h"
 
 #include "Shared/Logger.h"

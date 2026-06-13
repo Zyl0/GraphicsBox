@@ -33,6 +33,11 @@ void MeshObject::Data(const Mesh& Mesh)
     {
         UnsetIndexBuffer();
     }
+    ClearVertexGroups();
+    for (const Mesh::VertexGroup& group : Mesh.GetVertexGroups())
+    {
+        AddVertexGroup(group);
+    }
     EndMesh();
 }
 
@@ -165,6 +170,13 @@ void MeshObject::SetVertexGroup(size_t index, const Mesh::VertexGroup& VertexGro
     AssertOrErrorCall(index < m_Groups.size(), return;, "Index out of bounds")
     
     m_Groups[index] = VertexGroup;
+}
+
+void MeshObject::ClearVertexGroups()
+{
+    AssertOrErrorCall(m_EditMode, return;, "Could not perform ClearVertexGroups, Mesh Data object needs to be in edit mode to perform this operation")
+
+    m_Groups.clear();
 }
 
 void MeshObject::EndMesh()

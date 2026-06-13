@@ -22,7 +22,7 @@ struct Image
 
     enum Layout : uint8_t
     {
-        R,
+        R = 0,
         RG,
         RGB,
         BGR,

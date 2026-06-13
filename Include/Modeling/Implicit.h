@@ -2,9 +2,9 @@
 
 #include <optional>
 
-#include "Box.h"
+#include "Math/Vector.h"
+#include "Math/Box.h"
 #include "Mesh.h"
-#include "Vector.h"
 
 class AnalyticScalarField
 {
