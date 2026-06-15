@@ -121,16 +121,26 @@ terminate_glfw_window:
             }
             else
             {
+                m_LastMouseX = m_CurrentMouseX; m_LastMouseY = m_CurrentMouseY;
+                glfwGetCursorPos(window, &m_CurrentMouseX, &m_CurrentMouseY);
+                
+                if (m_IsReduced)
+                {
+                    m_LastMouseX = m_CurrentMouseX; m_LastMouseY = m_CurrentMouseY;
+                }
+                
                 m_ShouldResize = false;
                 m_IsReduced = false;
             
                 if (static_cast<uint32_t>(width) != m_Width || static_cast<uint32_t>(height) != m_Height)
                 {
                     m_ShouldResize = true;
+                    m_LastMouseX = m_CurrentMouseX; m_LastMouseY = m_CurrentMouseY;
                 }
             
                 m_Width = width;
                 m_Height = height;
+                
             }
         }
 #endif // WINDOW_GLFW
@@ -160,6 +170,8 @@ terminate_glfw_window:
     
         return glfwWindowShouldClose(window);
 #endif // WINDOW_GLFW
+        
+        UNIMPLEMENTED_FEATURE
     }
 
     bool Module::HasFocus()
@@ -189,12 +201,31 @@ terminate_glfw_window:
         return RequestShaderReload;
     }
 
+    void Module::GetMousePosition(double& x, double& y) const
+    {
+        x = m_CurrentMouseX;
+        y = m_CurrentMouseY;
+    }
+
+    void Module::GetMousePositionDelta(double& x, double& y) const
+    {
+        x = m_CurrentMouseX - m_LastMouseX;
+        y = m_CurrentMouseY - m_LastMouseY;
+    }
+
 #ifdef WINDOW_GLFW
-    bool Module::GLFWGetKey(int code)
+    bool Module::GLFWGetKey(int code) const
     {
         GLFWwindow* window = (GLFWwindow*)m_Window;
         
-        return glfwGetKey(window, code);
+        return glfwGetKey(window, code) == GLFW_PRESS;
+    }
+
+    bool Module::GLFWGetMouseButton(int code) const
+    {
+        GLFWwindow* window = (GLFWwindow*)m_Window;
+        
+        return glfwGetMouseButton(window, code) == GLFW_PRESS;
     }
 
     void Module::_EnableSubViewport(uint32_t Width, uint32_t Height)

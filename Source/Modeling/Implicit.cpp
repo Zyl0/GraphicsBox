@@ -298,7 +298,8 @@ Vector3d Gradiant(const AnalyticScalarField& ScalarField, const Math::Vector3d& 
     double y = ScalarField.Value(Vector3d(Point[0], Point[1] + Epsilon, Point[2])) - ScalarField.Value(Vector3d(Point[0], Point[1] - Epsilon, Point[2]));
     double z = ScalarField.Value(Vector3d(Point[0], Point[1], Point[2] + Epsilon)) - ScalarField.Value(Vector3d(Point[0], Point[1], Point[2] - Epsilon));
 
-    return Vector3d(x, y, z) * (0.5 / Epsilon);
+    const double div = 0.5 / Epsilon;
+    return Vector3d(x, y, z) * div;
 }
 
 Vector3d Dichotomy(const AnalyticScalarField& ScalarField, Vector3d A, Vector3d B, double va, double vb, double length, double epsilon)
@@ -335,7 +336,6 @@ Vector3d Normal(const AnalyticScalarField& ScalarField, const Math::Vector3d& Po
 Mesh Polygonise(const AnalyticScalarField& ScalarField, const Math::Box3d& Region, size_t Resolution, double epsilon)
 {
     Mesh mesh;
-    mesh.BeginMesh(Mesh::TRIANGLES);
     
     Polygonise(ScalarField, Region, Resolution, mesh, epsilon);
     
@@ -350,23 +350,26 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
     
     std::vector<Point3d> vertex;
     std::vector<Vector3d> normal;
-    std::vector<size_t> triangle;
+    std::vector<int> triangle;
     
     vertex.reserve(ReserveSize);
     normal.reserve(ReserveSize);
     triangle.reserve(ReserveSize);
     
-    size_t nv = 0;
-    const size_t nx = Resolution;
-    const size_t ny = Resolution;
-    const size_t nz = Resolution;
-    const size_t nax = 0;
-    const size_t nbx = nx;
-    const size_t nay = 0;
-    const size_t nby = ny;
-    const size_t naz = 0;
-    const size_t nbz = nz;
-    const size_t size = nx * ny;
+    int nv = 0;
+    const int nx = Resolution;
+    const int ny = Resolution;
+    const int nz = Resolution;
+    
+    // Clamped integer values
+    const int nax = 0;
+    const int nbx = nx;
+    const int nay = 0;
+    const int nby = ny;
+    const int naz = 0;
+    const int nbz = nz;
+    
+    const int size = nx * ny;
     
     // Intensities
     double* a = new double[size];
@@ -377,11 +380,11 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
     Vector3d* v = new Vector3d[size];
     
     // Edges
-    size_t* eax = new size_t[size];
-    size_t* eay = new size_t[size];
-    size_t* ebx = new size_t[size];
-    size_t* eby = new size_t[size];
-    size_t* ez = new size_t[size];
+    int* eax = new int[size];
+    int* eay = new int[size];
+    int* ebx = new int[size];
+    int* eby = new int[size];
+    int* ez = new int[size];
     
     // Diagonal of a cell
     Vector3d d = Region.Diagonal() / Vector3d(static_cast<double>(Resolution) - 1.);
@@ -389,9 +392,9 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
     double za = 0.0;
 
     // Compute field inside lower Oxy plane
-    for (size_t i = nax; i < nbx; i++)
+    for (int i = nax; i < nbx; i++)
     {
-        for (size_t j = nay; j < nby; j++)
+        for (int j = nay; j < nby; j++)
         {
             u[i * ny + j] = Region[0] + Vector3d(i * d[0], j * d[1], za);
             a[i * ny + j] = ScalarField.Value(u[i * ny + j]);
@@ -399,9 +402,9 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
     }
 
     // Compute straddling edges inside lower Oxy plane
-    for (size_t i = nax; i < nbx - 1; i++)
+    for (int i = nax; i < nbx - 1; i++)
     {
-        for (size_t j = nay; j < nby; j++)
+        for (int j = nay; j < nby; j++)
         {
             // We need a xor b, which can be implemented a == !b 
             if (!((a[i * ny + j] < 0.0) == !(a[(i + 1) * ny + j] >= 0.0)))
@@ -414,9 +417,9 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
         }
     }
 
-    for (size_t i = nax; i < nbx; i++)
+    for (int i = nax; i < nbx; i++)
     {
-        for (size_t j = nay; j < nby - 1; j++)
+        for (int j = nay; j < nby - 1; j++)
         {
             if (!((a[i * ny + j] < 0.0) == !(a[i * ny + (j + 1)] >= 0.0)))
             {
@@ -429,15 +432,15 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
     }
 
     // Array for edge vertices
-    size_t e[12];
+    int e[12];
 
     // For all layers
-    for (size_t k = naz; k < nbz; k++)
+    for (int k = naz; k < nbz; k++)
     {
         double zb = za + d[2];
-        for (size_t i = nax; i < nbx; i++)
+        for (int i = nax; i < nbx; i++)
         {
-            for (size_t j = nay; j < nby; j++)
+            for (int j = nay; j < nby; j++)
             {
                 v[i * ny + j] = Region[0] + Vector3d(i * d[0], j * d[1], zb);
                 b[i * ny + j] = ScalarField.Value(v[i * ny + j]);
@@ -445,9 +448,9 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
         }
 
         // Compute straddling edges inside lower Oxy plane
-        for (size_t i = nax; i < nbx - 1; i++)
+        for (int i = nax; i < nbx - 1; i++)
         {
-            for (size_t j = nay; j < nby; j++)
+            for (int j = nay; j < nby; j++)
             {
                 //   if (((b[i*ny + j] < 0.0) && (b[(i + 1)*ny + j] >= 0.0)) || ((b[i*ny + j] >= 0.0) && (b[(i + 1)*ny + j] < 0.0)))
                 if (!((b[i * ny + j] < 0.0) == !(b[(i + 1) * ny + j] >= 0.0)))
@@ -460,9 +463,9 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
             }
         }
 
-        for (size_t i = nax; i < nbx; i++)
+        for (int i = nax; i < nbx; i++)
         {
-            for (size_t j = nay; j < nby - 1; j++)
+            for (int j = nay; j < nby - 1; j++)
             {
                 // if (((b[i*ny + j] < 0.0) && (b[i*ny + (j + 1)] >= 0.0)) || ((b[i*ny + j] >= 0.0) && (b[i*ny + (j + 1)] < 0.0)))
                 if (!((b[i * ny + j] < 0.0) == !(b[i * ny + (j + 1)] >= 0.0)))
@@ -476,9 +479,9 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
         }
 
         // Create vertical straddling edges
-        for (size_t i = nax; i < nbx; i++)
+        for (int i = nax; i < nbx; i++)
         {
-            for (size_t j = nay; j < nby; j++)
+            for (int j = nay; j < nby; j++)
             {
                 // if ((a[i*ny + j] < 0.0) && (b[i*ny + j] >= 0.0) || (a[i*ny + j] >= 0.0) && (b[i*ny + j] < 0.0))
                 if (!((a[i * ny + j] < 0.0) == !(b[i * ny + j] >= 0.0)))
@@ -492,9 +495,9 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
         }
 
         // Create mesh
-        for (size_t i = nax; i < nbx - 1; i++)
+        for (int i = nax; i < nbx - 1; i++)
         {
-            for (size_t j = nay; j < nby - 1; j++)
+            for (int j = nay; j < nby - 1; j++)
             {
                 int cubeindex = 0;
                 if (a[i * ny + j] < 0.0)       cubeindex |= 1;
@@ -553,25 +556,27 @@ void Polygonise(const AnalyticScalarField& ScalarField, const Box3d& Region, siz
     
     // TODO meshes are kind of made of floats, because, rendering maybe harmonize
     // Lower precision here
-    Mesh.EditMesh();
+    Mesh.BeginMesh(Mesh::TRIANGLES);
     Mesh.Clear();
-    for (const auto & v : vertex)
+    for (size_t i = 0; i < vertex.size(); i++)
     {
-        Mesh.AddVertexPosition(Point3f(v[0], v[1], v[2]));
+        const auto& v = vertex[i];
+        Mesh.AddVertexPosition(Point3f(static_cast<float>(v[0]), static_cast<float>(v[1]), static_cast<float>(v[2])));
     }
     
-    for (const auto & n : normal)
+    for (size_t i = 0; i < normal.size(); i++)
     {
-        Mesh.AddVertexNormal(Vector3f(b[0], n[1], n[2]));
+        const auto& n = normal[i];
+        Mesh.AddVertexNormal(Vector3f(static_cast<float>(n[0]), static_cast<float>(n[1]), static_cast<float>(n[2])));
     }
     
     uint32_t IndexCount = 0;
     for (size_t i = 0; i < triangle.size(); i++)
     {
-        size_t n = triangle[i];
+        int n = triangle[i];
         
-        AssertOrErrorCall(n < std::numeric_limits<uint32_t>::max(), break,"Too many vertices")
-        AssertOrErrorCall(i < std::numeric_limits<uint32_t>::max(), break,"Too many vertices")
+        // AssertOrErrorCall(n < std::numeric_limits<uint32_t>::max(), break,"Too many vertices")
+        // AssertOrErrorCall(i < std::numeric_limits<uint32_t>::max(), break,"Too many vertices")
         
         Mesh.AddVertexPolygonIndex(n);
         IndexCount++;

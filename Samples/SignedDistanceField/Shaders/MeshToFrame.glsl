@@ -55,18 +55,20 @@ uniform float gridLineWidth;
 out vec4 OutColor;
 
 void main( )
-{
-    vec3 BaseColor = FragWorldNormal;
+{    
+    vec3 Normal = normalize(FragWorldNormal);
+    vec3 BaseColor = Normal;
 
     if (useGrid != 0)
     {
         vec3 mod = abs(mod(FragWorldPosition, gridSize));
 
         bool IsGridLine = any(lessThan(mod, vec3(min(gridSize, gridLineWidth))));
-        BaseColor = IsGridLine ? vec3(1) - BaseColor : BaseColor;
+        BaseColor = IsGridLine ? mix(vec3(1) - BaseColor, vec3(0.5), 0.5): BaseColor;
     }
 
-    OutColor.xyz += max(dot(FragWorldNormal, lightDirection), 0.0) * lightColor * BaseColor;
+    OutColor.xyz = vec3(0);
+    OutColor.xyz += max(dot(Normal, lightDirection), 0.0) * lightColor * BaseColor;
     OutColor.xyz += ambientColor * BaseColor;
 
     // sRGB OETF encoding

@@ -5,7 +5,7 @@ void OrbiterCamera::LookAt(const Math::Point3f& center, const float size)
 {
     m_center = center;
     Position() = Math::Vector3f(0, 0, 0);
-    m_rotation = Math::Vector3f(0, 180, 0);
+    m_rotation = Math::Vector3f(0, Math::Radians(180.0f), 0);
     m_size = size;
     m_radius = size;
     Rotator = Math::MakeIdentity<float>();
@@ -23,7 +23,7 @@ void OrbiterCamera::SetProjection(int width, int height, const float fov)
 {
     m_width = width;
     m_height = height;
-    m_fov = Math::Radians(fov);
+    m_fov = fov;
 
     UpdateView();
     UpdateProjection();

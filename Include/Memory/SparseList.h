@@ -54,8 +54,8 @@ public:
     size_t Size() const;
     size_t Capacity() const;
     
-    INLINE std::span<const T> Data() const {return std::span<const T>(At(0), sizeof(MemType) * m_Data.size());}
-    INLINE std::span<T> Data() {return std::span<T>(At(0), sizeof(MemType) * m_Data.size());}
+    std::span<const T> Data() const;
+    std::span<T> Data();
     INLINE const std::vector<bool>& Validity() const {return m_Validity;}
     
     void Swap(size_t Index1, size_t Index2);
@@ -355,6 +355,20 @@ template <typename T, bool UseFreeList>
 size_t SparseList<T, UseFreeList>::Capacity() const
 {
     return m_Data.capacity();
+}
+
+template <typename T, bool UseFreeList>
+std::span<const T> SparseList<T, UseFreeList>::Data() const
+{
+    if (m_Data.capacity() == 0) return {};
+    return std::span<const T>(At(0), sizeof(MemType) * m_Data.size());
+}
+
+template <typename T, bool UseFreeList>
+std::span<T> SparseList<T, UseFreeList>::Data()
+{
+    if (m_Data.capacity() == 0) return {};
+    return std::span<T>(At(0), sizeof(MemType) * m_Data.size());
 }
 
 template <typename T, bool UseFreeList>

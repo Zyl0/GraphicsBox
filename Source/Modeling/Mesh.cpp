@@ -652,7 +652,8 @@ void Mesh::GenerateBounds()
 
         for(size_t i = Group.FirstVertex + 1, iend = Group.FirstVertex + Group.VertexCount; i < iend; i++)
         {
-            Math::Point3f p = m_positions[i];
+            Vertex v(*this, i);
+            const Math::Point3f& p = std::as_const(v).Position();
 
             Group.BoundsMin.x = std::min(Group.BoundsMin.x, p.x);
             Group.BoundsMin.y = std::min(Group.BoundsMin.y, p.y);

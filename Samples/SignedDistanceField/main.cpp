@@ -14,6 +14,10 @@
 #include "Modeling/HierarchicalDistanceFields.h"
 #include "Rendering/Rendering.h"
 
+#include <GLFW/glfw3.h>
+
+#include "Camera/OrbiterCamera.h"
+
 using namespace Math;
 
 class AppModule : public Engine::IModule
@@ -32,6 +36,7 @@ public:
     void Initialize() override
     {
         Window::Module* Window = Engine::GetModule<Window::Module>(Context());
+        
         uint32_t Width, Height;
         IGNORE_RETURN Window->GetFrameBufferSize(Width, Height);
 
@@ -39,19 +44,20 @@ public:
         m_FOV = 45.0f;
         m_ZNear = 0.15f;
         m_ZFar = 10.0f;
-        m_Camera.SetProjection(Width, Height, Radians(m_FOV), m_ZNear, m_ZFar);
-        m_Camera.SetTranslation(0, 0, 0);
-        m_Camera.SetRotationDegrees(0,0);
+        m_Camera.SetProjection(Width, Height, Radians(m_FOV)); // , m_ZNear, m_ZFar
+        // m_Camera.SetTranslation(-3, 0, 0);
+        // m_Camera.SetRotationDegrees(0,0);
+        m_Camera.LookAt(Point3f(0), 3.0f);
         m_SDFSamplingVolume = Math::Box3d(1.0f);
-        m_SDFSamplingResolution = 50;
+        m_SDFSamplingResolution = 100;
         m_LightColor = {1.0f, 0.97f, 0.9f};
         m_LightDirection = Normalize(Math::Vector3f(.1, .9, .2));
         m_LightIntensity = 3.0f;
         m_AmbientColor = {0.7f, 0.78f, 1.0f};
-        m_AmbientIntensity = 1.2;
+        m_AmbientIntensity = 1.2f;
         m_UseGrid = 1;
-        m_GridLineWidth = 0.05;
-        m_GridSize = 0.2;
+        m_GridLineWidth = 0.01f;
+        m_GridSize = 0.2f;
 
         // Initialize rendering resources
         m_SamplePipeline.emplace(PipelineFromFile("Draw mesh", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToFrame.glsl"));
@@ -78,8 +84,18 @@ public:
         uint32_t Width, Height;
         if (Window->GetFrameBufferSize(Width, Height))
         {
-            m_Camera.SetProjection(Width, Height, Radians(m_FOV), m_ZNear, m_ZFar);
+            m_Camera.SetProjection(Width, Height, Radians(m_FOV));
         }
+        
+        double DeltaX, DeltaY;
+        Window->GetMousePositionDelta(DeltaX, DeltaY);
+        if (Window->GLFWGetMouseButton(GLFW_MOUSE_BUTTON_LEFT))
+        {
+            // m_Camera.RotateDegrees(DeltaY, DeltaX);
+            m_Camera.Rotate(Math::Radians(DeltaY), Math::Radians(DeltaX), 0);
+        }
+        
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         Bind(*m_SamplePipeline);
         Bind(m_MeshObject->GetVAO());
@@ -97,7 +113,20 @@ public:
 
         // Draw screen quad
         const Mesh::VertexGroup& Group = m_MeshObject->GetGroups()[0]; // Sampled distance field should be only made of one group
-        glDrawArrays(GL_TRIANGLES, Group.FirstVertex, Group.VertexCount);
+        if (m_MeshObject->GetIndexBuffer().has_value())
+        {
+            const IndexBuffer& indexBuffer = m_MeshObject->GetIndexBuffer().value();
+            Bind(indexBuffer);
+            
+            glDrawElements(ToGLGeometryType(m_MeshObject->GetVertexType()), Group.VertexCount, ToGLIndexType(indexBuffer.GetIndexType()), (void*)(Group.FirstVertex * ToGLIndexSize(indexBuffer.GetIndexType())));
+            
+            UnBind(indexBuffer);
+        }
+        else
+        {
+            glDrawArrays(ToGLGeometryType(m_MeshObject->GetVertexType()), Group.FirstVertex, Group.VertexCount);
+        }
+        
 
         UnBind(m_MeshObject->GetVAO());
         UnBind(*m_SamplePipeline);
@@ -128,7 +157,14 @@ public:
         m_DistanceFieldTree.Clear();
         m_DistanceFieldTree.ShrinkToFit();
 
-        m_DistanceFieldTree.SetHead(m_DistanceFieldTree.AddSphere());
+        m_DistanceFieldTree.SetHead(
+            m_DistanceFieldTree.AddSphere()
+        
+            // m_DistanceFieldTree.AddHDFSmoothUnion(
+            // m_DistanceFieldTree.AddSphere(),
+            // m_DistanceFieldTree.AddSphere(0.5, Math::Vector3d(0,1,0))
+            // )    
+        );
     }
 
 private:
@@ -150,7 +186,7 @@ private:
     // Rendering data (CPU)
     Mesh m_Mesh;
     HDFTree m_DistanceFieldTree;
-    FlyCamera m_Camera;
+    OrbiterCamera m_Camera;
 
     // Rendering objects
     std::optional<Pipeline> m_SamplePipeline;

@@ -36,13 +36,17 @@ namespace Window
 
         bool ShouldRecompileShaders();
         
+        void GetMousePosition(double& x, double& y) const;
+        void GetMousePositionDelta(double& x, double& y) const;
+        
         INLINE GLuint ViewportFrameBuffer() const {return m_IsCurrentViewportSubViewport ? SubViewportFrameBuffer() : MainWindowFrameBuffer();}
         INLINE GLuint MainWindowFrameBuffer() const {return 0;}
         INLINE GLuint SubViewportFrameBuffer() const {return m_SubViewportFrameBuffer.has_value() ? m_SubViewportFrameBuffer->Handle() : 0;}
         INLINE GLuint SubViewportWriteBuffer() const {return m_SubViewportWriteBuffer.has_value() ? m_SubViewportWriteBuffer->Handle() : 0;}
         
 #ifdef WINDOW_GLFW
-        bool GLFWGetKey(int code);
+        bool GLFWGetKey(int code) const;
+        bool GLFWGetMouseButton(int code) const;
 #endif // WINDOW_GLFW
 
         INLINE void* _Handle() {return m_Window;}
@@ -55,6 +59,7 @@ namespace Window
     private:
         void* m_Window;
         uint32_t m_Width, m_Height;
+        double m_CurrentMouseX, m_CurrentMouseY, m_LastMouseX, m_LastMouseY;
         bool m_IsReduced;
         bool m_ShouldResize;
         
