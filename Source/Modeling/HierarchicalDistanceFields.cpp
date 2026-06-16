@@ -8,37 +8,37 @@ static double G(double a, double b, double r = 0.25)
 
 double HDFUnion::Value(const Math::Vector3d& v) const
 {
-    return std::min(LeftSon().Value(v), LeftSon().Value(v));
+    return std::min(LeftSon().Value(v), RightSon().Value(v));
 }
 
 double HDFUnion::CachedValue() const
 {
-    return std::min(LeftSon().CachedValue(), LeftSon().CachedValue());
+    return std::min(LeftSon().CachedValue(), RightSon().CachedValue());
 }
 
 double HDFIntersection::Value(const Math::Vector3d& v) const
 {
-    return std::max(LeftSon().Value(v), LeftSon().Value(v));
+    return std::max(LeftSon().Value(v), RightSon().Value(v));
 }
 
 double HDFIntersection::CachedValue() const
 {
-    return std::max(LeftSon().CachedValue(), LeftSon().CachedValue());
+    return std::max(LeftSon().CachedValue(), RightSon().CachedValue());
 }
 
 double HDFDiff::Value(const Math::Vector3d& v) const
 {
-    return std::max(LeftSon().Value(v), -(LeftSon().Value(v)));
+    return std::max(LeftSon().Value(v), -(RightSon().Value(v)));
 }
 
 double HDFDiff::CachedValue() const
 {
-    return std::max(LeftSon().CachedValue(), -(LeftSon().CachedValue()));
+    return std::max(LeftSon().CachedValue(), -(RightSon().CachedValue()));
 }
 
 double HDFBlend::Value(const Math::Vector3d& v) const
 {
-    double a = LeftSon().Value(v), b = LeftSon().Value(v);
+    double a = LeftSon().Value(v), b = RightSon().Value(v);
     
     double g = G(a, b, radius);
 
@@ -47,7 +47,7 @@ double HDFBlend::Value(const Math::Vector3d& v) const
 
 double HDFBlend::CachedValue() const
 {
-    double a = LeftSon().CachedValue(), b = LeftSon().CachedValue();
+    double a = LeftSon().CachedValue(), b = RightSon().CachedValue();
     
     double g = G(a, b, radius);
 
@@ -56,7 +56,7 @@ double HDFBlend::CachedValue() const
 
 double HDFSmoothUnion::Value(const Math::Vector3d& v) const
 {
-    double a = LeftSon().Value(v), b = -(LeftSon().Value(v));
+    double a = LeftSon().Value(v), b = -(RightSon().Value(v));
     
     double g = G(a, b, radius);
 
@@ -65,7 +65,7 @@ double HDFSmoothUnion::Value(const Math::Vector3d& v) const
 
 double HDFSmoothUnion::CachedValue() const
 {
-    double a = LeftSon().CachedValue(), b = -(LeftSon().CachedValue());
+    double a = LeftSon().CachedValue(), b = -(RightSon().CachedValue());
     
     double g = G(a, b, radius);
 

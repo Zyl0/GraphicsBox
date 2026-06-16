@@ -92,7 +92,7 @@ public:
         if (Window->GLFWGetMouseButton(GLFW_MOUSE_BUTTON_LEFT))
         {
             // m_Camera.RotateDegrees(DeltaY, DeltaX);
-            m_Camera.Rotate(Math::Radians(DeltaY), Math::Radians(DeltaX), 0);
+            m_Camera.Rotate(Math::Radians(DeltaX), Math::Radians(DeltaY), 0);
         }
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

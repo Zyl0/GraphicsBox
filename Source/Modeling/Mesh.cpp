@@ -4,6 +4,8 @@
 
 #include "Modeling/Mesh.h"
 
+#include <utility>
+
 #include "Shared/Logger.h"
 #include "Shared/Assertion.h"
 
