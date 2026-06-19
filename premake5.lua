@@ -18,6 +18,7 @@ gb_IncludeDir =                path.join(gb_SolutionDir, "Include")
 gb_SrcDir =                    path.join(gb_SolutionDir, "Source")
     gb_LibsImplementDir =      path.join(gb_SrcDir, "Libs")
 gb_SamplesDir =                path.join(gb_SolutionDir, "Samples")
+gb_TempDir =                   path.join(gb_SolutionDir, "Temp")
 gb_SolutionProjectDir =        path.join(gb_SolutionDir, "Solution")
 
 -- Windowing default API, todo setup differently
@@ -715,6 +716,10 @@ group "Samples"
         "ShadowMapping"
     }
 
+    if not os.isdir(gb_TempDir) then
+        os.mkdir(gb_TempDir)
+    end
+
     for i, name in ipairs(SampleProjects) do
         project (name)
             language "C++"
@@ -724,7 +729,8 @@ group "Samples"
                 "RESOURCES_GLOBAL=\"" .. path.join(gb_SamplesDir, "MiniEngine", "Resources") .. "\"",
                 "SHADERS_GLOBAL=\"" .. path.join(gb_SamplesDir, "MiniEngine", "Shaders") .. "\"",
                 "RESOURCES_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Resources") .. "\"",
-                "SHADERS_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Shaders") .. "\""
+                "SHADERS_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Shaders") .. "\"",
+                "TEMP_DIR=\"" .. path.join(gb_TempDir, name) .. "\""
             }
         
             if _OPTIONS["sample-scenes"] then
