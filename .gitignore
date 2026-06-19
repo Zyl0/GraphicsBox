@@ -7,6 +7,7 @@
 
 # Premake
 Premake
+premake-config.lua
 
 # Project files
 Solution
@@ -30,3 +31,6 @@ Intermediates
 
 # Sample content
 Samples/Scenes
+
+# optional dependencies
+Dependencies/Tools/shaderc

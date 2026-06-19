@@ -12,6 +12,7 @@ gb_SolutionDir =               path.getabsolute(".")
 gb_DependencyDir =             path.join(gb_SolutionDir, "Dependencies")
     gb_CompiledDependencyDir = path.join(gb_DependencyDir, "Libs")
     gb_SourceDependencyDir =   path.join(gb_DependencyDir, "LibSources")
+    gb_ToolsDependencyDir =     path.join(gb_DependencyDir, "Tools")
 gb_IntermediatesDir =          path.join(gb_SolutionDir, "Intermediates")
 gb_OutputDir =                 path.join(gb_SolutionDir, "Binaries")
 gb_IncludeDir =                path.join(gb_SolutionDir, "Include")
@@ -21,30 +22,25 @@ gb_SamplesDir =                path.join(gb_SolutionDir, "Samples")
 gb_TempDir =                   path.join(gb_SolutionDir, "Temp")
 gb_SolutionProjectDir =        path.join(gb_SolutionDir, "Solution")
 
--- Windowing default API, todo setup differently
-newoption {
-   trigger = "window",
-   value = "API",
-   description = "Windowing system used",
-   allowed = {
-      { "glfw",  "GLFW" },
-      { "sdl2",  "Simple DIrectMedia Library 2" },
-      { "sdl3",  "Simple DIrectMedia Library 3" }
-   },
-   default = "glfw"
+-- Sample scenes
+SampleScencesRepos = {
+    {
+        name = "glTF-Sample-Assets",
+        url = "https://github.com/KhronosGroup/glTF-Sample-Assets.git"
+    },
+    {
+        name = "RTXDI-Assets",
+        url = "https://github.com/NVIDIA-RTX/RTXDI-Assets.git"
+    },
 }
 
--- Sample projects
-newoption {
-   trigger = "samples",
-   description = "Generate sample projects. Download sample assets. Etc"
-}
+if os.isfile("premake-config.lua") then
+    include("premake-config.lua")
+else
+    include("premake-config-default.lua")
+end
 
--- Sample projects
-newoption {
-   trigger = "sample-scenes",
-   description = "Download sample scene and content for demonstration"
-}
+include("premake-actions.lua")
 
 -- Sample projects
 newoption {
@@ -276,26 +272,29 @@ end
         }
 
         -- Window specific code
-        filter { "options:window=glfw" }
+        if gbWindowAPI == "glfw" then
             files {
                 path.join(project_dir, "backends", "imgui_impl_glfw.h"),
                 path.join(project_dir, "backends", "imgui_impl_glfw.cpp")
             }
-            filter { "system:windows" , "options:window=glfw" }
+            filter { "system:windows" }
                 includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
-        filter { "options:window=sdl2" }
+            filter { "" }
+        end
+        if gbWindowAPI == "sdl2" then
             includedirs (path.join(gb_CompiledDependencyDir, "SDL2", "include"))
             files {
                 path.join(project_dir, "backends", "imgui_impl_sdl2.h"),
                 path.join(project_dir, "backends", "imgui_impl_sdl2.cpp")
             }
-        filter { "options:window=sdl3" }
+        end
+        if gbWindowAPI == "sdl3" then
             includedirs (path.join(gb_CompiledDependencyDir, "SDL3", "include"))
             files {
                 path.join(project_dir, "backends", "imgui_impl_sdl3.h"),
                 path.join(project_dir, "backends", "imgui_impl_sdl3.cpp")
             }
-        filter { "" }
+        end            
     
         defines { 
             "GLEW_STATIC"
@@ -560,6 +559,11 @@ group "Utilites"
 
         links { "Image" }
         
+        if gbUseSpirV then
+            includedirs { path.join(gb_ToolsDependencyDir, "shaderc", "libshaderc", "include") }
+            links { "shaderc" }
+        end
+        
         filter {"system:linux"}
             -- OpenGL, GLFW and GLEW includes are provided by the system
             links { "GLEW", "GL" }
@@ -578,7 +582,7 @@ group "Utilites"
             -- Linking GLFW and GLEW libraries
             links { "opengl32", "glew32" }
 
-if _OPTIONS["samples"] then
+if gbUseSamples then
 group "Samples"    
     project "MiniEngine"
         language "C++"
@@ -638,40 +642,40 @@ group "Samples"
         }
 
         -- Window specific 
-        if _OPTIONS["window"] == "glfw" then
+        if gbWindowAPI== "glfw" then
             defines ("WINDOW_GLFW")
             filter { "system:windows" , "options:window=glfw" }
                 includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
             filter {}
         end
-        if _OPTIONS["window"] == "sdl2" then
+        if gbWindowAPI== "sdl2" then
             defines ("WINDOW_SDL2")
             includedirs (path.join(gb_CompiledDependencyDir, "SDL2", "include"))
         end
-        if _OPTIONS["window"] == "sdl3" then
+        if gbWindowAPI== "sdl3" then
             defines ("WINDOW_SDL3")
             includedirs (path.join(gb_CompiledDependencyDir, "SDL3", "include"))
         end
 
         -- Window specific 
-        if _OPTIONS["window"] == "glfw" then
+        if gbWindowAPI== "glfw" then
             filter {"system:linux"}
                 -- OpenGL, GLFW and GLEW includes are provided by the system -- TODO
                 links { "glfw" }
 
-            filter {"options:window=glfw", "system:windows"}
+            filter {"system:windows"}
                 -- Link directories for GLFW and GLEW libraries
                 libdirs (path.join(gb_CompiledDependencyDir, "GLFW", "win64")) 
 
                 -- Linking GLFW and GLEW libraries
                 links { "glfw3" }
         end
-        if _OPTIONS["window"] == "sdl2" then
+        if gbWindowAPI== "sdl2" then
             filter {"system:linux"}
                 -- OpenGL, GLFW and GLEW includes are provided by the system
                 -- todo links { "glfw", "GLEW", "GL" }
 
-            filter {"options:window=sdl2", "system:windows"}
+            filter {"system:windows"}
                 -- Link directories for GLFW and GLEW libraries
                 libdirs ( path.join(gb_CompiledDependencyDir, "SDL2", "win64") )
 
@@ -685,12 +689,12 @@ group "Samples"
                 -- Linking GLFW and GLEW libraries
                 links { "SDL2" }
         end
-        if _OPTIONS["window"] == "sdl3" then
+        if gbWindowAPI== "sdl3" then
             filter {"system:linux"}
                 -- OpenGL, GLFW and GLEW includes are provided by the system
                 -- todo links { "glfw", "GLEW", "GL" }
 
-            filter {"options:window=sdl3", "system:windows"}
+            filter {"system:windows"}
                 -- Link directories for GLFW and GLEW libraries
                 libdirs ( path.join(gb_CompiledDependencyDir, "SDL3", "win64") )
 
@@ -711,6 +715,10 @@ group "Samples"
         "GLTFViewer",
         "MiniEngineSample",
         "PBR",
+        "RayTracingBase",
+        "RayTracingBVH",
+        "RayTracingCompute",
+        "RayTracingComputeBVH",
         "SpectralRendering",
         "SignedDistanceField",
         "ShadowMapping"
@@ -733,7 +741,7 @@ group "Samples"
                 "TEMP_DIR=\"" .. path.join(gb_TempDir, name) .. "\""
             }
         
-            if _OPTIONS["sample-scenes"] then
+            if gbUseSampleScenes then
                 defines {
                     "RESOURCES_SAMPLE_SCENES=\"" .. path.join(gb_SamplesDir, "Scenes") .. "\"",
                 }
@@ -764,17 +772,17 @@ group "Samples"
             }
         
             -- Window specific 
-            if _OPTIONS["window"] == "glfw" then
+            if gbWindowAPI== "glfw" then
                 defines ("WINDOW_GLFW")
                 filter { "system:windows" }
                     includedirs (path.join(gb_CompiledDependencyDir, "GLFW", "include"))
                 filter {}
             end
-            if _OPTIONS["window"] == "sdl2" then
+            if gbWindowAPI== "sdl2" then
                 defines ("WINDOW_SDL2")
                 includedirs (path.join(gb_CompiledDependencyDir, "SDL2", "include"))
             end
-            if _OPTIONS["window"] == "sdl3" then
+            if gbWindowAPI== "sdl3" then
                 defines ("WINDOW_SDL3")
                 includedirs (path.join(gb_CompiledDependencyDir, "SDL3", "include"))
             end
@@ -808,75 +816,21 @@ group "Samples"
                 }
 
                 -- Window specific 
-                if _OPTIONS["window"] == "glfw" then
+                if gbWindowAPI== "glfw" then
                     -- OpenGL, GLFW and GLEW includes are provided by the system -- TODO
                     links { "glfw" }
 
                 end
-                if _OPTIONS["window"] == "sdl2" then
+                if gbWindowAPI== "sdl2" then
                     -- OpenGL, GLFW and GLEW includes are provided by the system
                     -- todo links { "glfw", "GLEW", "GL" }
                         
                 end
-                if _OPTIONS["window"] == "sdl3" then
+                if gbWindowAPI== "sdl3" then
                     -- OpenGL, GLFW and GLEW includes are provided by the system
                     -- todo links { "glfw", "GLEW", "GL" }
                 end
             filter { "" }
     end
 
-end
-
-if _OPTIONS["sample-scenes"] then
-    SampleScencesRepos = {
-        {
-            name = "glTF-Sample-Assets",
-            url = "https://github.com/KhronosGroup/glTF-Sample-Assets.git"
-        },
-        {
-            name = "RTXDI-Assets",
-            url = "https://github.com/NVIDIA-RTX/RTXDI-Assets.git"
-        },
-    }
-    
-    local resourcesDir = path.join(gb_SamplesDir, "Scenes")
-    
-    print("[sample-assets] Checking Resources folder...")
-
-    if not os.isdir(resourcesDir) then
-        print("[sample-assets] Creating '" .. resourcesDir .. "' directory...")
-        os.mkdir(resourcesDir)
-    end
-
-    for _, repo in ipairs(SampleScencesRepos) do
-        local repoDir = resourcesDir .. "/" .. repo.name
-
-        print("\n[sample-assets] Processing: " .. repo.name)
-
-        if not os.isdir(repoDir .. "/.git") then
-            print("[sample-assets] Cloning " .. repo.url .. " into " .. repoDir .. " ...")
-            local result = os.execute("git clone " .. repo.url .. " " .. repoDir)
-            print(result)
-            if result ~= true then
-                error("[sample-assets] ERROR: git clone failed for " .. repo.name)
-            else
-                print("[sample-assets] Clone complete: " .. repo.name)
-            end
-        else
-            print("[sample-assets] Already cloned. Fetching updates for " .. repo.name .. "...")
-            local fetch = os.execute("git -C " .. repoDir .. " fetch")
-            if fetch ~= true then
-                error("[sample-assets] ERROR: git fetch failed for " .. repo.name)
-            end
-
-            local pull = os.execute("git -C " .. repoDir .. " pull")
-            if pull ~= true then
-                error("[sample-assets] ERROR: git pull failed for " .. repo.name)
-            end
-
-            print("[sample-assets] Updated: " .. repo.name)
-        end
-    end
-
-    print("\n[sample-assets] All repositories processed.")
 end
