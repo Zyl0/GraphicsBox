@@ -24,8 +24,13 @@ newoption {
 }
 
 newoption {
-    trigger = "SpirV",
-    description = "Use SpirV for shaders. Compiling shaders from source code will require a shader compiler that would be downloaded in setup phase"    
+    trigger = "shaderc",
+    description = "Use shaderc to compile glsl shaders to Spir-V shaders. Compiling shaders from source code will require the shaderc compiler that would be downloaded in setup phase"    
+}
+
+newoption {
+   trigger = "breakpoints",
+   description = "Enable assertions throwing breakpoints"
 }
 
 function GetCoreCount()
@@ -119,7 +124,7 @@ function UpdateShaderCompiler()
     end
 
     if valid ~= true then
-        gbUseSpirV = false
+        gbUseShaderc = false
         return
     end
 
@@ -130,7 +135,7 @@ function UpdateShaderCompiler()
        local getDeps = os.execute("python " .. path.join(path.getabsolute("."), "utils", "git-sync-deps"))
        if getDeps ~= true then
            error("[shaderc] ERROR: Could not get dependencies")
-           gbUseSpirV = false
+           gbUseShaderc = false
            os.chdir(gb_SolutionDir)
            return
        end
@@ -138,13 +143,13 @@ function UpdateShaderCompiler()
         local getDeps = os.execute(path.join(path.getabsolute("."), "utils", "git-sync-deps"))
         if getDeps ~= true then
             error("[shaderc] ERROR: Could not get dependencies")
-            gbUseSpirV = false
+            gbUseShaderc = false
             os.chdir(gb_SolutionDir)
             return
         end
     elseif os.host() == "macosx" then
         error("[shaderc] ERROR: unsupportd platform")
-        gbUseSpirV = false
+        gbUseShaderc = false
         os.chdir(gb_SolutionDir)
         return
     end
@@ -170,11 +175,11 @@ function UpdateShaderCompiler()
         os.chdir(path.join(gb_OutputDir, cfg, "shaderc"))
 
         if os.host() == "windows" then
-            print("[shaderc] Generatin CMake project >" .. "cmake ".. shadercDir)
-            local genCmake = os.execute("cmake ".. shadercDir)
+            print("[shaderc] Generatin CMake project >" .. "cmake -S ".. shadercDir .. " -DSHADERC_ENABLE_SHARED_CRT=ON")
+            local genCmake = os.execute("cmake -S ".. shadercDir .. "  -DSHADERC_ENABLE_SHARED_CRT=ON")
             if genCmake ~= true then
                 error("[shaderc] ERROR: Could not generate cmake project")
-                gbUseSpirV = false
+                gbUseShaderc = false
                 os.chdir(gb_SolutionDir)
                 return
             end
@@ -183,7 +188,7 @@ function UpdateShaderCompiler()
             local build = os.execute("cmake --build . --config ".. CmakeConfigs[cfgIndex] .. " -j " .. GetCoreCount() ..  " --target shaderc")
             if build ~= true then
                 error("[shaderc] ERROR: Failed to compile/link project")
-                gbUseSpirV = false
+                gbUseShaderc = false
                 os.chdir(gb_SolutionDir)
                 return
             end
@@ -192,7 +197,7 @@ function UpdateShaderCompiler()
             build = os.execute("cmake --build . --config ".. CmakeConfigs[cfgIndex] .. " -j " .. GetCoreCount() ..  " --target shaderc_combined")
             if build ~= true then
                 error("[shaderc] ERROR: Failed to compile/link project")
-                gbUseSpirV = false
+                gbUseShaderc = false
                 os.chdir(gb_SolutionDir)
                 return
             end
@@ -202,7 +207,7 @@ function UpdateShaderCompiler()
             local genCmake = os.execute("cmake -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=" .. CmakeConfigs[cfgIndex] .. " " .. shadercDir)
             if genCmake ~= true then
                 error("[shaderc] ERROR: Could not generate cmake project")
-                gbUseSpirV = false
+                gbUseShaderc = false
                 os.chdir(gb_SolutionDir)
                 return
             end
@@ -211,19 +216,19 @@ function UpdateShaderCompiler()
             local build = os.execute("make shaderc -j " .. GetCoreCount())
             if build ~= true then
                 error("[shaderc] ERROR: Failed to compile/link project")
-                gbUseSpirV = false
+                gbUseShaderc = false
             end
         
             print("[shaderc] Building project >" .. "make shaderc_combined -j " .. GetCoreCount())
             build = os.execute("make shaderc_combined -j " .. GetCoreCount())
             if build ~= true then
                 error("[shaderc] ERROR: Failed to compile/link project")
-                gbUseSpirV = false
+                gbUseShaderc = false
             end
 
         elseif os.host() == "macosx" then
             error("[shaderc] ERROR: unsupportd platform")
-            gbUseSpirV = false
+            gbUseShaderc = false
         end
     
         -- local res, err = os.copyfile(
@@ -258,7 +263,7 @@ function UpdateShaderCompiler()
         os.chdir(gb_SolutionDir)
     end
     
-    gbUseSpirV = true
+    gbUseShaderc = true
 end
 
 function UpdateConfig()
@@ -266,7 +271,8 @@ function UpdateConfig()
     
     f:write("gbUseSamples = " .. tostring(gbUseSamples) .. "\n")
     f:write("gbUseSampleScenes = " .. tostring(gbUseSampleScenes) .. "\n")
-    f:write("gbUseSpirV = " .. tostring(gbUseSpirV) .. "\n")
+    f:write("gbUseShaderc = " .. tostring(gbUseShaderc) .. "\n")
+    f:write("gbUseBreakpoints = " .. tostring(gbUseBreakpoints) .. "\n")
     f:write("gbWindowAPI = \"" .. gbWindowAPI .. "\"\n")
     
     f:close();
@@ -288,7 +294,7 @@ newaction {
     trigger = "update-SpirV",
     description = "project setup",
     execute = function ()        
-        if gbUseSpirV == true then
+        if gbUseShaderc == true then
             UpdateShaderCompiler()
         end
     
@@ -302,13 +308,14 @@ newaction {
     execute = function ()        
         gbUseSamples = _OPTIONS["samples"] ~= nil;
         gbUseSampleScenes = _OPTIONS["sample-scenes"] ~= nil;
-        gbUseSpirV = _OPTIONS["SpirV"] ~= nil;
+        gbUseShaderc = _OPTIONS["shaderc"] ~= nil;
+        gbUseBreakpoints = _OPTIONS["breakpoints"] ~= nil;
         gbWindowAPI = _OPTIONS["window"]
         
         if gbUseSampleScenes == true then
             UpdateSampleScenes()
         end
-        if gbUseSpirV == true then
+        if gbUseShaderc == true then
             UpdateShaderCompiler()
         end
         

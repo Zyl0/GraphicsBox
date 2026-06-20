@@ -1,4 +1,5 @@
 gbUseSamples = false;
 gbUseSampleScenes = false;
-gbUseSpirV = false;
+gbUseShaderc = false;
+gbUseBreakpoints = false;
 gbWindowAPI = "glfw"

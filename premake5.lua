@@ -42,12 +42,6 @@ end
 
 include("premake-actions.lua")
 
--- Sample projects
-newoption {
-   trigger = "breakpoints",
-   description = "Enable assertions throwing breakpoints"
-}
-
 solution "GraphicsBox"
     configurations { "Debug", "Development", "Release" }
     debugdir ( gb_SolutionDir )
@@ -127,8 +121,6 @@ solution "GraphicsBox"
         defines { "NOMINMAX" } -- allow std::min() and std::max() in vc++ :(((
 
         defines ("PLATFORM_WINDOWS")
-
-        --staticruntime "On"
 
         buildoptions{ "/Zc:__cplusplus"}
     
@@ -559,9 +551,10 @@ group "Utilites"
 
         links { "Image" }
         
-        if gbUseSpirV then
+        if gbUseShaderc then
             includedirs { path.join(gb_ToolsDependencyDir, "shaderc", "libshaderc", "include") }
             links { "shaderc" }
+            defines { "USE_SHADER_C" }
         end
         
         filter {"system:linux"}
