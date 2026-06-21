@@ -12,7 +12,9 @@ deprecated flag usage warnings depending on your version of Premake.)
    - ```--samples``` to generate the samples projects
    - ```--sample-scenes``` to generate the samples projects
    - ```--breakpoints``` to generate the samples projects
-   - ```--shaderc``` when compiling shader from source code, will use shaderc to compile to Spir-V. This will download and compile the shaderc shader compiler.
+   - ```--shaderc``` when compiling shader from source code, will use shaderc to shader source code compile to Spir-V. 
+   This will download and compile the shaderc shader compiler. This requires a toolset to be specified using ```--dependencies-toolset=...```.
+   - ```--dependencies-toolset=<toolset>``` toolset used to compile third party library during setup phase.
 
 ## Windows (using Visual studio) 
 

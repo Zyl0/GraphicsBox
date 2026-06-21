@@ -33,6 +33,21 @@ newoption {
    description = "Enable assertions throwing breakpoints"
 }
 
+newoption {
+   trigger = "dependencies-toolset",
+   value = "compiler",
+   description = "Toolset used to compile dependencies. \"unset\" by default",
+   allowed = {
+      { "unset",  "Will use vs2022 or clang-21 depending on if host is windows or linux" },
+      { "vs2022",  "(Windows) Microsoft Visual Studio 2022" },
+      { "vs2026",  "(Windows) Microsoft Visual Studio 2026" },
+      { "gcc",  "(Linux) GNU C Compiler. Using platform's default version" },
+      { "clang",  "LLVM CLang Compiler. Using platform's default version" },
+      { "clang-21",  "GNU C Compiler version 21" },
+   },
+   default = "unset"
+}
+
 function GetCoreCount()
     if os.host() == "windows" then
         return tonumber(os.getenv("NUMBER_OF_PROCESSORS")) or 1
@@ -44,6 +59,50 @@ function GetCoreCount()
     end
 
     return 1
+end
+
+function GetDependenciesProjectPath()
+    depPath = nil
+    
+    if (_ACTION == "setup" or _ACTION:startswith("update")) then
+        if _OPTIONS["dependencies-toolset"] == "unset" then
+            error("[path] ERROR: unsupportd platform. Please specify a valid toolset using -dependencies-toolset=<...>. See help for more details.")
+        end
+    
+        -- if os.host() == "windows" then
+        --     if _OPTIONS["unset"] then
+        --         depPath = gb_IntermediatesDepsDir
+        --     end
+        -- elseif os.host() == "linux" then
+        --     depPath = gb_IntermediatesDepsDir
+        -- else
+        --     error("[path] ERROR: unsupportd platform")
+        -- end
+        
+        local res, err = os.mkdir(gb_IntermediatesDepsDir)
+        if res == nil then
+            error(err)
+        end
+    
+        res, err = os.mkdir(path.join(gb_IntermediatesDepsDir, _OPTIONS["dependencies-toolset"]))
+        if res == nil then
+            error(err)
+        end
+    
+        depPath = path.join(gb_IntermediatesDepsDir, _OPTIONS["dependencies-toolset"])
+        
+    -- Project generation
+    elseif _ACTION:startswith("vs") then
+        depPath = path.join(gb_IntermediatesDepsDir, _ACTION)
+    elseif _ACTION:startswith("gmake") then
+        depPath = path.join(gb_IntermediatesDepsDir, _gb_linux_toolset)
+    elseif _ACTION == "cmake" then
+        depPath = path.join(gb_IntermediatesDepsDir, gb_linux_toolset)
+    else
+        error("[path] ERROR: Unsupported action")
+    end
+
+    return depPath
 end
 
 function UpdateSampleScenes()
@@ -154,38 +213,47 @@ function UpdateShaderCompiler()
         return
     end
     
-    -- Ensure file exist
-    print("[shaderc] creating bin folder")
-    os.mkdir(gb_OutputDir)
-
     -- 3 Compile the project
     print("[shaderc] Building project")
+    local targetProjectPath = path.join(GetDependenciesProjectPath(), "shaderc")
+    if not os.isdir(targetProjectPath) then
+        os.mkdir(targetProjectPath)
+    end
+    os.chdir(targetProjectPath)
     local Configs = { "Debug", "Development", "Release" }
     local CmakeConfigs = { "Debug", "RelWithDebInfo", "Release" }
-    for cfgIndex, cfg in ipairs(Configs) do
-        
-        print("[shaderc] creating bin/cfg folder")
-        local res, err = os.mkdir(path.join(gb_OutputDir, cfg))
-        if res == nil then
-            error(err)
+    if not os.isdir(gb_OutputDir) then
+        os.mkdir(gb_OutputDir)
+    end
+    for _, cfg in ipairs(Configs) do
+        if not os.isdir(path.join(gb_OutputDir, cfg)) then
+            os.mkdir(path.join(gb_OutputDir, cfg))
         end
-        print("[shaderc] creating target bin folder")
-        os.mkdir(path.join(gb_OutputDir, cfg, "shaderc"))
-        
-        os.chdir(path.join(gb_OutputDir, cfg, "shaderc"))
-
-        if os.host() == "windows" then
-            print("[shaderc] Generatin CMake project >" .. "cmake -S ".. shadercDir .. " -DSHADERC_ENABLE_SHARED_CRT=ON")
-            local genCmake = os.execute("cmake -S ".. shadercDir .. "  -DSHADERC_ENABLE_SHARED_CRT=ON")
-            if genCmake ~= true then
-                error("[shaderc] ERROR: Could not generate cmake project")
-                gbUseShaderc = false
-                os.chdir(gb_SolutionDir)
-                return
-            end
-        
-            print("[shaderc] Building project for config " .. cfg ..  " >" .. "cmake --build . --config ".. CmakeConfigs[cfgIndex] .. " -j " .. GetCoreCount() .. " --target shaderc")
-            local build = os.execute("cmake --build . --config ".. CmakeConfigs[cfgIndex] .. " -j " .. GetCoreCount() ..  " --target shaderc")
+    end
+    if os.host() == "windows" then        
+        local cmd = ""
+        if _OPTIONS["dependencies-toolset"] == "vs2026" then
+            cmd = "cmake -G " .. "\"Visual Studio 18 2026\"" .. " -S ".. shadercDir .. " -DSHADERC_ENABLE_SHARED_CRT=ON"
+        elseif _OPTIONS["dependencies-toolset"] == "vs2022" then
+            cmd = "cmake -G " .. "\"Visual Studio 17 2022\"" .. " -S ".. shadercDir .. " -DSHADERC_ENABLE_SHARED_CRT=ON"
+        else
+            error("[path] ERROR: Unsupported action")
+        end
+    
+        print("[shaderc] Generatin CMake project >" .. cmd)
+        local genCmake = os.execute(cmd)
+        if genCmake ~= true then
+            error("[shaderc] ERROR: Could not generate cmake project")
+            gbUseShaderc = false
+            os.chdir(gb_SolutionDir)
+            return
+        end
+    
+        for cfgIndex, cfg in ipairs(Configs) do
+            cmd =  "cmake --build . --config ".. CmakeConfigs[cfgIndex] .. " -j " .. GetCoreCount() .. " --target shaderc"
+            
+            print("[shaderc] Building project shaderc for config " .. cfg ..  " >" .. cmd)
+            local build = os.execute(cmd)
             if build ~= true then
                 error("[shaderc] ERROR: Failed to compile/link project")
                 gbUseShaderc = false
@@ -193,8 +261,10 @@ function UpdateShaderCompiler()
                 return
             end
         
-            print("[shaderc] Building project for config " .. cfg ..  " >" .. "cmake --build . --config ".. CmakeConfigs[cfgIndex] .. " -j " .. GetCoreCount() .. " --target shaderc_combined")
-            build = os.execute("cmake --build . --config ".. CmakeConfigs[cfgIndex] .. " -j " .. GetCoreCount() ..  " --target shaderc_combined")
+            cmd =  "cmake --build . --config ".. CmakeConfigs[cfgIndex] .. " -j " .. GetCoreCount() .. " --target shaderc_combined"
+        
+            print("[shaderc] Building project shaderc_combined for config " .. cfg ..  " >" .. cmd)
+            build = os.execute(cmd)
             if build ~= true then
                 error("[shaderc] ERROR: Failed to compile/link project")
                 gbUseShaderc = false
@@ -202,16 +272,45 @@ function UpdateShaderCompiler()
                 return
             end
         
-        elseif os.host() == "linux" then
-            print("[shaderc] Generatin CMake project for config " .. cfg ..  " >" .. "cmake -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=" .. CmakeConfigs[cfgIndex] .. " " .. shadercDir)
-            local genCmake = os.execute("cmake -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=" .. CmakeConfigs[cfgIndex] .. " " .. shadercDir)
+            local src = path.join(targetProjectPath, "libshaderc", CmakeConfigs[cfgIndex], "shaderc.lib")
+            local target = path.join(gb_OutputDir, cfg, "shaderc.lib")
+            print("[shaderc] Copying lib from " .. src .. " to ".. target)
+            res, err = os.copyfile(src, target)
+            if res == nil then
+                error(err)
+            end
+        
+            local src = path.join(targetProjectPath, "libshaderc", CmakeConfigs[cfgIndex], "shaderc_combined.lib")
+            local target = path.join(gb_OutputDir, cfg, "shaderc_combined.lib")
+            print("[shaderc] Copying lib from " .. src .. " to ".. target)
+            res, err = os.copyfile(src, target)
+            if res == nil then
+                error(err)
+            end
+        
+            if cfg ~= "Release"  then
+                src = path.join(targetProjectPath, "libshaderc", CmakeConfigs[cfgIndex], "shaderc.pdb")
+                target = path.join(gb_OutputDir, cfg, "shaderc.pdb")
+                print("[shaderc] Copying symbols from " .. src .. " to ".. target)
+                res, err = os.copyfile(src, target)
+                if res == nil then
+                    error(err)
+                end
+            end
+        end
+    elseif os.host() == "linux" then
+        for cfgIndex, cfg in ipairs(Configs) do
+            local cmd = "cmake -G \"Unix Makefiles\" -T " .. _OPTIONS["dependencies-toolset"] .. " -DCMAKE_BUILD_TYPE=" .. CmakeConfigs[cfgIndex] .. " " .. shadercDir
+            
+            print("[shaderc] Generatin CMake project for config " .. cfg .. ">" .. cmd)
+            local genCmake = os.execute(cmd)
             if genCmake ~= true then
                 error("[shaderc] ERROR: Could not generate cmake project")
                 gbUseShaderc = false
                 os.chdir(gb_SolutionDir)
                 return
             end
-        
+                
             print("[shaderc] Building project >" .. "make shaderc -j " .. GetCoreCount())
             local build = os.execute("make shaderc -j " .. GetCoreCount())
             if build ~= true then
@@ -225,43 +324,29 @@ function UpdateShaderCompiler()
                 error("[shaderc] ERROR: Failed to compile/link project")
                 gbUseShaderc = false
             end
-
-        elseif os.host() == "macosx" then
-            error("[shaderc] ERROR: unsupportd platform")
-            gbUseShaderc = false
-        end
-    
-        -- local res, err = os.copyfile(
-        --     path.join(shadercDir, "libshaderc", CmakeConfigs[cfgIndex], "shaderc.lib"),
-        --     path.join(gb_OutputDir, cfg, "shaderc.lib")
-        -- )
-        local src = path.join(gb_OutputDir, cfg, "shaderc", "libshaderc", CmakeConfigs[cfgIndex], "shaderc.lib")
-        local target = path.join(gb_OutputDir, cfg, "shaderc.lib")
-        print("[shaderc] Copying lib from " .. src .. " to ".. target)
-        res, err = os.copyfile(src, target)
-        if res == nil then
-            error(err)
-        end
-    
-        local src = path.join(gb_OutputDir, cfg, "shaderc", "libshaderc", CmakeConfigs[cfgIndex], "shaderc_combined.lib")
-        local target = path.join(gb_OutputDir, cfg, "shaderc_combined.lib")
-        print("[shaderc] Copying lib from " .. src .. " to ".. target)
-        res, err = os.copyfile(src, target)
-        if res == nil then
-            error(err)
-        end
-    
-        if (os.host() == "windows" and cfg ~= "Release" ) then
-            src = path.join(gb_OutputDir, cfg, "shaderc", "libshaderc", CmakeConfigs[cfgIndex], "shaderc.pdb")
-            target = path.join(gb_OutputDir, cfg, "shaderc.pdb")
-            print("[shaderc] Copying symbols from " .. src .. " to ".. target)
+        
+            local src = path.join(targetProjectPath, "libshaderc", CmakeConfigs[cfgIndex], "libshaderc.so")
+            local target = path.join(gb_OutputDir, cfg, "libshaderc.so")
+            print("[shaderc] Copying lib from " .. src .. " to ".. target)
+            res, err = os.copyfile(src, target)
+            if res == nil then
+                error(err)
+            end
+        
+            local src = path.join(targetProjectPath, "libshaderc", CmakeConfigs[cfgIndex], "libshaderc_combined.so")
+            local target = path.join(gb_OutputDir, cfg, "libshaderc_combined.so")
+            print("[shaderc] Copying lib from " .. src .. " to ".. target)
             res, err = os.copyfile(src, target)
             if res == nil then
                 error(err)
             end
         end
-        os.chdir(gb_SolutionDir)
+    else
+       error("[shaderc] ERROR: unsupportd platform")
+        gbUseShaderc = false
     end
+
+    os.chdir(gb_SolutionDir)
     
     gbUseShaderc = true
 end
@@ -287,11 +372,11 @@ newaction {
         end
     
         UpdateConfig()
-        end
+    end
 }
 
 newaction {
-    trigger = "update-SpirV",
+    trigger = "update-shaderc",
     description = "project setup",
     execute = function ()        
         if gbUseShaderc == true then
@@ -299,7 +384,7 @@ newaction {
         end
     
         UpdateConfig()
-        end
+    end
 }
 
 newaction {

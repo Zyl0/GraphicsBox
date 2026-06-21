@@ -1,4 +1,4 @@
-﻿#version 450
+#version 450
 
 // Vertex Shader
 #include "Passes/ScreenTriangle.glsl"

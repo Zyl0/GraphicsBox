@@ -6,14 +6,16 @@ gb_msvc_c_version =        "c11"
 -- Linux/GCC or CLang
 gb_gnuc_cpp_version =      "gnu++20"
 gb_gnuc_c_version =        "gnu11"
+gb_linux_toolset =         "clang-21"
 
 -- Pathes
 gb_SolutionDir =               path.getabsolute(".")
 gb_DependencyDir =             path.join(gb_SolutionDir, "Dependencies")
     gb_CompiledDependencyDir = path.join(gb_DependencyDir, "Libs")
     gb_SourceDependencyDir =   path.join(gb_DependencyDir, "LibSources")
-    gb_ToolsDependencyDir =     path.join(gb_DependencyDir, "Tools")
+    gb_ToolsDependencyDir =    path.join(gb_DependencyDir, "Tools")
 gb_IntermediatesDir =          path.join(gb_SolutionDir, "Intermediates")
+    gb_IntermediatesDepsDir =  path.join(gb_IntermediatesDir, "Dependencies")
 gb_OutputDir =                 path.join(gb_SolutionDir, "Binaries")
 gb_IncludeDir =                path.join(gb_SolutionDir, "Include")
 gb_SrcDir =                    path.join(gb_SolutionDir, "Source")
@@ -76,7 +78,7 @@ solution "GraphicsBox"
     architecture "x86_64"
     
     -- Debug settings
-    if _OPTIONS["breakpoints"] then
+    if gbUseBreakpoints then
         defines ("BREAKPOINT_ENABLE=1")
     else
         defines ("BREAKPOINT_ENABLE=0")
@@ -86,8 +88,7 @@ solution "GraphicsBox"
 
      -- Platforms specific setup
     filter "system:linux"
-        -- TODO specify CLang version
-        toolset "clang-21"
+        toolset (gb_linux_toolset)
         cppdialect (gb_gnuc_cpp_version)
         cdialect (gb_gnuc_c_version)
 
@@ -553,7 +554,7 @@ group "Utilites"
         
         if gbUseShaderc then
             includedirs { path.join(gb_ToolsDependencyDir, "shaderc", "libshaderc", "include") }
-            links { "shaderc" }
+            links { "shaderc_combined" }
             defines { "USE_SHADER_C" }
         end
         
