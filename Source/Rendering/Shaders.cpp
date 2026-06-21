@@ -8,6 +8,10 @@
 #include <list>
 #include <set>
 
+#ifdef USE_SHADER_C
+#include <shaderc/shaderc.hpp>
+#endif // USE_SHADER_C 
+
 class StringPtr
 {
 public:
@@ -333,27 +337,28 @@ std::string ShaderFileToString(const std::filesystem::path& filename)
     return buff;
 }
 
-Shader ShaderFromFile(Shader::Type type, const std::filesystem::path& filename, Shader::DefinesView Defines)
-{
-    std::string shaderCode = ShaderFileToString(filename);
-
-    return Shader(type, shaderCode, Defines);
-}
-
 static 
-const char *GetShaderTypeDefineName( const GLenum type )
+const std::string_view GetShaderTypeDefineNameCxx( Shader::Type type )
 {
     switch (type)
     {
-    case GL_VERTEX_SHADER: return "VERTEX_SHADER";
-    case GL_FRAGMENT_SHADER: return "FRAGMENT_SHADER";
-    case GL_GEOMETRY_SHADER: return "GEOMETRY_SHADER";
+    case Shader::VERTEX_SHADER:
+        return "VERTEX_SHADER";
+    case Shader::FRAGMENT_SHADER:
+        return "FRAGMENT_SHADER";
+    case Shader::GEOMETRY_SHADER:
+        return "GEOMETRY_SHADER";
+        
 #ifdef GL_VERSION_4_0
-    case GL_TESS_CONTROL_SHADER: return "TESSELATION_CONTROL";
-    case GL_TESS_EVALUATION_SHADER: return "EVALUATION_CONTROL";
+    case Shader::TESSELATION_CONTROL_SHADER:
+        return "TESSELATION_CONTROL";
+    case Shader::TESSELATION_EVALUATION_SHADER:
+        return "EVALUATION_CONTROL";
 #endif
+        
 #ifdef GL_VERSION_4_3
-    case GL_COMPUTE_SHADER: return "COMPUTE_SHADER";
+    case Shader::COMPUTE_SHADER:
+        return "COMPUTE_SHADER";
 #endif
 
     case Shader::__Count:
@@ -390,6 +395,86 @@ const char *GetShaderTypeDefineName( Shader::Type type )
     }
 }
 
+Shader ShaderFromFile(Shader::Type type, const std::filesystem::path& filename, Shader::DefinesView Defines)
+{    
+#ifdef USE_SHADER_C
+    std::string shaderCode = ShaderFileToString(filename);
+    
+    shaderc::CompileOptions options;
+    shaderc_shader_kind kind;
+    switch (type)
+    {
+    case Shader::VERTEX_SHADER:                  kind = shaderc_shader_kind::shaderc_vertex_shader; break;
+    case Shader::FRAGMENT_SHADER:                kind = shaderc_shader_kind::shaderc_fragment_shader; break;
+    case Shader::GEOMETRY_SHADER:                kind = shaderc_shader_kind::shaderc_geometry_shader; break;
+    case Shader::TESSELATION_CONTROL_SHADER:     kind = shaderc_shader_kind::shaderc_tess_control_shader; break;
+    case Shader::TESSELATION_EVALUATION_SHADER:  kind = shaderc_shader_kind::shaderc_tess_evaluation_shader; break;
+    case Shader::COMPUTE_SHADER:                 kind = shaderc_shader_kind::shaderc_compute_shader; break;
+
+    case Shader::__Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported shader type")
+    }
+    
+    options.SetSourceLanguage(shaderc_source_language_glsl);
+    options.SetTargetEnvironment(shaderc_target_env_opengl, shaderc_env_version_opengl_4_5);
+    options.SetAutoMapLocations(true);
+    
+    options.AddMacroDefinition(GetShaderTypeDefineNameCxx(type).data(), GetShaderTypeDefineNameCxx(type).size(), nullptr, 0);
+    for (const auto & define : Defines)
+    {
+        options.AddMacroDefinition(define.first.data(), define.first.size(), define.second.data(), define.second.size());
+    }
+    
+#if defined(CONFIG_DEBUG)
+    options.SetOptimizationLevel(shaderc_optimization_level::shaderc_optimization_level_zero);
+    options.SetGenerateDebugInfo();
+#elif defined(CONFIG_DEVELOPMENT)
+    options.SetOptimizationLevel(shaderc_optimization_level::shaderc_optimization_level_performance);
+    options.SetGenerateDebugInfo();
+#elif defined(CONFIG_RELEASE)
+    options.SetOptimizationLevel(shaderc_optimization_level::shaderc_optimization_level_performance);
+#endif // CONFIG_DEBUG
+    
+    shaderc::Compiler compiler;
+    auto CompiledShader = compiler.CompileGlslToSpv(
+            shaderCode.data(), shaderCode.size(), kind,
+            filename.generic_string().c_str(), options);
+    
+    AssertOrErrorF(CompiledShader.GetCompilationStatus() == shaderc_compilation_status_success, "Failed to compile %s \"%s\", compiler returned the following error: %s",
+        GetShaderTypeDefineName(type),
+        filename.generic_string().c_str(),
+        CompiledShader.GetErrorMessage().c_str()
+    )
+    
+    return Shader(type, filename.generic_string(), std::span(CompiledShader.begin(), CompiledShader.end()));  
+#else // !USE_SHADER_C
+    std::string shaderCode = ShaderFileToString(filename);
+
+    return Shader(type, shaderCode, Defines);
+#endif // USE_SHADER_C
+}
+
+static 
+const char *GetShaderTypeDefineName( const GLenum type )
+{
+    switch (type)
+    {
+    case GL_VERTEX_SHADER: return "VERTEX_SHADER";
+    case GL_FRAGMENT_SHADER: return "FRAGMENT_SHADER";
+    case GL_GEOMETRY_SHADER: return "GEOMETRY_SHADER";
+#ifdef GL_VERSION_4_0
+    case GL_TESS_CONTROL_SHADER: return "TESSELATION_CONTROL";
+    case GL_TESS_EVALUATION_SHADER: return "EVALUATION_CONTROL";
+#endif
+#ifdef GL_VERSION_4_3
+    case GL_COMPUTE_SHADER: return "COMPUTE_SHADER";
+#endif
+
+    case Shader::__Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported shader type")
+    }
+}
+
 static 
 GLenum GetRawShaderType( Shader::Type type )
 {
@@ -419,8 +504,84 @@ GLenum GetRawShaderType( Shader::Type type )
     }
 }
 
-Shader::Shader(Type type, std::string_view SourceCode, Shader::DefinesView Defines)
+Shader::Shader(Type type, std::string_view Name, std::string_view SourceCode, Shader::DefinesView Defines)
 {
+#ifdef USE_SHADER_C    
+    shaderc::CompileOptions options;
+    shaderc_shader_kind kind;
+    switch (type)
+    {
+    case Shader::VERTEX_SHADER:                  kind = shaderc_shader_kind::shaderc_vertex_shader; break;
+    case Shader::FRAGMENT_SHADER:                kind = shaderc_shader_kind::shaderc_fragment_shader; break;
+    case Shader::GEOMETRY_SHADER:                kind = shaderc_shader_kind::shaderc_geometry_shader; break;
+    case Shader::TESSELATION_CONTROL_SHADER:     kind = shaderc_shader_kind::shaderc_tess_control_shader; break;
+    case Shader::TESSELATION_EVALUATION_SHADER:  kind = shaderc_shader_kind::shaderc_tess_evaluation_shader; break;
+    case Shader::COMPUTE_SHADER:                 kind = shaderc_shader_kind::shaderc_compute_shader; break;
+
+    case Shader::__Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported shader type")
+    }
+    
+    options.SetSourceLanguage(shaderc_source_language_glsl);
+    options.SetTargetEnvironment(shaderc_target_env_opengl, shaderc_env_version_opengl_4_5);
+    options.SetAutoMapLocations(true);
+    
+    options.AddMacroDefinition(GetShaderTypeDefineNameCxx(type).data(), GetShaderTypeDefineNameCxx(type).size(), nullptr, 0);
+    for (const auto & define : Defines)
+    {
+        options.AddMacroDefinition(define.first.data(), define.first.size(), define.second.data(), define.second.size());
+    }
+    
+#if defined(CONFIG_DEBUG)
+    options.SetOptimizationLevel(shaderc_optimization_level::shaderc_optimization_level_zero);
+    options.SetGenerateDebugInfo();
+#elif defined(CONFIG_DEVELOPMENT)
+    options.SetOptimizationLevel(shaderc_optimization_level::shaderc_optimization_level_performance);
+    options.SetGenerateDebugInfo();
+#elif defined(CONFIG_RELEASE)
+    options.SetOptimizationLevel(shaderc_optimization_level::shaderc_optimization_level_performance);
+#endif // CONFIG_DEBUG
+    
+    shaderc::Compiler compiler;
+    auto CompiledShader = compiler.CompileGlslToSpv(
+            SourceCode.data(), SourceCode.size(), kind,
+            Name.data(), options);
+    
+    AssertOrErrorF(CompiledShader.GetCompilationStatus() == shaderc_compilation_status_success, "Failed to compile %s \"%s\", compiler returned the following error: %s",
+        GetShaderTypeDefineName(type),
+        Name.data(),
+        CompiledShader.GetErrorMessage().c_str()
+    )
+    
+    GLCall(m_Shader = glCreateShader(GetRawShaderType(type)))
+    
+    GLCall(glShaderBinary(
+        1, 
+        &m_Shader, 
+        GL_SHADER_BINARY_FORMAT_SPIR_V, 
+        CompiledShader.begin(), 
+        static_cast<GLsizei>((CompiledShader.end() - CompiledShader.begin()) * sizeof(uint32_t))))
+    GLCall(glSpecializeShader(m_Shader, "main", 0, nullptr, nullptr))
+        
+    // Handles compilation error
+    GLint value;
+    GLCall(glGetShaderiv(m_Shader, GL_COMPILE_STATUS, &value))
+    if(value == GL_FALSE)
+    {
+        glGetShaderiv(m_Shader, GL_INFO_LOG_LENGTH, &value);
+        std::vector<char>log(value+1, 0);
+        glGetShaderInfoLog(m_Shader, static_cast<GLsizei>(log.size()), nullptr, &log.front());
+        
+        EngineLoggerErrorF("Failed to compile shader of type %s: \"%s\"", GetShaderTypeDefineName(value), Name.data());
+        printf("%s\n", log.data());
+        
+        EngineRuntimeBREAKPOINT
+    }
+    else
+    {
+        EngineLoggerLogF("Compiled shader of type %s: \"%s\" successfully", GetShaderTypeDefineName(type), Name.data());
+    }
+#else // !USE_SHADER_C
     const size_t ShaderVersionBegin = SourceCode.find("#version");
     AssertOrError(ShaderVersionBegin < std::string::npos, "Impossible to compile shader. No shader version specified.")
     std::string_view shaderCode = SourceCode.substr(ShaderVersionBegin, SourceCode.size() - ShaderVersionBegin);
@@ -524,7 +685,34 @@ Shader::Shader(Type type, std::string_view SourceCode, Shader::DefinesView Defin
     {
         EngineLoggerLogF("Compiled shader of type %s successfully", GetShaderTypeDefineName(type));
     }
+#endif // USE_SHADER_C
+}
 
+Shader::Shader(Type type, std::string_view Name, std::span<const uint32_t> SpirV)
+{
+    GLCall(m_Shader = glCreateShader(GetRawShaderType(type)))
+    
+    GLCall(glShaderBinary(1, &m_Shader, GL_SHADER_BINARY_FORMAT_SPIR_V, SpirV.data(), static_cast<GLsizei>(SpirV.size() * sizeof(uint32_t))))
+    GLCall(glSpecializeShader(m_Shader, "main", 0, nullptr, nullptr))
+    
+    // Handles compilation error
+    GLint value;
+    GLCall(glGetShaderiv(m_Shader, GL_COMPILE_STATUS, &value))
+    if(value == GL_FALSE)
+    {
+        glGetShaderiv(m_Shader, GL_INFO_LOG_LENGTH, &value);
+        std::vector<char>log(value+1, 0);
+        glGetShaderInfoLog(m_Shader, static_cast<GLsizei>(log.size()), nullptr, &log.front());
+        
+        EngineLoggerErrorF("Failed to compile shader of type %s: \"%s\"", GetShaderTypeDefineName(value), Name.data());
+        printf("%s\n", log.data());
+        
+        EngineRuntimeBREAKPOINT
+    }
+    else
+    {
+        EngineLoggerLogF("Compiled shader of type %s: \"%s\" successfully", GetShaderTypeDefineName(type), Name.data());
+    }
 }
 
 Shader::~Shader()

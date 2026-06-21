@@ -225,32 +225,32 @@ Pipeline PipelineFromString(std::string_view label, Pipeline::Shaders shaders, s
     
     if (shaders & Pipeline::Shaders::VERTEX_SHADER)
     {
-        shaderObjects.emplace_back(Shader::VERTEX_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::VERTEX_SHADER, label, source, Defines);
         shaderRefs.emplace_back(Shader::VERTEX_SHADER, shaderObjects.back());
     }
     if (shaders & Pipeline::Shaders::FRAGMENT_SHADER)
     {
-        shaderObjects.emplace_back(Shader::FRAGMENT_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::FRAGMENT_SHADER, label, source, Defines);
         shaderRefs.emplace_back(Shader::FRAGMENT_SHADER, shaderObjects.back());
     }
     if (shaders & Pipeline::Shaders::GEOMETRY_SHADER)
     {
-        shaderObjects.emplace_back(Shader::GEOMETRY_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::GEOMETRY_SHADER, label, source, Defines);
         shaderRefs.emplace_back(Shader::GEOMETRY_SHADER, shaderObjects.back());
     }
     if (shaders & Pipeline::Shaders::TESSELATION_CONTROL_SHADER)
     {
-        shaderObjects.emplace_back(Shader::TESSELATION_CONTROL_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::TESSELATION_CONTROL_SHADER, label, source, Defines);
         shaderRefs.emplace_back(Shader::TESSELATION_CONTROL_SHADER, shaderObjects.back());
     }
     if (shaders & Pipeline::Shaders::TESSELATION_EVALUATION_SHADER)
     {
-        shaderObjects.emplace_back(Shader::TESSELATION_EVALUATION_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::TESSELATION_EVALUATION_SHADER, label, source, Defines);
         shaderRefs.emplace_back(Shader::TESSELATION_EVALUATION_SHADER, shaderObjects.back());
     }
     if (shaders & Pipeline::Shaders::COMPUTE_SHADER)
     {
-        shaderObjects.emplace_back(Shader::COMPUTE_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::COMPUTE_SHADER, label, source, Defines);
         shaderRefs.emplace_back(Shader::COMPUTE_SHADER, shaderObjects.back());
     }
     
@@ -262,47 +262,60 @@ bool PipelineUpdateFromString(Pipeline& pipeline, std::string_view source, Shade
     std::vector<Shader> shaderObjects;
     std::vector<Pipeline::ShaderPair> shaderRefs;
     
+    GLint maxLength = 0;
+    glGetIntegerv(GL_MAX_LABEL_LENGTH, &maxLength);
+    std::string label(maxLength, '\0');
+    GLsizei length = 0;
+    
+    glGetObjectLabel(
+        GL_PROGRAM,
+        pipeline.Handle(),
+        maxLength,
+        &length,
+        label.data()
+    );
+    
     shaderObjects.reserve(2);
     shaderRefs.reserve(2);
     
     if (pipeline.MemberShaders() & Pipeline::Shaders::VERTEX_SHADER)
     {
-        shaderObjects.emplace_back(Shader::VERTEX_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::VERTEX_SHADER, label, source, Defines);
         if (!shaderObjects.back().IsComplete()) return false;
         
         shaderRefs.emplace_back(Shader::VERTEX_SHADER, shaderObjects.back());
     }
     if (pipeline.MemberShaders() & Pipeline::Shaders::FRAGMENT_SHADER)
     {
-        shaderObjects.emplace_back(Shader::FRAGMENT_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::FRAGMENT_SHADER, label, source, Defines);
         if (!shaderObjects.back().IsComplete()) return false;
         
         shaderRefs.emplace_back(Shader::FRAGMENT_SHADER, shaderObjects.back());
     }
     if (pipeline.MemberShaders() & Pipeline::Shaders::GEOMETRY_SHADER)
     {
-        shaderObjects.emplace_back(Shader::GEOMETRY_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::GEOMETRY_SHADER, label, source, Defines);
         if (!shaderObjects.back().IsComplete()) return false;
         
         shaderRefs.emplace_back(Shader::GEOMETRY_SHADER, shaderObjects.back());
     }
     if (pipeline.MemberShaders() & Pipeline::Shaders::TESSELATION_CONTROL_SHADER)
     {
-        shaderObjects.emplace_back(Shader::TESSELATION_CONTROL_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::TESSELATION_CONTROL_SHADER, label, source, Defines);
         if (!shaderObjects.back().IsComplete()) return false;
         
         shaderRefs.emplace_back(Shader::TESSELATION_CONTROL_SHADER, shaderObjects.back());
     }
     if (pipeline.MemberShaders() & Pipeline::Shaders::TESSELATION_EVALUATION_SHADER)
     {
-        shaderObjects.emplace_back(Shader::TESSELATION_EVALUATION_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::TESSELATION_EVALUATION_SHADER, label, source, Defines);
         if (!shaderObjects.back().IsComplete()) return false;
         
         shaderRefs.emplace_back(Shader::TESSELATION_EVALUATION_SHADER, shaderObjects.back());
     }
     if (pipeline.MemberShaders() & Pipeline::Shaders::COMPUTE_SHADER)
     {
-        shaderObjects.emplace_back(Shader::COMPUTE_SHADER, source, Defines);
+        shaderObjects.emplace_back(Shader::COMPUTE_SHADER, label, source, Defines);
         if (!shaderObjects.back().IsComplete()) return false;
         
         shaderRefs.emplace_back(Shader::COMPUTE_SHADER, shaderObjects.back());

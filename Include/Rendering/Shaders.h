@@ -36,7 +36,8 @@ public:
         __ComputeEnd = __Count,
     };
 
-    Shader(Type type, std::string_view SourceCode, DefinesView Defines = {});
+    Shader(Type type, std::string_view Name, std::string_view SourceCode, DefinesView Defines = {});
+    Shader(Type type, std::string_view Name, std::span<const uint32_t> SpirV);
     ~Shader();
 
     Shader& operator=(Shader other)
