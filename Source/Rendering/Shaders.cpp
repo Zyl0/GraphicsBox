@@ -446,6 +446,12 @@ Shader ShaderFromFile(Shader::Type type, const std::filesystem::path& filename, 
         CompiledShader.GetErrorMessage().c_str()
     )
     
+    AssertOrWarnCallF(CompiledShader.GetNumWarnings() == 0,,"Compiled shader of type %s \"%s\", compiler finished with warning(s):\n%s", 
+        GetShaderTypeDefineName(type),
+        filename.generic_string().c_str(),
+        CompiledShader.GetErrorMessage().c_str()
+    )
+    
     return Shader(type, filename.generic_string(), std::span(CompiledShader.begin(), CompiledShader.end()));  
 #else // !USE_SHADER_C
     std::string shaderCode = ShaderFileToString(filename);
@@ -547,7 +553,13 @@ Shader::Shader(Type type, std::string_view Name, std::string_view SourceCode, Sh
             SourceCode.data(), SourceCode.size(), kind,
             Name.data(), options);
     
-    AssertOrErrorF(CompiledShader.GetCompilationStatus() == shaderc_compilation_status_success, "Failed to compile %s \"%s\", compiler returned the following error: %s",
+    AssertOrErrorF(CompiledShader.GetCompilationStatus() == shaderc_compilation_status_success, "Failed to compile %s \"%s\", compiler returned the following error:\n%s",
+        GetShaderTypeDefineName(type),
+        Name.data(),
+        CompiledShader.GetErrorMessage().c_str()
+    )
+    
+    AssertOrWarnCallF(CompiledShader.GetNumWarnings() == 0,,"Compiled shader of type %s \"%s\", compiler finished with warning(s):\n%s", 
         GetShaderTypeDefineName(type),
         Name.data(),
         CompiledShader.GetErrorMessage().c_str()
