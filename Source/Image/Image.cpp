@@ -57,10 +57,11 @@ Image::Image():
 {
 }
 
-Image::Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, const void* Data) :
+Image::Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, Encoding ComponentEncoding, const void* Data) :
     m_Width(Width), m_Height(Height),
     m_ComponentType(ComponentType),
     m_ComponentLayout(ComponentLayout),
+    m_ComponentEncoding(ComponentEncoding),
     m_Data(m_Width * m_Height > 0 ? malloc(DataSize()) : nullptr)
 {
     if (Data != nullptr && m_Data != nullptr)
@@ -81,6 +82,7 @@ Image::Image(const Image& Other):
     m_Height(Other.m_Height),
     m_ComponentType(Other.m_ComponentType),
     m_ComponentLayout(Other.m_ComponentLayout),
+    m_ComponentEncoding(Other.m_ComponentEncoding),
     m_Data(m_Width * m_Height > 0 ? malloc(DataSize()) : nullptr)
 {
     if (m_Data != nullptr && Other.m_Data != nullptr)
@@ -94,6 +96,7 @@ Image::Image(Image&& Other) noexcept:
     m_Height(Other.m_Height),
     m_ComponentType(Other.m_ComponentType),
     m_ComponentLayout(Other.m_ComponentLayout),
+    m_ComponentEncoding(Other.m_ComponentEncoding),
     m_Data(Other.m_Data)
 {
     Other.m_Data = nullptr;
@@ -108,6 +111,7 @@ Image& Image::operator=(const Image& Other)
     m_Height = Other.m_Height;
     m_ComponentType = Other.m_ComponentType;
     m_ComponentLayout = Other.m_ComponentLayout;
+    m_ComponentEncoding = Other.m_ComponentEncoding;
     m_Data = m_Width * m_Height > 0 ? malloc(DataSize()) : nullptr;
     
     if (m_Data != nullptr && Other.m_Data != nullptr)
@@ -127,6 +131,7 @@ Image& Image::operator=(Image&& Other) noexcept
     m_Height = Other.m_Height;
     m_ComponentType = Other.m_ComponentType;
     m_ComponentLayout = Other.m_ComponentLayout;
+    m_ComponentEncoding = Other.m_ComponentEncoding;
     m_Data = Other.m_Data;
     
     Other.m_Data = nullptr;
@@ -186,19 +191,23 @@ Image ImageLoad(const std::filesystem::path& ImagePath, Image::Type ComponentTyp
 
     int Width = 0, Height = 0, ChannelCount = 0;
     void* Buffer;
+    Image::Encoding encoding;
     
     switch (ComponentType)
     {
     case Image::UnsignedByte:
         Buffer = stbi_load(ImagePath.generic_string().c_str(), &Width, &Height, &ChannelCount, 0);
+        encoding = Image::sRGB;
         break;
         
     case Image::UnsignedShort:
         Buffer = stbi_load_16(ImagePath.generic_string().c_str(), &Width, &Height, &ChannelCount, 0);
+        encoding = Image::sRGB;
         break;
         
     case Image::Float:
         Buffer = stbi_loadf(ImagePath.generic_string().c_str(), &Width, &Height, &ChannelCount, 0);
+        encoding = Image::Linear;
         break;
 
     case Image::Byte:
@@ -219,12 +228,13 @@ Image ImageLoad(const std::filesystem::path& ImagePath, Image::Type ComponentTyp
 
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported channel count")
     }
-    Image Image(Width, Height, ComponentType, Layout, Buffer);
+    Image Image(Width, Height, ComponentType, Layout, encoding, Buffer);
 
     stbi_image_free(Buffer);
 
     return Image;
 }
+
 
 bool ImageStore(const std::filesystem::path& OutputPath, const Image& Image, Image::FileType Type)
 {

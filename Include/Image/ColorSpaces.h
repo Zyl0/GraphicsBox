@@ -45,16 +45,6 @@ struct ColorState
     float m_GammaValue = 2.2f;
     float m_PaperWhite = 300.0f;
 
-    uint32_t PackModes() const
-    {
-        uint32_t pack = 0;
-
-        pack |= ((uint32_t)ColorSpace) << 0;
-        pack |= ((uint32_t)GammaCurve) << 8;
-
-        return pack;
-    }
-
     // G_sRGB parameters
     float sRGBInvGamma() const
     {
@@ -157,7 +147,7 @@ namespace Rec2100
 
 namespace ArriLogC
 {
-        // http://strattoncamera.com/pdf/11-06-30_Alexa_LogC_Curve.pdf
+    // http://strattoncamera.com/pdf/11-06-30_Alexa_LogC_Curve.pdf
     // For EI 800
     struct EI800
     {

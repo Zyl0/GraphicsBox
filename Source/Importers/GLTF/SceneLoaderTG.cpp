@@ -116,6 +116,7 @@ namespace  GLTF
             }
             
             Image::Type Type;
+            Image::Encoding Encoding = Image::Linear;
             switch(image.pixel_type)
             {
                 case TINYGLTF_COMPONENT_TYPE_BYTE: 
@@ -123,6 +124,7 @@ namespace  GLTF
                     break;
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:                     
                     Type = Image::UnsignedByte;
+                    Encoding = Image::sRGB;
                     break;
                 case TINYGLTF_COMPONENT_TYPE_SHORT: 
                     Type = Image::Short;
@@ -146,7 +148,7 @@ namespace  GLTF
             SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported image %s, unsupported data type (%d)", texture.name.c_str(), image.pixel_type)
             }
             
-            scene.textures.emplace_back(image.width, image.height, Type, Layout, image.image.data());
+            scene.textures.emplace_back(image.width, image.height, Type, Layout, Encoding, image.image.data());
         }
     }
 
@@ -350,11 +352,11 @@ namespace  GLTF
         std::string WarningBuffer;
         bool status;
 
-        if (path.extension() == "glb")
+        if (path.extension().compare(".glb") == 0)
         {
             status = loader.LoadBinaryFromFile(&model, &ErrorBuffer, &WarningBuffer, path.string().c_str());
         }
-        else if (path.extension() == "gltf")
+        else if (path.extension().compare(".gltf") == 0)
         {
             status = loader.LoadASCIIFromFile(&model, &ErrorBuffer, &WarningBuffer, path.string().c_str());
         }

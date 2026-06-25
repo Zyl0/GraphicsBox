@@ -31,6 +31,14 @@ struct Image
         ABGR
     };
     
+    enum Encoding : uint8_t
+    {
+        Linear = 0,
+        sRGB,
+        PQ,
+        LogC
+    };
+    
     static uint32_t ChannelSize(Type ComponentType);
     static uint32_t ComponentCount(Layout ComponentLayout);
     static uint32_t PixelSize(Type ComponentType, Layout ComponentLayout);
@@ -41,7 +49,7 @@ struct Image
     };
 
     Image();
-    Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, const void* Data = nullptr);
+    Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, Encoding ComponentEncoding = Linear, const void* Data = nullptr);
     ~Image();
 
     Image(const Image& Other);
@@ -56,6 +64,7 @@ struct Image
     uint32_t Height() const { return m_Height; }
     Type ComponentType() const { return m_ComponentType; }
     Layout ComponentLayout() const { return m_ComponentLayout; }
+    Encoding ComponentEncoding() const { return m_ComponentEncoding; }
 
     uint32_t ChannelSize() const;
     uint32_t PixelSize() const;
@@ -77,6 +86,7 @@ private:
     uint32_t m_Width, m_Height;
     Type m_ComponentType;
     Layout m_ComponentLayout;
+    Encoding m_ComponentEncoding;
     void* m_Data;
 };
 
