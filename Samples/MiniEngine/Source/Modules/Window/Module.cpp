@@ -73,6 +73,9 @@ namespace Window
             {
                 glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
             }
+#ifdef CONFIG_DEBUG
+            glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+#endif // CONFIG_DEBUG
         }
         window = glfwCreateWindow(kBaseWidth, kBaseHeight, kBaseWindowName, nullptr, nullptr);
         AssertOrErrorCall(window, goto terminate_glfw_window, "Failed to create GLFW window")

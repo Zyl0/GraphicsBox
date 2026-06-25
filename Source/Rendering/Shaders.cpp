@@ -456,7 +456,7 @@ Shader ShaderFromFile(Shader::Type type, const std::filesystem::path& filename, 
 #else // !USE_SHADER_C
     std::string shaderCode = ShaderFileToString(filename);
 
-    return Shader(type, shaderCode, Defines);
+    return Shader(type, filename.generic_string(), shaderCode, Defines);
 #endif // USE_SHADER_C
 }
 

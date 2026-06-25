@@ -156,6 +156,17 @@ void Pipeline::Data(std::span<const ShaderPair> Shaders)
     GLint status;
     GLCall(glGetProgramiv(m_Pipeline, GL_LINK_STATUS, &status))
     AssertOrErrorCall(status == GL_TRUE,, "Pipeline linkage failed.")
+
+    GLint len = 0;
+    glGetProgramiv(m_Pipeline, GL_INFO_LOG_LENGTH, &len);
+
+    if (status == true && len > 1)
+    {
+        std::string log(len, '\0');
+        glGetProgramInfoLog(m_Pipeline, len, nullptr, log.data());
+        EngineLoggerWarnF("Pipeline linked with warning(s): %s", log.c_str());
+    }
+
     if(status == GL_TRUE)
         return;
     
