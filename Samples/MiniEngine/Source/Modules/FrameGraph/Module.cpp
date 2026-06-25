@@ -144,7 +144,12 @@ namespace FrameGraph
         {
             // Resources object explorer
             if (ImGui::BeginTabItem("Rendering Objects"))
-            {            
+            {
+                if(ImGui::Button("Select None"))
+                {
+                    UnsetDebugView();
+                }
+                ImGui::SameLine();
                 static char SearchBuffer[256] = {'\0'};
                 ImGui::InputText("Search objects", SearchBuffer, 256);
 
