@@ -3,8 +3,9 @@
 
 struct Ray
 {
-    Math::Vector3d origin;
-    Math::Vector3d direction;
+    alignas(16) Math::Vector3f origin;
+    alignas(16) Math::Vector3f direction;
+    float distance;
 };
 
 template <typename T>

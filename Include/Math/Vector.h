@@ -12,6 +12,7 @@ namespace Math
     struct Vector2t
     {
         using Type = type;
+        static constexpr size_t ComponentCount = 2;
         
         type x, y;
 
@@ -20,6 +21,8 @@ namespace Math
         Vector2t(const type a) : x(a), y(a) {}
 
         Vector2t(const type a, const type b) : x(a), y(b) {}
+        
+        Vector2t(const Vector2t<type>& a, const Vector2t<type> b) : x(b.x - a.x), y(b.y - a.y) {}
 
         type& operator[](const int i)
             {return (&x)[i];}
@@ -133,6 +136,7 @@ namespace Math
     struct Vector3t
     {
         using Type = type;
+        static constexpr size_t ComponentCount = 3;
         
         type x, y, z;
 
@@ -145,6 +149,8 @@ namespace Math
         Vector3t(const Vector3t& Other) : x(Other.x), y(Other.y),  z(Other.z) {}
 
         Vector3t(Vector3t&& Other) noexcept : x(std::move(Other.x)),  y(std::move(Other.y)),  z(std::move(Other.z)) {}
+        
+        Vector3t(const Vector3t<type>& a, const Vector3t<type> b) : x(b.x - a.x), y(b.y - a.y), z(b.z - a.z) {}
 
         Vector3t& operator=(const Vector3t& Other)
         {
@@ -335,6 +341,7 @@ namespace Math
     struct Point3t : Vector3t<type>
     {
         using Type = type;
+        static constexpr size_t ComponentCount = 3;
         
         Point3t() : Vector3t<type>(0) {}
 
@@ -451,6 +458,7 @@ namespace Math
     struct Vector4t
     {
         using Type = type;
+        static constexpr size_t ComponentCount = 4;
         
         type x, y, z, w;
 
@@ -461,6 +469,8 @@ namespace Math
         Vector4t(const Vector3t<type> &v3, const type d) : x(v3.x), y(v3.y), z(v3.z), w(d) {}
 
         Vector4t(const type a, const type b, const type c, const type d) : x(a), y(b), z(c), w(d) {}
+        
+        Vector4t(const Vector4t<type>& a, const Vector4t<type> b) : x(b.x - a.x), y(b.y - a.y), z(b.z - a.z), w(b.w - a.w) {}
         
         Vector3t<type>& xyz()
             {return *reinterpret_cast<Vector3t<type>*>(this);}
