@@ -94,13 +94,12 @@ public:
      */
     INLINE VertexType GetMeshType() const {return m_mesh_type;}
 
-    INLINE const std::vector<Math::Point3f> &GetPositions() const           {return m_positions;}
-    INLINE const std::vector<Math::Vector3f> &GetNormals() const            {return m_normals;}
-    INLINE const std::vector<Math::Vector3f> &GetTangents() const            {return m_tangents;}
-    INLINE const std::vector<Math::Vector2f> &GetTextureCoordinates() const {return m_texture_coordinates;}
-    INLINE const std::vector<unsigned int> &GetIndices() const                      {return m_indexes;}
-
-    INLINE const std::vector<VertexGroup> &GetVertexGroups() const                  {return m_vertex_group;}
+    INLINE std::span<const Math::Point3f> GetPositions() const              {return m_positions;}
+    INLINE std::span<const Math::Vector3f> GetNormals() const               {return m_normals;}
+    INLINE std::span<const Math::Vector3f> GetTangents() const              {return m_tangents;}
+    INLINE std::span<const Math::Vector2f> GetTextureCoordinates() const    {return m_texture_coordinates;}
+    INLINE std::span<const unsigned int>  GetIndices() const                {return m_indexes;}
+    INLINE std::span<const VertexGroup> GetVertexGroups() const             {return m_vertex_group;}
     
     INLINE bool HasNormals() const {return !m_normals.empty();}
     INLINE bool HasTangents() const {return !m_tangents.empty();}
@@ -231,6 +230,7 @@ public:
         struct VertexIterator;
     public:
         using iterator = VertexIterator;
+        using const_iterator = const VertexIterator;
 
         Vertex(Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(MeshReference), m_Vertex(Vertex) {}
 
@@ -272,6 +272,7 @@ public:
     private:
         struct FaceIterator;
     public:
+        using const_iterator = const FaceIterator;
         using iterator = FaceIterator;
 
         Face(Mesh& MeshReference, uint32_t FirstVertex) : m_MeshReference(MeshReference), m_FirstVertex(FirstVertex) {}
@@ -293,10 +294,16 @@ public:
         INLINE const Math::Vector2f& TextureCoordinate(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).TextureCoordinate();}
 
         Vertex::iterator begin();
+        Vertex::const_iterator begin() const;
         Vertex::iterator end();
+        Vertex::const_iterator end() const;
      
         INLINE Vertex::iterator first() {return begin();}
+        INLINE Vertex::const_iterator first() const {return begin();}
         Vertex::iterator last();
+        Vertex::const_iterator last() const;
+        
+        INLINE uint32_t FirstVertex() const {return m_FirstVertex;}
     private:
         void AssertFaceReadable(uint8_t vertex) const;
      
@@ -338,16 +345,25 @@ public:
     struct Faces
     {
         using iterator = Face::iterator;
+        using const_iterator = Face::const_iterator;
 
         Faces(Mesh& MeshReference) : m_MeshReference(MeshReference) {}
 
         Face operator[] (unsigned index) {return Face(m_MeshReference, index);}
 
         Face::iterator begin() {return iterator(m_MeshReference, 0);}
+        Face::const_iterator begin() const {return iterator(m_MeshReference, 0);}
         Face::iterator end() {return iterator(m_MeshReference, m_MeshReference.GetVertexCount());}
+        Face::const_iterator end() const {return iterator(m_MeshReference, m_MeshReference.GetVertexCount());}
      
         INLINE Face::iterator first() {return begin();}
+        INLINE Face::const_iterator first() const {return begin();}
         Face::iterator last()
+        {
+            unsigned count = m_MeshReference.GetFaceCount();
+            return iterator(m_MeshReference, count > 0 ? count - 1 : 0);
+        }
+        Face::const_iterator last() const
         {
             unsigned count = m_MeshReference.GetFaceCount();
             return iterator(m_MeshReference, count > 0 ? count - 1 : 0);
@@ -355,7 +371,6 @@ public:
     private:
         Mesh& m_MeshReference;
     };
-
 
     /**
      * @brief Put the mesh out of edit mode and initialize it on the GPU side.
