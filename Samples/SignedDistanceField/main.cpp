@@ -58,6 +58,9 @@ public:
         m_UseGrid = 1;
         m_GridLineWidth = 0.01f;
         m_GridSize = 0.2f;
+        m_ViewMode = 0;
+        m_DefaultColor = Vector3f(0.6f);
+        m_ShowSamplingBox = false;
 
         // Initialize rendering resources
         m_SamplePipeline.emplace(PipelineFromFile("Draw mesh", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToFrame.glsl"));
@@ -70,7 +73,7 @@ public:
 
     void Tick(double deltaTime) override
     {
-        DebugScopeMarker scope("Example drawcall");
+        DebugScopeMarker scope("Draw Distance Field Mesh");
 
         Window::Module* Window = Engine::GetModule<Window::Module>(Context());
 
@@ -110,8 +113,10 @@ public:
         SetUniform(*m_SamplePipeline, "useGrid", m_UseGrid);
         SetUniform(*m_SamplePipeline, "gridSize", m_GridSize);
         SetUniform(*m_SamplePipeline, "gridLineWidth", m_GridLineWidth);
+        
+        SetUniform(*m_SamplePipeline, "colorMode", m_ViewMode);
+        SetUniform(*m_SamplePipeline, "defaultColor", m_DefaultColor);
 
-        // Draw screen quad
         const Mesh::VertexGroup& Group = m_MeshObject->GetGroups()[0]; // Sampled distance field should be only made of one group
         if (m_MeshObject->GetIndexBuffer().has_value())
         {
@@ -140,7 +145,44 @@ public:
 
     void EditorUI() override
     {
-
+        static const char* ViewMode[] = {
+            "Default", "Normals"
+        };
+        static constexpr size_t ViewModeCount = 2;
+        static constexpr size_t MaxSampleResolution = 2048;
+        
+        ImGui::ListBox("Visualize", (int*)&m_ViewMode, ViewMode, ViewModeCount);
+        m_ViewMode = std::clamp(m_ViewMode, 0u, 1u);
+        
+        if (m_ViewMode == /* Default Color */ 0)
+        {
+            ImGui::ColorEdit3("Default Color", m_DefaultColor.data()); 
+        }
+        
+        bool ShowGrid = m_UseGrid == 1;
+        if (ImGui::Checkbox("Show Grid", &ShowGrid))
+        {
+            m_UseGrid = ShowGrid == true ? 1 : 0;
+        }
+        
+        Math::Vector3d Diag3d = m_SDFSamplingVolume.Diagonal();
+        Math::Vector3f Diag3f = {static_cast<float>(Diag3d.x), static_cast<float>(Diag3d.y), static_cast<float>(Diag3d.z)};
+        if (ImGui::DragFloat3("Sample Volume", Diag3f.data(), 0.125f, 0.125f, 100.f))
+        {
+            m_SDFSamplingVolume = Box3d(static_cast<double>(Diag3f.x), static_cast<double>(Diag3f.y), static_cast<double>(Diag3f.z));
+        }
+        
+        int ResAsInt = static_cast<int>(m_SDFSamplingResolution);
+        if (ImGui::DragInt("Sample Resolution", &ResAsInt, 1, 1, MaxSampleResolution))
+        {
+            m_SDFSamplingResolution = static_cast<size_t>(std::clamp(ResAsInt, 1, static_cast<int>(MaxSampleResolution)));
+        }
+        ImGui::Checkbox("Show Sampling Region", &m_ShowSamplingBox);
+        
+        if (ImGui::Button("Resample"))
+        {
+            UpdateMesh();   
+        }
     }
 
     void UpdateMesh()
@@ -158,12 +200,14 @@ public:
         m_DistanceFieldTree.ShrinkToFit();
 
         m_DistanceFieldTree.SetHead(
-            m_DistanceFieldTree.AddSphere()
+            // m_DistanceFieldTree.AddSphere()
         
             // m_DistanceFieldTree.AddHDFSmoothUnion(
             // m_DistanceFieldTree.AddSphere(),
             // m_DistanceFieldTree.AddSphere(0.5, Math::Vector3d(0,1,0))
             // )    
+            
+            m_DistanceFieldTree.AddTore(0.2, 0.5)
         );
     }
 
@@ -182,6 +226,9 @@ private:
     uint32_t m_UseGrid;
     float m_GridLineWidth;
     float m_GridSize;
+    uint32_t m_ViewMode;
+    Math::Vector3f m_DefaultColor;
+    bool m_ShowSamplingBox;
 
     // Rendering data (CPU)
     Mesh m_Mesh;
