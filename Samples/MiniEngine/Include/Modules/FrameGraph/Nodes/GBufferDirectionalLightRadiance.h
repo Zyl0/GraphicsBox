@@ -13,6 +13,7 @@ namespace FrameGraph
     public:
         GBufferDirectionalLightRadiance(CommandContext& Resources) :
             ICommand(Resources),
+            VEmptyVAO(Resources.GetLocation<VertexArrayObject>("Empty VAO")),
             GBufferAlbedo(Resources.GetLocation<Texture2D>("GBufferAlbedo")),
             GBufferNormal(Resources.GetLocation<Texture2D>("GBufferNormal")),
             GBufferProperties(Resources.GetLocation<Texture2D>("GBufferProperties")),
@@ -51,6 +52,7 @@ namespace FrameGraph
             Bind(Pipeline);
             Bind(FrameBuffer);
             FrameBuffer.Clear();
+            Bind(Resources.Get<VertexArrayObject>(VEmptyVAO));
             
             // Scene storage buffers
             SetUniform(0, Resources.GetCameraBuffer());
@@ -74,6 +76,7 @@ namespace FrameGraph
         }
         
     private:
+        Location VEmptyVAO;
         Location GBufferAlbedo;
         Location GBufferNormal;
         Location GBufferProperties;

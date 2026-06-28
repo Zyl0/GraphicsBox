@@ -13,6 +13,7 @@ namespace FrameGraph
     public:
         ToneMappingCommand(CommandContext& Resources): 
             ICommand(Resources),
+            VEmptyVAO(Resources.GetLocation<VertexArrayObject>("Empty VAO")),
             FrameBuffer(FrameBuffer::Attachment(Resources.Get<Texture2D>("Output"), FrameBuffer::ClearColor(0.0f))),
             Pipeline(PipelineFromFile("Post Process", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/PostProcess.glsl")),
             Sampler({
@@ -41,6 +42,7 @@ namespace FrameGraph
         {
             Bind(Pipeline);
             Bind(FrameBuffer);
+            Bind(Resources.Get<VertexArrayObject>(VEmptyVAO));
             
             // Scene storage buffers
             SetUniform(0, Resources.GetCameraBuffer());
@@ -55,6 +57,7 @@ namespace FrameGraph
         }
 
     private:
+        Location VEmptyVAO;
         FrameBuffer FrameBuffer;
         Pipeline Pipeline;
         Sampler Sampler;

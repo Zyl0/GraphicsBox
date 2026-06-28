@@ -14,6 +14,7 @@ namespace FrameGraph
     public:
         SkylightToRadiance(CommandContext& Resources): 
             ICommand(Resources),
+            VEmptyVAO(Resources.GetLocation<VertexArrayObject>("Empty VAO")),
             VSkylightMethod(Resources.AddVariable<UInt>("Skylight Method", /* HDRi */ 1)),
             VUseMSAA(Resources.GetLocation<Bool>("Use MSAA")),
             VMSAASampleCount(Resources.GetLocation<UInt>("MSAA Sample Count")),
@@ -100,6 +101,8 @@ namespace FrameGraph
             default:
                 return;
             }
+
+            Bind(Resources.Get<VertexArrayObject>(VEmptyVAO));
             
             // Scene storage buffers
             SetUniform(0, Resources.GetCameraBuffer());
@@ -120,6 +123,7 @@ namespace FrameGraph
         }
     
     private:
+        Location VEmptyVAO;
         Location VSkylightMethod;
         Location VUseMSAA;
         Location VMSAASampleCount;

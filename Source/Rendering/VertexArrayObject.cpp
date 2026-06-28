@@ -161,12 +161,12 @@ void VertexArrayObject::BufferData(std::span<const VertexBuffer> vertex_buffers,
 	UnBind(*this);
 }
 
-void Bind(const VertexArrayObject& shader)
+void Bind(const VertexArrayObject& vao)
 {
-	glBindVertexArray(shader.Handle());
+	glBindVertexArray(vao.Handle());
 }
 
-void UnBind(const VertexArrayObject& shader)
+void UnBind(const VertexArrayObject& vao)
 {
 	glBindVertexArray(0);
 }

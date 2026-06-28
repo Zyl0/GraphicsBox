@@ -13,6 +13,7 @@ namespace FrameGraph
     public:
         GBufferIndirectLightRadiance(CommandContext& Resources) :
             ICommand(Resources),
+            VEmptyVAO(Resources.GetLocation<VertexArrayObject>("Empty VAO")),
             VSkylightMethod(Resources.GetLocation<UInt>("Skylight Method")),
             VIndirectLightSamples(Resources.AddVariable<UInt>("Indirect Sample Count", 32)),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
@@ -51,6 +52,8 @@ namespace FrameGraph
         {
             Bind(FrameBuffer);
             FrameBuffer.Clear();
+
+            Bind(Resources.Get<VertexArrayObject>(VEmptyVAO));
             
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_COLOR, GL_ONE);
@@ -103,6 +106,7 @@ namespace FrameGraph
         }
         
     private:
+        Location VEmptyVAO;
         Location VSkylightMethod;
         Location VIndirectLightSamples;
         Location Cubemap;

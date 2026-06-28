@@ -23,8 +23,8 @@ namespace FrameGraph
             FBDepthAttachmentMSAA(Resources.Get<Texture2D>("Scene Depth MSAA")),
             SceneRadianceFB(FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance"), FrameBuffer::ClearColor(0.0)), &FBDepthAttachment),
             SceneRadianceMSAAFB(FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance MSAA"), FrameBuffer::ClearColor(0.0)), &FBDepthAttachmentMSAA),
-            CubemapPipeline(PipelineFromFile("Skylight To Radiance Cubemap", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineCubemapDefines)),
-            HDRiPipeline(PipelineFromFile("Skylight To Radiance HDRi", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineHDRIDefines)),
+            CubemapPipeline(PipelineFromFile("Mesh To Radiance Cubemap", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineCubemapDefines)),
+            HDRiPipeline(PipelineFromFile("Mesh To Radiance HDRi", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineHDRIDefines)),
             Sampler(Sampler::Params{})
         {
         }
