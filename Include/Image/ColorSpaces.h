@@ -101,6 +101,14 @@ namespace Rec709
     INLINE Math::Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
 }
 
+namespace sRGB
+{
+    float OETF(float linear);
+    float OETF(float linear, float gamma, float alpha);
+    float EOTF(float sRGB);
+    float EOTF(float sRGB, float gamma, float alpha);
+}
+
 namespace DciP3D65
 {
     INLINE Math::Vector2f WhitePoint()    {return D65::WhitePoint();}
@@ -188,15 +196,15 @@ namespace ArriLogC
     }
 
     template <typename EI = EI800>
-    INLINE Math::Vector3f GLinearToGArriLogC(Math::Vector3f color)
+    INLINE float GLinearToGArriLogC(float linear)
     {
-        return (color > EI::cut) ? EI::c * log10(EI::a * color + EI::b) + EI::d : EI::e * color + EI::f;
+        return (linear > EI::cut) ? EI::c * log10(EI::a * linear + EI::b) + EI::d : EI::e * linear + EI::f;
     }
 
     template <typename EI = EI800>
-    INLINE Math::Vector3f GArriLogCToGLinear(Math::Vector3f color)
+    INLINE float GArriLogCToGLinear(float logC)
     {
-        return (color > (EI::e * EI::cut + EI::f)) ? (pow(10, (color - EI::d) / EI::c) - 2) / EI::a : (color - EI::f) / EI::e;
+        return (logC > (EI::e * EI::cut + EI::f)) ? (pow(10, (logC - EI::d) / EI::c) - 2) / EI::a : (logC - EI::f) / EI::e;
     }
 }
 

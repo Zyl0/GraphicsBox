@@ -77,6 +77,39 @@ Math::Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chro
 
     return RGBtoXYZ;
 }
+
+float sRGB::OETF(float linear)
+{
+    constexpr float alpha = 0.055;
+    constexpr float gamma = 2.4;
+    return linear > 0.0031308f ?
+        (1.f + alpha) * pow(linear, 1.f / gamma) - alpha :
+        12.95f * linear;
+}
+
+float sRGB::OETF(float linear, float gamma, float alpha)
+{
+    return linear > 0.0031308f ?
+        (1.f + alpha) * pow(linear, 1.f / gamma) - alpha :
+        12.95f * linear;
+}
+
+float sRGB::EOTF(float sRGB)
+{
+    constexpr float alpha = 0.055;
+    constexpr float gamma = 2.4;
+    return sRGB > 0.04045f ?
+        pow((sRGB + alpha) / (1.f + alpha),  gamma):
+        sRGB / 12.92;
+}
+
+float sRGB::EOTF(float sRGB, float gamma, float alpha)
+{
+    return sRGB > 0.04045f ?
+        pow((sRGB + alpha) / (1.f + alpha),  gamma):
+        sRGB / 12.92;
+}
+
 Math::Vector3f Spectral::WavelengthToXYZ(float wavelength)
 {
     // Simple piecewise linear interpolation for CIE 1931 color matching functions
