@@ -550,13 +550,13 @@ namespace FrameGraph
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Bool>(std::string_view Name, const FrameGraph::Bool& BaseValue, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::UInt>(std::string_view Name, const FrameGraph::UInt& BaseValue);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::UInt>(std::string_view Name, const FrameGraph::UInt& BaseValue, std::string_view Description);
-    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::UInt>(std::string_view Name, const FrameGraph::UInt& BaseValue, const FrameGraph::UInt& Min, const FrameGraph::UInt& Max, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::UInt>(std::string_view Name, const FrameGraph::UInt& BaseValue, FrameGraph::UInt Min, FrameGraph::UInt Max, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Int>(std::string_view Name, const FrameGraph::Int& BaseValue);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Int>(std::string_view Name, const FrameGraph::Int& BaseValue, std::string_view Description);
-    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Int>(std::string_view Name, const FrameGraph::Int& BaseValue, const FrameGraph::Int& Min, const FrameGraph::Int& Max, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Int>(std::string_view Name, const FrameGraph::Int& BaseValue, FrameGraph::Int Min, FrameGraph::Int Max, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Float>(std::string_view Name, const FrameGraph::Float& BaseValue);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Float>(std::string_view Name, const FrameGraph::Float& BaseValue, std::string_view Description);
-    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Float>(std::string_view Name, const FrameGraph::Float& BaseValue, const FrameGraph::Float& Min, const FrameGraph::Float& Max, std::string_view Description);
+    template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Float>(std::string_view Name, const FrameGraph::Float& BaseValue, FrameGraph::Float Min, FrameGraph::Float Max, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Size2D>(std::string_view Name, const FrameGraph::Size2D& BaseValue);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Size2D>(std::string_view Name, const FrameGraph::Size2D& BaseValue, std::string_view Description);
     template<> FrameGraph::Location CommandContext::AddVariable<FrameGraph::Rect>(std::string_view Name, const FrameGraph::Rect& BaseValue);
