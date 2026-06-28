@@ -23,6 +23,9 @@ namespace FrameGraph
         Window::Module* Window = Engine::GetModule<Window::Module>(Context());
         AssertOrError(Window != nullptr, "Window is null")
 
+        Rendering::Module* Rendering = Engine::GetModule<Rendering::Module>(Context());
+        AssertOrError(Rendering != nullptr, "Rendering is null")
+
         Bool EnableReflectionData = Engine::GetModule<Editor::Module>(Context()) != nullptr;
         Bool EnableDebugViews = EnableReflectionData;
         
@@ -34,6 +37,7 @@ namespace FrameGraph
         // TODO introduce a way to have outputs to the graph
         TexOutput = Resources().Add<Texture2D>("Output", InitialWidth, InitialHeight,  Texture::UnsignedByte, Texture::RGB);
         VOutputSize = Resources().AddVariable<FrameGraph::Size2D>("Output", FrameGraph::Size2D{InitialWidth, InitialHeight});
+        Resources().Add<VertexArrayObject>("Empty VAO");
 
         m_OutputFrameBuffer.emplace(FrameBuffer::Attachment(Resources().Get<Texture2D>(TexOutput), FrameBuffer::ClearColor(0.0f)));
 
