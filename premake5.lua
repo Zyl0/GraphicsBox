@@ -393,7 +393,8 @@ group "Utilites"
         }
         links {
             "stb_image",
-            "stb_image_write"
+            "stb_image_write",
+            "Memory"
         }
     
     project "Importers"
@@ -526,6 +527,8 @@ group "Utilites"
             path.join(gb_SrcDir, "RayTracing", "**.cpp"),
         }
 
+        links {"Memory", "Image"}
+
     project "Rendering"
         language "C++"
         kind "StaticLib"
@@ -616,6 +619,7 @@ group "Samples"
             "Math",
             "Memory",
             "Modeling",
+            "RayTracing",
             "Rendering",
             "TinyGLTF",
             "ImGUI"
@@ -630,6 +634,7 @@ group "Samples"
             "Math",
             "Memory",
             "Modeling",
+            "RayTracing",
             "Rendering",
             "TinyGLTF",
             "ImGUI"
@@ -802,6 +807,7 @@ group "Samples"
                     "Math",
                     "Memory",
                     "Modeling",
+                    "RayTracing",
                     "Rendering",
                     "TinyGLTF",
                     "ImGUI", 
