@@ -48,6 +48,21 @@ newoption {
    default = "unset"
 }
 
+local clang_matching_compilers = {
+    ["gcc"] = {
+        c = "gcc",
+        cxx = "g++"
+    },
+    ["clang"] = {
+        c = "clang",
+        cxx = "clang++"
+    },
+    ["clang-21"] = {
+        c = "clang-21",
+        cxx = "clang++-21"
+    },
+}
+
 function GetCoreCount()
     if os.host() == "windows" then
         return tonumber(os.getenv("NUMBER_OF_PROCESSORS")) or 1
@@ -300,7 +315,16 @@ function UpdateShaderCompiler()
         end
     elseif os.host() == "linux" then
         for cfgIndex, cfg in ipairs(Configs) do
-            local cmd = "cmake -G \"Unix Makefiles\" -T " .. _OPTIONS["dependencies-toolset"] .. " -DCMAKE_BUILD_TYPE=" .. CmakeConfigs[cfgIndex] .. " " .. shadercDir
+            targetProjectPath = path.join(GetDependenciesProjectPath(), "shaderc", cfg)
+            if not os.isdir(targetProjectPath) then
+                os.mkdir(targetProjectPath)
+            end
+            os.chdir(targetProjectPath)
+
+            local cmd = "cmake -G \"Unix Makefiles\""
+                .. " -DCMAKE_C_COMPILER=\"" .. clang_matching_compilers[_OPTIONS["dependencies-toolset"]].c .. "\""
+                .. " -DCMAKE_CXX_COMPILER=\"" .. clang_matching_compilers[_OPTIONS["dependencies-toolset"]].cxx .. "\""
+                .. " -DCMAKE_BUILD_TYPE=" .. CmakeConfigs[cfgIndex] .. " " .. shadercDir
             
             print("[shaderc] Generatin CMake project for config " .. cfg .. ">" .. cmd)
             local genCmake = os.execute(cmd)
@@ -325,16 +349,16 @@ function UpdateShaderCompiler()
                 gbUseShaderc = false
             end
         
-            local src = path.join(targetProjectPath, "libshaderc", CmakeConfigs[cfgIndex], "libshaderc.so")
-            local target = path.join(gb_OutputDir, cfg, "libshaderc.so")
+            local src = path.join(targetProjectPath, "libshaderc", "libshaderc.a")
+            local target = path.join(gb_OutputDir, cfg, "libshaderc.a")
             print("[shaderc] Copying lib from " .. src .. " to ".. target)
             res, err = os.copyfile(src, target)
             if res == nil then
                 error(err)
             end
         
-            local src = path.join(targetProjectPath, "libshaderc", CmakeConfigs[cfgIndex], "libshaderc_combined.so")
-            local target = path.join(gb_OutputDir, cfg, "libshaderc_combined.so")
+            local src = path.join(targetProjectPath, "libshaderc", "libshaderc_combined.a")
+            local target = path.join(gb_OutputDir, cfg, "libshaderc_combined.a")
             print("[shaderc] Copying lib from " .. src .. " to ".. target)
             res, err = os.copyfile(src, target)
             if res == nil then
