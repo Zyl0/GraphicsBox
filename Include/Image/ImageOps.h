@@ -28,6 +28,7 @@ struct ImageBuffer
     uint32_t Height() const { return m_Height; }
     Image::Type ComponentType() const { return m_ComponentType; }
     Image::Layout ComponentLayout() const { return m_ComponentLayout; }
+    Image::Encoding ComponentEncoding() const { return m_ComponentEncoding; }
 
     uint32_t ChannelSize() const {return Image::ChannelSize(m_ComponentType);}
     uint32_t PixelSize() const {return Image::PixelSize(m_ComponentType, m_ComponentLayout);}
@@ -44,6 +45,7 @@ private:
     uint32_t m_Height;
     Image::Layout m_ComponentLayout;
     Image::Type m_ComponentType;
+    Image::Encoding m_ComponentEncoding;
 };
 
 template <typename TexelType>
@@ -117,6 +119,7 @@ ImageBuffer<TexelType>::ImageBuffer(const Image& Image)
     m_Height = Image.Height();
     m_ComponentLayout = Image.ComponentLayout();
     m_ComponentType = Image.ComponentType();
+    m_ComponentEncoding = Image.ComponentEncoding();
 }
 
 template <typename TexelType>
@@ -125,7 +128,8 @@ ImageBuffer<TexelType>::ImageBuffer(const ImageBuffer& Other):
     m_Width(Other.m_Width),
     m_Height(Other.m_Height),
     m_ComponentLayout(Other.m_ComponentLayout),
-    m_ComponentType(Other.m_ComponentType)
+    m_ComponentType(Other.m_ComponentType),
+    m_ComponentEncoding(Other.m_ComponentEncoding)
 {
 }
 
@@ -139,6 +143,7 @@ ImageBuffer<TexelType>& ImageBuffer<TexelType>::operator=(const ImageBuffer& Oth
     m_Height = Other.m_Height;
     m_ComponentLayout = Other.m_ComponentLayout;
     m_ComponentType = Other.m_ComponentType;
+    m_ComponentEncoding = Other.m_ComponentEncoding;
     return *this;
 }
 
@@ -239,8 +244,7 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, TexelType data)
             UNREACHABLE;
             break;
             
-        case Image::RGB: 
-            m_Data[y * m_Width + x];
+        case Image::RGB:
             break;
             
         case Image::BGR:
@@ -263,7 +267,6 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, TexelType data)
             break;
             
         case Image::RGBA:
-            m_Data[y * m_Width + x];
             break;
             
         case Image::ARGB:       
@@ -285,5 +288,6 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, TexelType data)
     m_Data[y * m_Width + x] = data;
 }
 
-Math::Vector3f ReadBuffer(const ImageBuffer<Math::Vector3t<uint8_t>> ImageBuffer, uint32_t x, uint32_t y);
-void WriteBuffer(const ImageBuffer<Math::Vector3t<uint8_t>> ImageBuffer, uint32_t x, uint32_t y, Math::Vector3f data);
+void ClearBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer);
+Math::Vector3f ReadBuffer(const ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y);
+void WriteBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y, Math::Vector3f data);
