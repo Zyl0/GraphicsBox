@@ -1,5 +1,7 @@
 ﻿#include "Modeling/HierarchicalDistanceFields.h"
 
+#include "Shared/Assertion.h"
+
 static double G(double a, double b, double r = 0.25)
 {
     double h = std::max(r - std::abs(a - b), 0.) / r;
