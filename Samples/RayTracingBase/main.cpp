@@ -17,9 +17,12 @@
 
 #include <GLFW/glfw3.h>
 
+#include "Image/ImageOps.h"
+#include "Modules/Rendering/Tools/DebugModule.h"
+
 using namespace Math;
 
-float CameraSpeed = 1.0f;
+float CameraSpeed = 0.01f;
 
 void UpdateCamera(Window::Module& Window, double deltaTime, FlyCamera& camera)
 {
@@ -82,8 +85,8 @@ public:
         m_Camera.SetProjection(Width, Height, Radians(m_FOV), m_ZNear, m_ZFar);
         m_Camera.SetTranslation(0,1,4);
         m_Camera.SetRotationDegrees(0,-90);
-        
-        
+        m_DrawDebugRays = false;
+
         // Load scene data
         {
             std::filesystem::path path;
@@ -106,7 +109,7 @@ public:
         
         m_SamplePipeline.emplace(PipelineFromFile("Draw example triangle", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToFrame.glsl"));
         
-        m_WriteImage.emplace(Width, Height, Image::UnsignedByte, Image::RGB, nullptr);
+        m_WriteImage.emplace(Width, Height, Image::UnsignedByte, Image::RGB, Image::Linear, nullptr);
     }
 
     void Tick(double deltaTime) override
@@ -114,6 +117,8 @@ public:
         DebugScopeMarker scope("Draw Raster");
         
         Window::Module* Window = Engine::GetModule<Window::Module>(Context());
+
+        Rendering::Debug::Module* DebugRendering = Engine::GetModule<Rendering::Debug::Module>(Context());
 
         // Handle shader reload
         if (Window->ShouldRecompileShaders())
@@ -127,7 +132,7 @@ public:
         {
             m_Camera.SetProjection(Width, Height, Radians(m_FOV), m_ZNear, m_ZFar);
             m_WriteImage.reset();
-            m_WriteImage.emplace(Width, Height, Image::UnsignedByte, Image::RGB, nullptr);
+            m_WriteImage.emplace(Width, Height, Image::UnsignedByte, Image::RGB, Image::Linear, nullptr);
         }
         
         UpdateCamera(*Window, deltaTime, m_Camera);
@@ -179,9 +184,9 @@ public:
             
             // Material
             SetUniform(*m_SamplePipeline, "baseColor", Material.color.XYZ());
-            SetUniform(*m_SamplePipeline, "emissive", Material.emissive.XYZ());
-            SetUniform(*m_SamplePipeline, "roughness", Material.roughness);
-            SetUniform(*m_SamplePipeline, "metallic", Material.metallic);
+            // SetUniform(*m_SamplePipeline, "emissive", Material.emissive.XYZ());
+            // SetUniform(*m_SamplePipeline, "roughness", Material.roughness);
+            // SetUniform(*m_SamplePipeline, "metallic", Material.metallic);
             
             
             if (m_MeshObject->GetIndexBuffer().has_value())
@@ -202,6 +207,36 @@ public:
         UnBind(m_MeshObject->GetVAO());
         
         UnBind(*m_SamplePipeline);
+
+        if (m_DrawDebugRays)
+        {
+            Width = m_WriteImage->Width();
+            Height = m_WriteImage->Height();
+            const Matrix4f ProjToWorld = Inverse(m_Camera.Projection() * m_Camera.View());
+            const Matrix4f WorldToProj = m_Camera.Projection() * m_Camera.View();
+
+            for (uint32_t y = 4; y < Height; y+=8)
+            for (uint32_t x = 4; x < Width; x+=8)
+            {
+                Vector4f Start = ProjToWorld * Vector4f(
+                    ((static_cast<float>(x) + .5f) * 2.f / static_cast<float>(Width)) - 1.f,
+                    ((static_cast<float>(y) + .5f) * 2.f / static_cast<float>(Height)) - 1.f,
+                    0.f, 1.f);
+                Start.xyz() /= Start.w;
+                Vector4f End = ProjToWorld * Vector4f(
+                    ((static_cast<float>(x) + .5f) * 2.f / static_cast<float>(Width)) - 1.f,
+                    ((static_cast<float>(y) + .5f) * 2.f / static_cast<float>(Height)) - 1.f,
+                    1.f, 1.f);
+                End.xyz() /= End.w;
+
+                DebugRendering->DrawRay(WorldToProj,
+                    Start.xyz(),
+                    Magnitude(End.xyz() - Start.xyz()),
+                    Normalize(End.xyz() - Start.xyz()),
+                    Magnitude(End.xyz() - Start.xyz())
+                );
+            }
+        }
     }
 
     void Shutdown() override
@@ -216,42 +251,145 @@ public:
 
     void EditorUI() override
     {
+        if (ImGui::Button("Take screenshot"))
+        {
+            std::filesystem::path exportPath = std::filesystem::path(TEMP_DIR) / "screenshot.png";
+
+            auto start= std::chrono::high_resolution_clock::now();
+            RayTracedScreenshot();
+            auto stop= std::chrono::high_resolution_clock::now();
+            long cpu= std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+            EngineLoggerLogF("Ray traced screenshot took %ld ms", cpu);
+
+            ImageStore(exportPath, *m_WriteImage, Image::JPG);
+        }
+
+        ImGui::Checkbox("Debug draw primary rays", &m_DrawDebugRays);
     }
     
     void RayTracedScreenshot()
     {
+        ImageBuffer<Vector3t<uint8_t>> TargetImage(*m_WriteImage);
+        ClearBuffer(TargetImage);
+
         const uint32_t Width = m_WriteImage->Width(); 
         const uint32_t Height = m_WriteImage->Height();
         const Matrix4f ProjToWorld = m_Camera.InverseView() * m_Camera.InverseProjection();
-        
+        // const Matrix4f ProjToWorld = Inverse(m_Camera.Projection() * m_Camera.View());
+
+        std::vector<Matrix4f> WorldToModelMatrix(m_Scene->transforms.size());
+        for (size_t i = 0; i < m_Scene->transforms.size(); ++i)
+        {
+            const GLTF::Transform& Transform = m_Scene->transforms[i];
+            switch (Transform.Type)
+            {
+            case GLTF::Transform::Properties:
+                {
+                    WorldToModelMatrix[i] = Inverse(Transform.Value.asProperties.GetTransform());
+                }
+                break;
+
+            case GLTF::Transform::Matrix:
+                {
+                    WorldToModelMatrix[i] = Inverse(Transform.Value.asMatrix);
+                }
+                break;
+
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
+            }
+        }
+
+        // #pragma omp parallel for collapse(2)
         for (uint32_t y = 0; y < Height; y++)
         for (uint32_t x = 0; x < Width; x++)
         {
-            Vector4f Start = ProjToWorld * Vector4f(((static_cast<float>(x) + .5f) / static_cast<float>(Width)), ((static_cast<float>(y) + .5f) / static_cast<float>(Height)), 0, 1);
+            Vector4f Start = ProjToWorld * Vector4f(
+                ((static_cast<float>(x) + .5f) / static_cast<float>(Width)) * 2.f - 1.f,
+                -(((static_cast<float>(y) + .5f) / static_cast<float>(Height)) * 2.f - 1.f),
+                0.f, 1.f);
             Start.xyz() /= Start.w;
-            Vector4f End = ProjToWorld * Vector4f(((static_cast<float>(x) + + .5f) / static_cast<float>(Width)), ((static_cast<float>(y) + .5f) / static_cast<float>(Height)), 1, 1);
+            Vector4f End = ProjToWorld * Vector4f(
+                ((static_cast<float>(x) + .5f) / static_cast<float>(Width)) * 2.f - 1.f,
+                -(((static_cast<float>(y) + .5f) / static_cast<float>(Height)) * 2.f - 1.f),
+                1.f, 1.f);
             End.xyz() /= End.w;
             
             Ray PrimaryRay = {
                 .origin = Start.xyz(), 
                 .direction = Normalize(End.xyz() - Start.xyz()), 
-                .distance = Magnitude(End.xyz() - Start.xyz())
+                .distance = m_ZFar - m_ZNear
             };
-            TraceRay PrimaryRayTracer(m_Scene->meshes[0], PrimaryRay);
-        
-            for (Hit hit : PrimaryRayTracer)
+
+            Hit ClosestHit = Hit();
+            GLTF::MeshInstance ClosestHitInstance;
+
+            // Traversal without BVH
+            for (const auto & instance : m_Scene->instances)
             {
-                // Any hit
+                const Mesh& mesh = m_Scene->meshes[instance.mesh];
+                const GLTF::Material& material = m_Scene->materials[instance.material];
+                Mesh::VertexGroup group = mesh.GetVertexGroups()[instance.vertexGroup];
+                const Matrix4f& transform = WorldToModelMatrix[instance.transform];
+
+                TraceRay PrimaryRayTracer(m_Scene->meshes[0], group.FirstVertex, group.VertexCount, PrimaryRay, transform);
+
+                for (Hit hit : PrimaryRayTracer)
+                {
+                    // Any hit
+                }
+
+                if (Hit Closest = PrimaryRayTracer.ClosestHit(); Closest)
+                {
+                    // Closest Hit
+                    if (ClosestHit && ClosestHit.t < Closest.t) continue;
+
+                    ClosestHit = Closest;
+                    ClosestHitInstance = instance;
+                }
+                else
+                {
+                    // Miss
+                }
             }
-        
-            if (Hit Closest = PrimaryRayTracer.ClosestHit(); Closest)
+
+            // Skip background
+            if (!ClosestHit) continue;
+
+            // Evaluate material
+            Mesh& mesh = m_Scene->meshes[ClosestHitInstance.mesh];
+            const GLTF::Material& material = m_Scene->materials[ClosestHitInstance.material];
+            Vector3f Color{};
+            switch (mesh.GetMeshType())
             {
-                // Closest Hit
+            case Mesh::POINTS:
+            case Mesh::LINE_STRIP:
+            case Mesh::LINE_LOOP:
+            case Mesh::LINES:
+            case Mesh::LINE_STRIP_ADJACENCY:
+            case Mesh::LINES_ADJACENCY:
+            case Mesh::PATCHES:
+            case Mesh::QUAD_STRIP:
+            case Mesh::QUADS:
+            case Mesh::_Count:
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported vertex type. Expected triangles")
+
+            case Mesh::TRIANGLE_STRIP_ADJACENCY:
+            case Mesh::TRIANGLES_ADJACENCY:
+            case Mesh::TRIANGLE_STRIP:
+            case Mesh::TRIANGLE_FAN:
+            case Mesh::TRIANGLES:
+                //Mesh::Face face(mesh, ClosestHit.face);
+                //Mesh::Vertex a = face[0];
+                //Mesh::Vertex b = face[1];
+                //Mesh::Vertex c = face[2];
+                //
+                // Color = material.color.XYZ();
+                Color.x = ClosestHit.u;
+                Color.y = ClosestHit.v;
+                Color.z = Saturate(1 - (ClosestHit.u + ClosestHit.v));
             }
-            else
-            {
-                // Miss
-            }
+
+            WriteBuffer(TargetImage, x, y, Color);
         }
     }
     
@@ -264,6 +402,8 @@ private:
     float m_LightIntensity;
     Math::Vector3f m_AmbientColor;
     float m_AmbientIntensity;
+
+    bool m_DrawDebugRays;
     
     std::optional<GLTF::CPUScene> m_Scene;
     std::optional<Image> m_SkyboxHDRiCpu;
@@ -288,6 +428,7 @@ int main(int argc, char* argv[])
     Engine::Spec Specification;
     Specification.Register<Window::Module>();
     Specification.Register<Rendering::Module>();
+    Specification.Register<Rendering::Debug::Module>();
     Specification.Register<ImGui::Module>();
     Specification.Register<AppModule>();
     
