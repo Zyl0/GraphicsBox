@@ -32,8 +32,9 @@ class TraceRay
 public:
     class iterator;
     
-    TraceRay(Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::MakeMatrix4Identity<float>());
-    
+    TraceRay(const Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::MakeMatrix4Identity<float>());
+    TraceRay(const Mesh& Mesh, unsigned FirstVertex, unsigned VertexCount, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::MakeMatrix4Identity<float>());
+
     Hit Next();
     INLINE Hit ClosestHit() const {return m_ClosestHit;}
     
@@ -57,10 +58,12 @@ public:
     iterator end() const {return iterator();}
     
 private:
-    Mesh::Faces MeshFaces;
-    Mesh::Face::iterator Current;
-    Mesh::Face::iterator End;
+    Mesh::ConstFaces MeshFaces;
+    Mesh::ConstFaces::iterator Current;
+    Mesh::ConstFaces::iterator End;
     Mesh::VertexType FaceType;
     Ray m_Ray;
     Hit m_ClosestHit;
+    unsigned m_FirstVertex;
+    unsigned m_VertexCount;
 };

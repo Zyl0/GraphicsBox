@@ -1,8 +1,11 @@
 #include "RayTracing/RayTrace.h"
 
+#include "Modeling/Mesh.h"
+#include "Shared/Assertion.h"
+
 using namespace Math;
 
-Hit IntersectTriangle(const Mesh::Face& Face, const Ray& Ray)
+Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray)
 {
     // TODO maybe Face should not contain a ref to the mesh
     
@@ -48,12 +51,14 @@ Math::Vector4f VertexInterpolate(const Hit& Hit, Math::Vector4f a, Math::Vector4
     return a * (1.f - Hit.u - Hit.v) + b * Hit.u + c * Hit.v;
 }
 
-TraceRay::TraceRay(Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel):
+TraceRay::TraceRay(const Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel):
     MeshFaces(Mesh),
     Current(MeshFaces.begin()),
     End(MeshFaces.end()),
     FaceType(Mesh.GetMeshType()),
-    m_Ray(Ray)
+    m_Ray(Ray),
+    m_FirstVertex(0),
+    m_VertexCount(Mesh.GetVertexCount())
 {    
     Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
     
@@ -67,9 +72,33 @@ TraceRay::TraceRay(Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToM
     m_Ray.direction = Normalize(end - m_Ray.origin);
 }
 
+TraceRay::TraceRay(const Mesh& Mesh, unsigned FirstVertex, unsigned VertexCount, const Ray& Ray, const Math::Transform4f& WorldToModel):
+    MeshFaces(Mesh),
+    Current(Mesh::ConstFace::iterator(Mesh, FirstVertex)),
+    End(Mesh::ConstFace::iterator(Mesh, FirstVertex + VertexCount)),
+    FaceType(Mesh.GetMeshType()),
+    m_Ray(Ray),
+    m_FirstVertex(0),
+    m_VertexCount(Mesh.GetVertexCount())
+{
+    AssertOrError(FirstVertex < Mesh.GetVertexCount(), "Vertex index out of range");
+    AssertOrError(FirstVertex + VertexCount <= Mesh.GetVertexCount(), "Vertex count out of range");
+
+    Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
+
+    Vector4f t = WorldToModel * Vector4f(m_Ray.origin, 1.0f);
+    m_Ray.origin = Vector3f(t.XYZ()) / t.w;
+
+    t = WorldToModel * Vector4f(end, 1.0f);
+    end = Vector3f(t.XYZ()) / t.w;
+
+    m_Ray.distance = Magnitude(end - m_Ray.origin);
+    m_Ray.direction = Normalize(end - m_Ray.origin);
+}
+
 Hit TraceRay::Next()
 {
-    for (; Current != End; ++Current)
+    for (; Current != End && Current.IsValid(); ++Current)
     {
         switch (FaceType)
         {            
