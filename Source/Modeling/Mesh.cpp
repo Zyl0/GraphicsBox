@@ -9,7 +9,7 @@
 #include "Shared/Logger.h"
 #include "Shared/Assertion.h"
 
-unsigned int Mesh::GetFaceCount() const
+uint32_t Mesh::GetFaceCount() const
 {
     switch (GetMeshType())
     {
@@ -41,7 +41,7 @@ unsigned int Mesh::GetFaceCount() const
     }
 }
 
-unsigned int Mesh::GetVertexCount() const
+uint32_t Mesh::GetVertexCount() const
 {
     if (IsIndexedMesh())
         return m_indexes.size();
@@ -363,83 +363,112 @@ void Mesh::ClearTangents()
 
 Math::Point3f& Mesh::Vertex::Position()
 {
-    AssertOrError(m_MeshReference.bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.");
-    if (m_MeshReference.IsIndexedMesh())
-        return m_MeshReference.m_positions[m_MeshReference.m_indexes[m_Vertex]];
-    return m_MeshReference.m_positions[m_Vertex];
+    AssertOrError(m_MeshReference->bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.");
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_positions[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_positions[m_Vertex];
 }
 
 const Math::Point3f& Mesh::Vertex::Position() const
 {
-    if (m_MeshReference.IsIndexedMesh())
-        return m_MeshReference.m_positions[m_MeshReference.m_indexes[m_Vertex]];
-    return m_MeshReference.m_positions[m_Vertex];
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_positions[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_positions[m_Vertex];
 }
 
 Math::Vector3f& Mesh::Vertex::Normal()
 {
-    AssertOrError(m_MeshReference.bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.");
-    if (m_MeshReference.IsIndexedMesh())
-        return m_MeshReference.m_normals[m_MeshReference.m_indexes[m_Vertex]];
-    return m_MeshReference.m_normals[m_Vertex];
+    AssertOrError(m_MeshReference->bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.");
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_normals[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_normals[m_Vertex];
 }
 
 const Math::Vector3f& Mesh::Vertex::Normal() const
 {
-    if (m_MeshReference.IsIndexedMesh())
-        return m_MeshReference.m_normals[m_MeshReference.m_indexes[m_Vertex]];
-    return m_MeshReference.m_normals[m_Vertex];
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_normals[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_normals[m_Vertex];
 }
 
 Math::Vector3f& Mesh::Vertex::Tangent()
 {
-    AssertOrError(m_MeshReference.bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.");
-    if (m_MeshReference.IsIndexedMesh())
-        return m_MeshReference.m_tangents[m_MeshReference.m_indexes[m_Vertex]];
-    return m_MeshReference.m_tangents[m_Vertex];
+    AssertOrError(m_MeshReference->bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.");
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_tangents[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_tangents[m_Vertex];
 }
 
 const Math::Vector3f& Mesh::Vertex::Tangent() const
 {
-    if (m_MeshReference.IsIndexedMesh())
-        return m_MeshReference.m_tangents[m_MeshReference.m_indexes[m_Vertex]];
-    return m_MeshReference.m_tangents[m_Vertex];
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_tangents[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_tangents[m_Vertex];
 }
 
 Math::Vector2f& Mesh::Vertex::TextureCoordinate()
 {
-    AssertOrError(m_MeshReference.bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.");
-    if (m_MeshReference.IsIndexedMesh())
-        return m_MeshReference.m_texture_coordinates[m_MeshReference.m_indexes[m_Vertex]];
-    return m_MeshReference.m_texture_coordinates[m_Vertex];
+    AssertOrError(m_MeshReference->bIsInEditMode, "Attempted to edit a mesh that is not in edit mode.");
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_texture_coordinates[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_texture_coordinates[m_Vertex];
 }
 
 const Math::Vector2f& Mesh::Vertex::TextureCoordinate() const
 {
-    if (m_MeshReference.IsIndexedMesh())
-        return m_MeshReference.m_texture_coordinates[m_MeshReference.m_indexes[m_Vertex]];
-    return m_MeshReference.m_texture_coordinates[m_Vertex];
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_texture_coordinates[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_texture_coordinates[m_Vertex];
+}
+
+const Math::Point3f& Mesh::ConstVertex::Position() const
+{
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_positions[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_positions[m_Vertex];
+}
+
+const Math::Vector3f& Mesh::ConstVertex::Normal() const
+{
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_normals[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_normals[m_Vertex];
+}
+
+const Math::Vector3f& Mesh::ConstVertex::Tangent() const
+{
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_tangents[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_tangents[m_Vertex];
+}
+
+const Math::Vector2f& Mesh::ConstVertex::TextureCoordinate() const
+{
+    if (m_MeshReference->IsIndexedMesh())
+        return m_MeshReference->m_texture_coordinates[m_MeshReference->m_indexes[m_Vertex]];
+    return m_MeshReference->m_texture_coordinates[m_Vertex];
 }
 
 Mesh::Vertex Mesh::Face::GetVertex(uint8_t index)
 {
     AssertFaceReadable(index);
-    if(m_MeshReference.GetMeshType() == TRIANGLE_FAN && index == 0)
-        return Vertex(m_MeshReference, 0);
-    return Vertex(m_MeshReference, m_FirstVertex + index);
+    if(m_MeshReference->GetMeshType() == TRIANGLE_FAN && index == 0)
+        return Vertex(*m_MeshReference, 0);
+    return Vertex(*m_MeshReference, m_FirstVertex + index);
 }
 
-const Mesh::Vertex Mesh::Face::GetVertex(uint8_t index) const
+Mesh::ConstVertex Mesh::Face::GetVertex(uint8_t index) const
 {
     AssertFaceReadable(index);
-    if(m_MeshReference.GetMeshType() == TRIANGLE_FAN && index == 0)
-        return Vertex(m_MeshReference, 0);
-    return Vertex(m_MeshReference, m_FirstVertex + index);
+    if(m_MeshReference->GetMeshType() == TRIANGLE_FAN && index == 0)
+        return ConstVertex(*m_MeshReference, 0);
+    return ConstVertex(*m_MeshReference, m_FirstVertex + index);
 }
 
 Mesh::Vertex::iterator Mesh::Face::begin()
 {
-    switch (m_MeshReference.GetMeshType())
+    if (!IsValid()) return {};
+    switch (m_MeshReference->GetMeshType())
     {
     case POINTS:
     case LINE_STRIP:
@@ -459,7 +488,7 @@ Mesh::Vertex::iterator Mesh::Face::begin()
     case QUAD_STRIP:
     case TRIANGLES:
     case QUADS:
-        return Vertex::iterator(m_MeshReference, m_FirstVertex);
+        return Vertex::iterator(*m_MeshReference, m_FirstVertex);
         
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
     }
@@ -467,9 +496,10 @@ Mesh::Vertex::iterator Mesh::Face::begin()
     AssertOrError(false, "Cannot iterate on faces. Unimplemented geometry type.")
 }
 
-Mesh::Vertex::const_iterator Mesh::Face::begin() const
+Mesh::ConstVertex::iterator Mesh::Face::begin() const
 {
-    switch (m_MeshReference.GetMeshType())
+    if (!IsValid()) return {};
+    switch (m_MeshReference->GetMeshType())
     {
     case POINTS:
     case LINE_STRIP:
@@ -489,7 +519,7 @@ Mesh::Vertex::const_iterator Mesh::Face::begin() const
     case QUAD_STRIP:
     case TRIANGLES:
     case QUADS:
-        return Vertex::const_iterator(m_MeshReference, m_FirstVertex);
+        return ConstVertex::iterator(*m_MeshReference, m_FirstVertex);
         
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
     }
@@ -497,7 +527,8 @@ Mesh::Vertex::const_iterator Mesh::Face::begin() const
 
 Mesh::Vertex::iterator Mesh::Face::end()
 {
-    switch (m_MeshReference.GetMeshType())
+    if (!IsValid()) return {};
+    switch (m_MeshReference->GetMeshType())
     {
     case POINTS:
     case LINE_STRIP:
@@ -515,19 +546,20 @@ Mesh::Vertex::iterator Mesh::Face::end()
     case TRIANGLES:
     case TRIANGLE_STRIP:
     case TRIANGLE_FAN:
-        return Vertex::iterator(m_MeshReference, m_FirstVertex + 3);
+        return Vertex::iterator(*m_MeshReference, m_FirstVertex + 3);
         
     case QUADS:
     case QUAD_STRIP:
-        return Vertex::iterator(m_MeshReference, m_FirstVertex + 4);
+        return Vertex::iterator(*m_MeshReference, m_FirstVertex + 4);
         
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
     }
 }
 
-Mesh::Vertex::const_iterator Mesh::Face::end() const
+Mesh::ConstVertex::iterator Mesh::Face::end() const
 {
-    switch (m_MeshReference.GetMeshType())
+    if (!IsValid()) return {};
+    switch (m_MeshReference->GetMeshType())
     {
     case POINTS:
     case LINE_STRIP:
@@ -545,11 +577,11 @@ Mesh::Vertex::const_iterator Mesh::Face::end() const
     case TRIANGLES:
     case TRIANGLE_STRIP:
     case TRIANGLE_FAN:
-        return Vertex::const_iterator(m_MeshReference, m_FirstVertex + 3);
+        return ConstVertex::iterator(*m_MeshReference, m_FirstVertex + 3);
         
     case QUADS:
     case QUAD_STRIP:
-        return Vertex::const_iterator(m_MeshReference, m_FirstVertex + 4);
+        return ConstVertex::iterator(*m_MeshReference, m_FirstVertex + 4);
         
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
     }
@@ -557,7 +589,8 @@ Mesh::Vertex::const_iterator Mesh::Face::end() const
 
 Mesh::Vertex::iterator Mesh::Face::last()
 {
-    switch (m_MeshReference.GetMeshType())
+    if (!IsValid()) return {};
+    switch (m_MeshReference->GetMeshType())
     {
     case POINTS:
     case LINE_STRIP:
@@ -575,11 +608,11 @@ Mesh::Vertex::iterator Mesh::Face::last()
     case TRIANGLES:
     case TRIANGLE_STRIP:
     case TRIANGLE_FAN:
-        return Vertex::iterator(m_MeshReference, m_FirstVertex + 2);
+        return Vertex::iterator(*m_MeshReference, m_FirstVertex + 2);
 
     case QUADS:
     case QUAD_STRIP:
-        return Vertex::iterator(m_MeshReference, m_FirstVertex + 3);
+        return Vertex::iterator(*m_MeshReference, m_FirstVertex + 3);
         
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
     }
@@ -587,7 +620,8 @@ Mesh::Vertex::iterator Mesh::Face::last()
 
 void Mesh::Face::AssertFaceReadable(uint8_t vertex) const
 {
-    switch (m_MeshReference.GetMeshType())
+    AssertOrError(IsValid(), "Tried to iterate or access a mesh from an invalid iterator")
+    switch (m_MeshReference->GetMeshType())
     {
     case POINTS:
     case LINE_STRIP:
@@ -619,7 +653,7 @@ void Mesh::Face::AssertFaceReadable(uint8_t vertex) const
 
 Mesh::Face::FaceIterator& Mesh::Face::FaceIterator::operator++()
 {
-    switch (m_MeshReference.GetMeshType())
+    switch (m_MeshReference->GetMeshType())
     {
     case POINTS:
     case LINE_STRIP:
@@ -645,6 +679,172 @@ Mesh::Face::FaceIterator& Mesh::Face::FaceIterator::operator++()
     case QUADS:
         m_FirstVertex+=4; return *this;
         
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
+    }
+}
+
+Mesh::ConstVertex Mesh::ConstFace::GetVertex(uint8_t index) const
+{
+    AssertFaceReadable(index);
+    if(m_MeshReference->GetMeshType() == TRIANGLE_FAN && index == 0)
+        return ConstVertex(*m_MeshReference, 0);
+    return ConstVertex(*m_MeshReference, m_FirstVertex + index);
+}
+
+Mesh::ConstVertex::iterator Mesh::ConstFace::begin() const
+{
+    if (!IsValid()) return {};
+    switch (m_MeshReference->GetMeshType())
+    {
+    case POINTS:
+    case LINE_STRIP:
+    case LINE_LOOP:
+    case LINES:
+    case LINE_STRIP_ADJACENCY:
+    case LINES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. This geometry type is not made of faces.")
+
+    case PATCHES:
+    case TRIANGLE_STRIP_ADJACENCY:
+    case TRIANGLES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration.")
+
+    case TRIANGLE_STRIP:
+    case TRIANGLE_FAN:
+    case QUAD_STRIP:
+    case TRIANGLES:
+    case QUADS:
+        return ConstVertex::iterator(*m_MeshReference, m_FirstVertex);
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
+    }
+
+    AssertOrError(false, "Cannot iterate on faces. Unimplemented geometry type.")
+}
+
+Mesh::ConstVertex::iterator Mesh::ConstFace::end() const
+{
+    if (!IsValid()) return {};
+    switch (m_MeshReference->GetMeshType())
+    {
+    case POINTS:
+    case LINE_STRIP:
+    case LINE_LOOP:
+    case LINES:
+    case LINE_STRIP_ADJACENCY:
+    case LINES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. This geometry type is not made of faces.")
+
+    case PATCHES:
+    case TRIANGLE_STRIP_ADJACENCY:
+    case TRIANGLES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration.")
+
+    case TRIANGLES:
+    case TRIANGLE_STRIP:
+    case TRIANGLE_FAN:
+        return ConstVertex::iterator(*m_MeshReference, m_FirstVertex + 3);
+
+    case QUADS:
+    case QUAD_STRIP:
+        return ConstVertex::iterator(*m_MeshReference, m_FirstVertex + 4);
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
+    }
+}
+
+Mesh::ConstVertex::iterator Mesh::ConstFace::last() const
+{
+    if (!IsValid()) return {};
+    switch (m_MeshReference->GetMeshType())
+    {
+    case POINTS:
+    case LINE_STRIP:
+    case LINE_LOOP:
+    case LINES:
+    case LINE_STRIP_ADJACENCY:
+    case LINES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. This geometry type is not made of faces.")
+
+    case PATCHES:
+    case TRIANGLE_STRIP_ADJACENCY:
+    case TRIANGLES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration.")
+
+    case TRIANGLES:
+    case TRIANGLE_STRIP:
+    case TRIANGLE_FAN:
+        return ConstVertex::iterator(*m_MeshReference, m_FirstVertex + 2);
+
+    case QUADS:
+    case QUAD_STRIP:
+        return ConstVertex::iterator(*m_MeshReference, m_FirstVertex + 3);
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
+    }
+}
+
+void Mesh::ConstFace::AssertFaceReadable(uint8_t vertex) const
+{
+    AssertOrError(IsValid(), "Tried to iterate or access a mesh from an invalid iterator")
+    switch (m_MeshReference->GetMeshType())
+    {
+    case POINTS:
+    case LINE_STRIP:
+    case LINE_LOOP:
+    case LINES:
+    case LINE_STRIP_ADJACENCY:
+    case LINES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot access face vertex. This geometry type is not made of faces")
+
+    case PATCHES:
+    case TRIANGLE_STRIP_ADJACENCY:
+    case TRIANGLES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot access face vertex. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration")
+
+    case TRIANGLE_STRIP:
+    case TRIANGLE_FAN:
+    case TRIANGLES:
+        AssertOrErrorF(vertex < 3, "Cannot access triangle vertex number %u. A quad is only made of 4 vertices", vertex)
+        break;
+
+    case QUAD_STRIP:
+    case QUADS:
+        AssertOrErrorF(vertex < 4, "Cannot access quad vertex number %u. A quad is only made of 4 vertices", vertex)
+        break;
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot access face vertex. Unimplemented geometry type.")
+    }
+}
+
+Mesh::ConstFace::ConstFaceIterator& Mesh::ConstFace::ConstFaceIterator::operator++()
+{
+    switch (m_MeshReference->GetMeshType())
+    {
+    case POINTS:
+    case LINE_STRIP:
+    case LINE_LOOP:
+    case LINES:
+    case LINE_STRIP_ADJACENCY:
+    case LINES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. This geometry type is not made of faces.")
+
+    case PATCHES:
+    case TRIANGLE_STRIP_ADJACENCY:
+    case TRIANGLES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration.")
+
+    case TRIANGLE_STRIP:
+    case TRIANGLE_FAN:
+    case QUAD_STRIP:
+        m_FirstVertex++; return *this;
+
+    case TRIANGLES:
+        m_FirstVertex+=3; return *this;
+
+    case QUADS:
+        m_FirstVertex+=4; return *this;
+
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
     }
 }

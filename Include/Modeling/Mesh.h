@@ -87,27 +87,27 @@ public:
     /**
      * @return true if mesh is indexed.
      */
-    INLINE bool IsIndexedMesh() const {return !m_indexes.empty();}
+    INLINE NO_DISCARD bool IsIndexedMesh() const {return !m_indexes.empty();}
 
     /**
      * @return GPU side mesh primitive type.
      */
-    INLINE VertexType GetMeshType() const {return m_mesh_type;}
+    INLINE NO_DISCARD VertexType GetMeshType() const {return m_mesh_type;}
 
-    INLINE std::span<const Math::Point3f> GetPositions() const              {return m_positions;}
-    INLINE std::span<const Math::Vector3f> GetNormals() const               {return m_normals;}
-    INLINE std::span<const Math::Vector3f> GetTangents() const              {return m_tangents;}
-    INLINE std::span<const Math::Vector2f> GetTextureCoordinates() const    {return m_texture_coordinates;}
-    INLINE std::span<const unsigned int>  GetIndices() const                {return m_indexes;}
-    INLINE std::span<const VertexGroup> GetVertexGroups() const             {return m_vertex_group;}
+    INLINE NO_DISCARD std::span<const Math::Point3f> GetPositions() const              {return m_positions;}
+    INLINE NO_DISCARD std::span<const Math::Vector3f> GetNormals() const               {return m_normals;}
+    INLINE NO_DISCARD std::span<const Math::Vector3f> GetTangents() const              {return m_tangents;}
+    INLINE NO_DISCARD std::span<const Math::Vector2f> GetTextureCoordinates() const    {return m_texture_coordinates;}
+    INLINE NO_DISCARD std::span<const unsigned int>  GetIndices() const                {return m_indexes;}
+    INLINE NO_DISCARD std::span<const VertexGroup> GetVertexGroups() const             {return m_vertex_group;}
     
-    INLINE bool HasNormals() const {return !m_normals.empty();}
-    INLINE bool HasTangents() const {return !m_tangents.empty();}
-    INLINE bool HasTextureCoordinates() const {return !m_texture_coordinates.empty();}
+    INLINE NO_DISCARD bool HasNormals() const {return !m_normals.empty();}
+    INLINE NO_DISCARD bool HasTangents() const {return !m_tangents.empty();}
+    INLINE NO_DISCARD bool HasTextureCoordinates() const {return !m_texture_coordinates.empty();}
 
-    unsigned int GetFaceCount() const;
+    NO_DISCARD uint32_t GetFaceCount() const;
 
-    unsigned int GetVertexCount() const;
+    NO_DISCARD uint32_t GetVertexCount() const;
     
     /**
      * @brief Initialize ore reset mesh vertex data (CPU Side) and put it in edit mode (allow mesh edition).
@@ -230,40 +230,124 @@ public:
         struct VertexIterator;
     public:
         using iterator = VertexIterator;
-        using const_iterator = const VertexIterator;
 
-        Vertex(Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(MeshReference), m_Vertex(Vertex) {}
+        Vertex() : m_MeshReference(nullptr), m_Vertex(0) {}
+
+        Vertex(Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(&MeshReference), m_Vertex(Vertex) {}
 
         Vertex(const iterator& it) : m_MeshReference(it.m_MeshReference), m_Vertex(it.m_Vertex) {}
         
-        Math::Point3f& Position();
-        const Math::Point3f& Position() const;
+        NO_DISCARD Math::Point3f& Position();
+        NO_DISCARD const Math::Point3f& Position() const;
 
-        Math::Vector3f& Normal();
-        const Math::Vector3f& Normal() const;
+        NO_DISCARD Math::Vector3f& Normal();
+        NO_DISCARD const Math::Vector3f& Normal() const;
 
-        Math::Vector3f& Tangent();
-        const Math::Vector3f& Tangent() const;
+        NO_DISCARD Math::Vector3f& Tangent();
+        NO_DISCARD const Math::Vector3f& Tangent() const;
 
-        Math::Vector2f& TextureCoordinate();
-        const Math::Vector2f& TextureCoordinate() const;
+        NO_DISCARD Math::Vector2f& TextureCoordinate();
+        NO_DISCARD const Math::Vector2f& TextureCoordinate() const;
+
+        INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr && m_Vertex < m_MeshReference->GetVertexCount();}
+        INLINE NO_DISCARD Mesh* GetMesh() {return m_MeshReference;}
+        INLINE NO_DISCARD uint32_t GetIndex() const {return m_Vertex;}
+
     private:
         struct VertexIterator
         {
             friend Vertex;
-            
-            VertexIterator(Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(MeshReference), m_Vertex(Vertex) {}
+
+            VertexIterator() : m_MeshReference(nullptr), m_Vertex(0) {}
+            VertexIterator(Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(&MeshReference), m_Vertex(Vertex) {}
 
             INLINE VertexIterator& operator++ () {m_Vertex++; return *this;}
-            INLINE Vertex operator* () const {return Vertex(m_MeshReference, m_Vertex);}
+            INLINE Vertex operator* () const {return Vertex(*this);}
             INLINE bool operator!= (const VertexIterator& outer) const {return &(m_MeshReference) != &(outer.m_MeshReference) || m_Vertex != outer.m_Vertex;}
             INLINE bool operator== (const VertexIterator& outer) const {return &(m_MeshReference) == &(outer.m_MeshReference) && m_Vertex == outer.m_Vertex;}
+
+            INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr && m_Vertex < m_MeshReference->GetVertexCount();}
+            INLINE NO_DISCARD Mesh* GetMesh() {return m_MeshReference;}
+            INLINE NO_DISCARD uint32_t GetIndex() const {return m_Vertex;}
         private:
-            Mesh& m_MeshReference;
+            Mesh* m_MeshReference;
             uint32_t m_Vertex;
         };
 
-        Mesh& m_MeshReference;
+        Mesh* m_MeshReference;
+        uint32_t m_Vertex;
+    };
+
+    struct ConstVertex
+    {
+    private:
+        struct VertexConstIterator;
+    public:
+        using iterator = VertexConstIterator;
+        using const_iterator = VertexConstIterator;
+
+        ConstVertex() : m_MeshReference(nullptr), m_Vertex(0) {}
+
+        ConstVertex(const Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(&MeshReference), m_Vertex(Vertex) {}
+
+        ConstVertex(const_iterator it) : ConstVertex()
+        {
+            if (!it.IsValid()) return;
+
+            m_MeshReference = it.m_MeshReference;
+            m_Vertex = it.m_Vertex;
+        }
+
+        ConstVertex(Vertex vertex) : ConstVertex()
+        {
+            if (!vertex.IsValid()) return;
+
+            m_MeshReference = vertex.GetMesh();
+            m_Vertex = vertex.GetIndex();
+        }
+
+        ConstVertex(Vertex::iterator it) : ConstVertex()
+        {
+            if (!it.IsValid()) return;
+
+            m_MeshReference = it.GetMesh();
+            m_Vertex = it.GetIndex();
+        }
+
+        NO_DISCARD const Math::Point3f& Position() const;
+
+        NO_DISCARD const Math::Vector3f& Normal() const;
+
+        NO_DISCARD const Math::Vector3f& Tangent() const;
+
+        NO_DISCARD const Math::Vector2f& TextureCoordinate() const;
+
+        INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr && m_Vertex < m_MeshReference->GetVertexCount();}
+        INLINE NO_DISCARD const Mesh* GetMesh() const {return m_MeshReference;}
+        INLINE NO_DISCARD uint32_t GetIndex() const {return m_Vertex;}
+
+    private:
+        struct VertexConstIterator
+        {
+            friend ConstVertex;
+
+            VertexConstIterator() : m_MeshReference(nullptr), m_Vertex(0) {}
+            VertexConstIterator(const Mesh& MeshReference, uint32_t Vertex) : m_MeshReference(&MeshReference), m_Vertex(Vertex) {}
+
+            INLINE VertexConstIterator& operator++ () {m_Vertex++; return *this;}
+            INLINE ConstVertex operator* () const {return ConstVertex(*this);}
+            INLINE bool operator!= (const VertexConstIterator& outer) const {return &(m_MeshReference) != &(outer.m_MeshReference) || m_Vertex != outer.m_Vertex;}
+            INLINE bool operator== (const VertexConstIterator& outer) const {return &(m_MeshReference) == &(outer.m_MeshReference) && m_Vertex == outer.m_Vertex;}
+
+            INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr && m_Vertex < m_MeshReference->GetVertexCount();}
+            INLINE NO_DISCARD const Mesh* GetMesh() const {return m_MeshReference;}
+            INLINE NO_DISCARD uint32_t GetIndex() const {return m_Vertex;}
+        private:
+            const Mesh* m_MeshReference;
+            uint32_t m_Vertex;
+        };
+
+        const Mesh* m_MeshReference;
         uint32_t m_Vertex;
     };
 
@@ -272,106 +356,268 @@ public:
     private:
         struct FaceIterator;
     public:
-        using const_iterator = const FaceIterator;
         using iterator = FaceIterator;
 
-        Face(Mesh& MeshReference, uint32_t FirstVertex) : m_MeshReference(MeshReference), m_FirstVertex(FirstVertex) {}
+        Face() : m_MeshReference(nullptr), m_FirstVertex(0) {}
+        Face(Mesh& MeshReference, uint32_t FirstVertex) : m_MeshReference(&MeshReference), m_FirstVertex(FirstVertex) {}
+        Face(iterator it) : Face()
+        {
+            if (!it.IsValid()) return;
+            m_MeshReference = it.m_MeshReference;
+            m_FirstVertex = it.m_FirstVertex;
+        }
 
-        Vertex GetVertex(uint8_t index);
-        const Vertex GetVertex(uint8_t index) const;
-        INLINE Vertex operator[] (uint8_t index) const {return GetVertex(index);}
+        NO_DISCARD Vertex GetVertex(uint8_t index);
+        NO_DISCARD ConstVertex GetVertex(uint8_t index) const;
+        INLINE Vertex operator[] (uint8_t index) {return GetVertex(index);}
+        INLINE ConstVertex operator[] (uint8_t index) const {return GetVertex(index);}
 
-        INLINE Math::Point3f& Position(uint8_t vertex) {AssertFaceReadable(vertex); return GetVertex(vertex).Position();}
-        INLINE const Math::Point3f& Position(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Position();}
+        INLINE NO_DISCARD Math::Point3f& Position(uint8_t vertex) {AssertFaceReadable(vertex); return GetVertex(vertex).Position();}
+        INLINE NO_DISCARD const Math::Point3f& Position(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Position();}
 
-        INLINE Math::Vector3f& Normal(uint8_t vertex) {AssertFaceReadable(vertex); return GetVertex(vertex).Normal();}
-        INLINE const Math::Vector3f& Normal(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Normal();}
+        INLINE NO_DISCARD Math::Vector3f& Normal(uint8_t vertex) {AssertFaceReadable(vertex); return GetVertex(vertex).Normal();}
+        INLINE NO_DISCARD const Math::Vector3f& Normal(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Normal();}
 
-        INLINE Math::Vector3f& Tangent(uint8_t vertex) {AssertFaceReadable(vertex); return GetVertex(vertex).Tangent();}
-        INLINE const Math::Vector3f& Tangent(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Tangent();}
+        INLINE NO_DISCARD Math::Vector3f& Tangent(uint8_t vertex) {AssertFaceReadable(vertex); return GetVertex(vertex).Tangent();}
+        INLINE NO_DISCARD const Math::Vector3f& Tangent(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Tangent();}
 
-        INLINE Math::Vector2f& TextureCoordinate(uint8_t vertex) {AssertFaceReadable(vertex); return GetVertex(vertex).TextureCoordinate();}
-        INLINE const Math::Vector2f& TextureCoordinate(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).TextureCoordinate();}
+        INLINE NO_DISCARD Math::Vector2f& TextureCoordinate(uint8_t vertex) {AssertFaceReadable(vertex); return GetVertex(vertex).TextureCoordinate();}
+        INLINE NO_DISCARD const Math::Vector2f& TextureCoordinate(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).TextureCoordinate();}
 
-        Vertex::iterator begin();
-        Vertex::const_iterator begin() const;
-        Vertex::iterator end();
-        Vertex::const_iterator end() const;
+        NO_DISCARD Vertex::iterator begin();
+        NO_DISCARD ConstVertex::iterator begin() const;
+        NO_DISCARD Vertex::iterator end();
+        NO_DISCARD ConstVertex::iterator end() const;
      
-        INLINE Vertex::iterator first() {return begin();}
-        INLINE Vertex::const_iterator first() const {return begin();}
-        Vertex::iterator last();
-        Vertex::const_iterator last() const;
-        
-        INLINE uint32_t FirstVertex() const {return m_FirstVertex;}
+        INLINE NO_DISCARD Vertex::iterator first() {return begin();}
+        INLINE NO_DISCARD ConstVertex::iterator first() const {return begin();}
+        NO_DISCARD Vertex::iterator last();
+        NO_DISCARD ConstVertex::iterator last() const;
+
+        INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr && m_FirstVertex < m_MeshReference->GetVertexCount();}
+        INLINE NO_DISCARD Mesh* GetMesh() {return m_MeshReference;}
+        INLINE NO_DISCARD uint32_t FirstVertex() const {return m_FirstVertex;}
+
     private:
         void AssertFaceReadable(uint8_t vertex) const;
      
         struct FaceIterator
         {
-            FaceIterator(Mesh& MeshReference, uint32_t FirstVertex) : m_MeshReference(MeshReference), m_FirstVertex(FirstVertex) {}
+            friend Face;
+
+            FaceIterator() : m_MeshReference(nullptr), m_FirstVertex(0) {}
+            FaceIterator(Mesh& MeshReference, uint32_t FirstVertex) : m_MeshReference(&MeshReference), m_FirstVertex(FirstVertex) {}
 
             FaceIterator& operator++ ();
-            INLINE Face operator* () const {return Face(m_MeshReference, m_FirstVertex);}
+            INLINE Face operator* () const {return Face(*this);}
             INLINE bool operator!= (const FaceIterator& outer) const {return &(m_MeshReference) != &(outer.m_MeshReference) || m_FirstVertex != outer.m_FirstVertex;}
             INLINE bool operator== (const FaceIterator& outer) const {return &(m_MeshReference) == &(outer.m_MeshReference) && m_FirstVertex == outer.m_FirstVertex;}
-            INLINE uint32_t FirstVertex() const {return m_FirstVertex;}
+
+            INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr && m_FirstVertex < m_MeshReference->GetVertexCount();}
+            INLINE NO_DISCARD Mesh* GetMesh() {return m_MeshReference;}
+            INLINE NO_DISCARD uint32_t FirstVertex() const {return m_FirstVertex;}
         private:
-            Mesh& m_MeshReference;
+            Mesh* m_MeshReference;
             uint32_t m_FirstVertex;
         };
 
-        Mesh& m_MeshReference;
+        Mesh* m_MeshReference;
+        uint32_t m_FirstVertex;
+    };
+
+
+    struct ConstFace
+    {
+    private:
+        struct ConstFaceIterator;
+    public:
+        using iterator = ConstFaceIterator;
+        using const_iterator = ConstFaceIterator;
+
+        ConstFace() : m_MeshReference(nullptr), m_FirstVertex(0) {}
+        ConstFace(const Mesh& MeshReference, uint32_t FirstVertex) : m_MeshReference(&MeshReference), m_FirstVertex(FirstVertex) {}
+        ConstFace(iterator it) : ConstFace()
+        {
+            if (!it.IsValid()) return;
+            m_MeshReference = it.m_MeshReference;
+            m_FirstVertex = it.m_FirstVertex;
+        }
+        ConstFace(Face face): ConstFace()
+        {
+            if (!face.IsValid()) return;
+            m_MeshReference = face.GetMesh();
+            m_FirstVertex = face.FirstVertex();
+        }
+
+        NO_DISCARD ConstVertex GetVertex(uint8_t index) const;
+        INLINE ConstVertex operator[] (uint8_t index) const {return GetVertex(index);}
+
+        INLINE NO_DISCARD const Math::Point3f& Position(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Position();}
+
+        INLINE NO_DISCARD const Math::Vector3f& Normal(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Normal();}
+
+        INLINE NO_DISCARD const Math::Vector3f& Tangent(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).Tangent();}
+
+        INLINE NO_DISCARD const Math::Vector2f& TextureCoordinate(uint8_t vertex) const {AssertFaceReadable(vertex); return GetVertex(vertex).TextureCoordinate();}
+
+        NO_DISCARD ConstVertex::iterator begin() const;
+        NO_DISCARD ConstVertex::iterator end() const;
+
+        INLINE NO_DISCARD ConstVertex::iterator first() const {return begin();}
+        NO_DISCARD ConstVertex::iterator last() const;
+
+        INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr && m_FirstVertex < m_MeshReference->GetVertexCount();}
+        INLINE NO_DISCARD const Mesh* GetMesh() {return m_MeshReference;}
+        INLINE NO_DISCARD uint32_t FirstVertex() const {return m_FirstVertex;}
+
+    private:
+        void AssertFaceReadable(uint8_t vertex) const;
+
+        struct ConstFaceIterator
+        {
+            friend ConstFace;
+
+            ConstFaceIterator() : m_MeshReference(nullptr), m_FirstVertex(0) {}
+            ConstFaceIterator(const Mesh& MeshReference, uint32_t FirstVertex) : m_MeshReference(&MeshReference), m_FirstVertex(FirstVertex) {}
+
+            ConstFaceIterator& operator++ ();
+            INLINE ConstFace operator* () const {return ConstFace(*this);}
+            INLINE bool operator!= (const ConstFaceIterator& outer) const {return &(m_MeshReference) != &(outer.m_MeshReference) || m_FirstVertex != outer.m_FirstVertex;}
+            INLINE bool operator== (const ConstFaceIterator& outer) const {return &(m_MeshReference) == &(outer.m_MeshReference) && m_FirstVertex == outer.m_FirstVertex;}
+
+            INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr && m_FirstVertex < m_MeshReference->GetVertexCount();}
+            INLINE NO_DISCARD const Mesh* GetMesh() {return m_MeshReference;}
+            INLINE NO_DISCARD uint32_t FirstVertex() const {return m_FirstVertex;}
+        private:
+            const Mesh* m_MeshReference;
+            uint32_t m_FirstVertex;
+        };
+
+        const Mesh* m_MeshReference;
         uint32_t m_FirstVertex;
     };
 
     struct Vertices
     {
         using iterator = Vertex::iterator;
+        using const_iterator = ConstVertex::iterator;
 
-        Vertices(Mesh& MeshReference) : m_MeshReference(MeshReference) {}
+        Vertices() : m_MeshReference(nullptr) {}
+        Vertices(Mesh& MeshReference) : m_MeshReference(&MeshReference) {}
 
-        Vertex operator[] (unsigned index) {return Vertex(m_MeshReference, index);}
+        INLINE ConstVertex operator[] (uint32_t index) const {return IsValid() ? ConstVertex(*m_MeshReference, index) : ConstVertex();}
+        INLINE Vertex operator[] (unsigned index) {return IsValid() ? Vertex(*m_MeshReference, index) : Vertex();}
 
-        Vertex::iterator begin() {return iterator(m_MeshReference, 0);}
-        Vertex::iterator end()   {return iterator(m_MeshReference, m_MeshReference.GetVertexCount());}
-     
-        INLINE Vertex::iterator first() {return begin();}
-        Vertex::iterator last() {return iterator(m_MeshReference,  m_MeshReference.GetVertexCount() > 0 ?  m_MeshReference.GetVertexCount() : 0);}
+        INLINE NO_DISCARD iterator begin() {return IsValid() ? iterator(*m_MeshReference, 0) : iterator();}
+        INLINE NO_DISCARD const_iterator begin() const {return IsValid() ? const_iterator(*m_MeshReference, 0) : const_iterator();}
+        INLINE NO_DISCARD iterator end() {return IsValid() ? iterator(*m_MeshReference, m_MeshReference->GetVertexCount()) : iterator();}
+        INLINE NO_DISCARD const_iterator end() const {return IsValid() ? const_iterator(*m_MeshReference, m_MeshReference->GetVertexCount()) : const_iterator();}
+
+        INLINE NO_DISCARD iterator first() {return begin();}
+        INLINE NO_DISCARD const_iterator first() const {return begin();}
+        INLINE NO_DISCARD iterator last() {return IsValid() ? iterator(*m_MeshReference,  m_MeshReference->GetVertexCount() > 0 ?  m_MeshReference->GetVertexCount() - 1 : 0) : iterator();}
+        INLINE NO_DISCARD const_iterator last() const {return IsValid() ? const_iterator(*m_MeshReference,  m_MeshReference->GetVertexCount() > 0 ?  m_MeshReference->GetVertexCount() - 1 : 0) : const_iterator();}
+
+        INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr;}
     private:
-        Mesh& m_MeshReference;
+        Mesh* m_MeshReference;
+    };
+
+    struct ConstVertices
+    {
+        using iterator = ConstVertex::iterator;
+        using const_iterator = ConstVertex::iterator;
+
+        ConstVertices() : m_MeshReference(nullptr) {}
+        ConstVertices(const Mesh& MeshReference) : m_MeshReference(&MeshReference) {}
+
+        INLINE ConstVertex operator[] (uint32_t index) const {return IsValid() ? ConstVertex(*m_MeshReference, index) : ConstVertex();}
+
+        INLINE NO_DISCARD iterator begin() {return IsValid() ? iterator(*m_MeshReference, 0) : iterator();}
+        INLINE NO_DISCARD const_iterator begin() const {return IsValid() ? const_iterator(*m_MeshReference, 0) : const_iterator();}
+        INLINE NO_DISCARD iterator end() {return IsValid() ? iterator(*m_MeshReference, m_MeshReference->GetVertexCount()) : iterator();}
+        INLINE NO_DISCARD const_iterator end() const {return IsValid() ? const_iterator(*m_MeshReference, m_MeshReference->GetVertexCount()) : const_iterator();}
+
+        INLINE NO_DISCARD iterator first() {return begin();}
+        INLINE NO_DISCARD const_iterator first() const {return begin();}
+        INLINE NO_DISCARD iterator last() {return IsValid() ? iterator(*m_MeshReference,  m_MeshReference->GetVertexCount() > 0 ?  m_MeshReference->GetVertexCount() - 1 : 0) : iterator();}
+        INLINE NO_DISCARD const_iterator last() const {return IsValid() ? const_iterator(*m_MeshReference,  m_MeshReference->GetVertexCount() > 0 ?  m_MeshReference->GetVertexCount() - 1 : 0) : const_iterator();}
+
+        INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr;}
+    private:
+        const Mesh* m_MeshReference;
     };
  
     struct Faces
     {
         using iterator = Face::iterator;
-        using const_iterator = Face::const_iterator;
+        using const_iterator = ConstFace::iterator;
 
-        Faces(Mesh& MeshReference) : m_MeshReference(MeshReference) {}
+        Faces() : m_MeshReference(nullptr) {}
+        Faces(Mesh& MeshReference) : m_MeshReference(&MeshReference) {}
 
-        Face operator[] (unsigned index) {return Face(m_MeshReference, index);}
+        INLINE Face operator[] (unsigned index) {return IsValid() ? Face(*m_MeshReference, index) : Face();}
+        INLINE ConstFace operator[](uint32_t index) const {return IsValid() ? ConstFace(*m_MeshReference, index) : ConstFace();}
 
-        Face::iterator begin() {return iterator(m_MeshReference, 0);}
-        Face::const_iterator begin() const {return iterator(m_MeshReference, 0);}
-        Face::iterator end() {return iterator(m_MeshReference, m_MeshReference.GetVertexCount());}
-        Face::const_iterator end() const {return iterator(m_MeshReference, m_MeshReference.GetVertexCount());}
+        INLINE NO_DISCARD iterator begin() {return IsValid() ? iterator(*m_MeshReference, 0) : iterator();}
+        INLINE NO_DISCARD const_iterator begin() const {return IsValid() ? const_iterator(*m_MeshReference, 0) : const_iterator();}
+        INLINE NO_DISCARD iterator end() {return IsValid() ? iterator(*m_MeshReference, m_MeshReference->GetVertexCount()) : iterator();}
+        INLINE NO_DISCARD const_iterator end() const {return IsValid() ? const_iterator(*m_MeshReference, m_MeshReference->GetVertexCount()) : const_iterator();}
      
-        INLINE Face::iterator first() {return begin();}
-        INLINE Face::const_iterator first() const {return begin();}
-        Face::iterator last()
+        INLINE NO_DISCARD iterator first() {return begin();}
+        INLINE NO_DISCARD const_iterator first() const {return begin();}
+        INLINE NO_DISCARD iterator last()
         {
-            unsigned count = m_MeshReference.GetFaceCount();
-            return iterator(m_MeshReference, count > 0 ? count - 1 : 0);
+            if (!IsValid()) return {};
+            unsigned count = m_MeshReference->GetFaceCount();
+            return iterator(*m_MeshReference, count > 0 ? count - 1 : 0);
         }
-        Face::const_iterator last() const
+        INLINE NO_DISCARD const_iterator last() const
         {
-            unsigned count = m_MeshReference.GetFaceCount();
-            return iterator(m_MeshReference, count > 0 ? count - 1 : 0);
+            if (!IsValid()) return {};
+            unsigned count = m_MeshReference->GetFaceCount();
+            return const_iterator(*m_MeshReference, count > 0 ? count - 1 : 0);
         }
+
+        INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr;}
     private:
-        Mesh& m_MeshReference;
+        Mesh* m_MeshReference;
     };
 
+    struct ConstFaces
+    {
+        using iterator = ConstFace::iterator;
+        using const_iterator = ConstFace::iterator;
+
+        ConstFaces() : m_MeshReference(nullptr) {}
+        ConstFaces(const Mesh& MeshReference) : m_MeshReference(&MeshReference) {}
+
+        INLINE ConstFace operator[](uint32_t index) const {return IsValid() ? ConstFace(*m_MeshReference, index) : ConstFace();}
+
+        INLINE NO_DISCARD iterator begin() {return IsValid() ? iterator(*m_MeshReference, 0) : iterator();}
+        INLINE NO_DISCARD const_iterator begin() const {return IsValid() ? const_iterator(*m_MeshReference, 0) : const_iterator();}
+        INLINE NO_DISCARD iterator end() {return IsValid() ? iterator(*m_MeshReference, m_MeshReference->GetVertexCount()) : iterator();}
+        INLINE NO_DISCARD const_iterator end() const {return IsValid() ? const_iterator(*m_MeshReference, m_MeshReference->GetVertexCount()) : const_iterator();}
+
+        INLINE NO_DISCARD iterator first() {return begin();}
+        INLINE NO_DISCARD const_iterator first() const {return begin();}
+        INLINE NO_DISCARD iterator last()
+        {
+            if (!IsValid()) return {};
+            unsigned count = m_MeshReference->GetFaceCount();
+            return iterator(*m_MeshReference, count > 0 ? count - 1 : 0);
+        }
+        INLINE NO_DISCARD const_iterator last() const
+        {
+            if (!IsValid()) return {};
+            unsigned count = m_MeshReference->GetFaceCount();
+            return const_iterator(*m_MeshReference, count > 0 ? count - 1 : 0);
+        }
+
+        INLINE NO_DISCARD bool IsValid() const {return m_MeshReference != nullptr;}
+    private:
+        const Mesh* m_MeshReference;
+    };
     /**
      * @brief Put the mesh out of edit mode and initialize it on the GPU side.
      */
