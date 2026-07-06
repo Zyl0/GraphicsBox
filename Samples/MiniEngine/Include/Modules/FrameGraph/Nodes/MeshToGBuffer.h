@@ -18,12 +18,14 @@ namespace FrameGraph
             GBufferSize(Resources.GetValue<Size2D>("Scene Radiance")),
             GBufferAlbedo(Resources.Add<Texture2D>("GBufferAlbedo", GBufferSize.x, GBufferSize.y, Texture::Type::Packed_R11F_G11F_B10F, Texture::Layout::RGB)),
             GBufferNormal(Resources.Add<Texture2D>("GBufferNormal", GBufferSize.x, GBufferSize.y, Texture::Type::Half, Texture::Layout::RGBA)),
+            GBufferTangent(Resources.Add<Texture2D>("GBufferTangent", GBufferSize.x, GBufferSize.y, Texture::Type::Half, Texture::Layout::RGBA)),
             GBufferProperties(Resources.Add<Texture2D>("GBufferProperties", GBufferSize.x, GBufferSize.y, Texture::Type::Packed_R11F_G11F_B10F, Texture::Layout::RGB)),
             VUseFrustumCulling(Resources.AddVariable("UseFrustumCulling", true)),
             FBDepthAttachment(Resources.Get<Texture2D>("Scene Depth")),
             FrameBuffer(std::array{
                 FrameBuffer::Attachment(Resources.Get<Texture2D>(GBufferAlbedo), FrameBuffer::ClearColor(0.0)),
                 FrameBuffer::Attachment(Resources.Get<Texture2D>(GBufferNormal), FrameBuffer::ClearColor(0.0)),
+                FrameBuffer::Attachment(Resources.Get<Texture2D>(GBufferTangent), FrameBuffer::ClearColor(0.0)),
                 FrameBuffer::Attachment(Resources.Get<Texture2D>(GBufferProperties), FrameBuffer::ClearColor(0.0))
             }, &FBDepthAttachment),
             Pipeline(PipelineFromFile("GLTF Mesh to GBuffer", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToGBuffer.glsl")),
@@ -44,6 +46,7 @@ namespace FrameGraph
                 GBufferSize = Resources.GetValue<Size2D>("Scene Radiance");
                 Resources.Get<Texture2D>(GBufferAlbedo).Data(GBufferSize.x, GBufferSize.y);
                 Resources.Get<Texture2D>(GBufferNormal).Data(GBufferSize.x, GBufferSize.y);
+                Resources.Get<Texture2D>(GBufferTangent).Data(GBufferSize.x, GBufferSize.y);
                 Resources.Get<Texture2D>(GBufferProperties).Data(GBufferSize.x, GBufferSize.y);
                 FrameBuffer.Resize(GBufferSize.x, GBufferSize.y);
             }
@@ -157,6 +160,7 @@ namespace FrameGraph
         Size2D GBufferSize;
         Location GBufferAlbedo;
         Location GBufferNormal;
+        Location GBufferTangent;
         Location GBufferProperties;
         Location VUseFrustumCulling;
         FrameBuffer::DepthAttachment FBDepthAttachment;

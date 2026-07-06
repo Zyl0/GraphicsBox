@@ -17,7 +17,8 @@ layout(location = 0) in vec2 UV;
 layout(location = 1) in vec2 UVProj;
 
 uniform sampler2D GBufferAlbedo;
-uniform sampler2D GPackedNormalTangent;
+uniform sampler2D GPackedNormal;
+uniform sampler2D GPackedTangent;
 uniform sampler2D GBufferProperties;
 uniform sampler2D GBufferDepth;
 
@@ -35,9 +36,11 @@ out vec4 OutColor;
 void main()
 {
     vec3 PixBaseColor = texture(GBufferAlbedo, UV).xyz;
-    vec4 PackedNormalTangent = texture(GPackedNormalTangent, UV);
-    vec3 Normal = DecodeOctahedron(PackedNormalTangent.xy);
-    vec3 Tangent = DecodeOctahedron(PackedNormalTangent.zw);
+    // vec4 PackedNormalTangent = texture(GPackedNormalTangent, UV);
+    // vec3 Normal = DecodeOctahedron(PackedNormalTangent.xy);
+    // vec3 Tangent = DecodeOctahedron(PackedNormalTangent.zw);
+    vec3 Normal = texture(GPackedNormal, UV).xyz;
+    vec3 Tangent = texture(GPackedTangent, UV).xyz;
     vec3 SurfaceProperties = texture(GBufferProperties, UV).xyz;
     float PixRoughness = SurfaceProperties.x;
     float PixMetalness = SurfaceProperties.y;
@@ -47,7 +50,8 @@ void main()
     if (Depth >= 1.0f) discard;
 
     // Deproject position
-    vec3 ViewPosition = ProjToView(cameras[0], vec3(UVProj, Depth));
+    vec4 ViewPosition = ProjToView(cameras[0], vec4(UVProj, Depth, 1));
+    ViewPosition.xyz /= ViewPosition.w;
 
     // Hit point Material settings
     vec3 DiffuseColor = mix(PixBaseColor, vec3(0), PixMetalness);
@@ -57,7 +61,7 @@ void main()
     vec3 finalColor = vec3(0);
 
     vec3 n = Normal;
-    vec3 v = ViewToWorld(cameras[0], normalize(ViewPosition));
+    vec3 v = ViewToWorld(cameras[0], -normalize(ViewPosition.xyz));
     vec3 l = normalize(-LightDirection);
     vec3 h = normalize(v + l);
 
