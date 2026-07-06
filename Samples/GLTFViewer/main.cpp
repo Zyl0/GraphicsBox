@@ -187,7 +187,7 @@ public:
         FrameDeffered.Add(SkylightToRadianceNode);
         FrameDeffered.Add(MeshToGBufferNode);
         FrameDeffered.Add(GBufferDirectionalLightRadianceNode);
-        // FrameDeffered.Add(GBufferIndirectLightRadianceNode);
+        FrameDeffered.Add(GBufferIndirectLightRadianceNode);
         FrameDeffered.Add(ToneMappingCommandNode);
 
         // Set current frame pipeline 
