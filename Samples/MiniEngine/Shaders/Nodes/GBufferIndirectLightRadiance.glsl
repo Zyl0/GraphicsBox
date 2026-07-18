@@ -118,7 +118,7 @@ void main()
         vec3 ReflectanceDielectrical = fDielectricalIndirect(DiffuseColor, G2 / G1, F);
         vec3 ReflectanceMetallic = fMetallicIndirect(DiffuseColor, G2 / G1, F);
 
-        vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
+        vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, pow(PixMetalness, 0.5));
 
         vec3 SkyLight = SampleSkylightColor(l, PixRoughness);
 

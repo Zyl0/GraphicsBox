@@ -28,6 +28,7 @@
 using namespace Math;
 
 #include "Modules/FrameGraph/Nodes/NativeResolutionRadiance.h"
+#include "Modules/FrameGraph/Nodes/PreviousFrameRadiance.h"
 #include "Modules/FrameGraph/Nodes/SkylightToRadiance.h"
 #include "Modules/FrameGraph/Nodes/MeshToSceneRadiance.h"
 #include "Modules/FrameGraph/Nodes/MeshToGBuffer.h"
@@ -169,6 +170,7 @@ public:
         
         // Define rendering pipeline
         FrameGraph::Location NativeResolutionRadianceNode = FrameGraph->PushNode<FrameGraph::NativeResolutionRadiance>();
+        FrameGraph::Location PreviousFrameNode = FrameGraph->PushNode<FrameGraph::PreviousRadiance>();
         FrameGraph::Location SkylightToRadianceNode = FrameGraph->PushNode<FrameGraph::SkylightToRadiance>();
         FrameGraph::Location MeshToSceneRadianceNode = FrameGraph->PushNode<FrameGraph::MeshToSceneRadiance>();
         FrameGraph::Location MeshToGBufferNode = FrameGraph->PushNode<FrameGraph::MeshToGBuffer>();
@@ -181,6 +183,7 @@ public:
         FrameForward.Add(SkylightToRadianceNode);
         FrameForward.Add(MeshToSceneRadianceNode);
         FrameForward.Add(ToneMappingCommandNode);
+        FrameForward.Add(PreviousFrameNode);
 
         // Defered command list (frame pipeline 1)
         FrameDeffered.Add(NativeResolutionRadianceNode);
@@ -189,6 +192,7 @@ public:
         FrameDeffered.Add(GBufferDirectionalLightRadianceNode);
         FrameDeffered.Add(GBufferIndirectLightRadianceNode);
         FrameDeffered.Add(ToneMappingCommandNode);
+        FrameDeffered.Add(PreviousFrameNode);
 
         // Set current frame pipeline 
         NextFramePipeline = 0;
@@ -198,6 +202,7 @@ public:
         VSkyLightMethod = FrameGraph->Resources().GetLocation<FrameGraph::UInt>("Skylight Method");
         VUseFrustumCulling = FrameGraph->Resources().GetLocation<FrameGraph::Bool>("UseFrustumCulling");
         VIndirectLightSampleCount = FrameGraph->Resources().GetLocation<FrameGraph::UInt>("Indirect Sample Count");
+        VUseScreenSpaceReflections = FrameGraph->Resources().GetLocation<FrameGraph::Bool>("Use Screen Space Reflections");
         
         CurrentAntiAliasing = 0;
         VUseMSAA = FrameGraph->Resources().GetLocation<FrameGraph::Bool>("Use MSAA");
@@ -374,6 +379,14 @@ public:
             }
         }
 
+        {
+            bool Copy = FrameGraph->Resources().GetValue<FrameGraph::Bool>(VUseScreenSpaceReflections);
+            if (ImGui::Checkbox("Use Screen Space Reflections", &Copy))
+            {
+                FrameGraph->Resources().SetValue<bool>(VUseScreenSpaceReflections, Copy);
+            }
+        }
+
         ImGui::Separator();
 
         ImGui::SliderFloat("Camera Speed", &CameraSpeed, 0.1f, 2.0f);
@@ -414,6 +427,7 @@ private:
     FrameGraph::Location VUseFrustumCulling;
     FrameGraph::Location VIndirectLightSampleCount;
     FrameGraph::Location VMainCamera;
+    FrameGraph::Location VUseScreenSpaceReflections;
     FrameGraph::Location TexCubemap;
     FrameGraph::Location TexHDRi;
     

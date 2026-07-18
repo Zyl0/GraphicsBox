@@ -19,10 +19,10 @@ layout(location= 2) in vec2 coordinates;
 
 layout(location= 0) out vec3 FragWorldPosition;
 layout(location= 1) out vec3 FragNormal;
-layout(location= 2) out vec3 FragTangent;
-layout(location= 3) out vec3 FragBiTangent;
-layout(location= 4) out vec2 UV0;
-layout(location= 5) out mat3 FragTBN;
+// layout(location= 2) out vec3 FragTangent;
+// layout(location= 3) out vec3 FragBiTangent;
+layout(location= 2) out vec2 UV0;
+layout(location= 3) out mat3 FragTBN;
 
 uniform mat4 Model, InverseModel;
 
@@ -87,8 +87,8 @@ void main( )
     vec3  B_raw    = cross(FragNormal, T_raw);  // initial bitangent
 
     // Rotate T_raw in the tangent plane by uvAngle
-    FragTangent = normalize(cosA * T_raw + sinA * B_raw);
-    FragBiTangent = cross(FragNormal, FragTangent); // always re-derive B from N×T
+    vec3 FragTangent = normalize(cosA * T_raw + sinA * B_raw);
+    vec3 FragBiTangent = cross(FragNormal, FragTangent); // always re-derive B from N×T
     FragTBN = mat3(FragTangent, FragBiTangent, FragNormal);
 }
 #endif // VERTEX_SHADER
@@ -135,10 +135,10 @@ vec2 Hammersley(uint i, uint N)
 
 layout(location= 0) in vec3 FragWorldPosition;
 layout(location= 1) in vec3 FragNormal;
-layout(location= 2) in vec3 FragTangent;
-layout(location= 3) in vec3 FragBiTangent;
-layout(location= 4) in vec2 UV0;
-layout(location= 5) in mat3 FragTBN;
+// layout(location= 2) in vec3 FragTangent;
+// layout(location= 3) in vec3 FragBiTangent;
+layout(location= 2) in vec2 UV0;
+layout(location= 3) in mat3 FragTBN;
 
 // Globals
 uniform uint IndirectLightingSampleCount;
@@ -162,7 +162,15 @@ uniform vec3 LightDirection;
 uniform vec3 LightColor;
 uniform float LightIntensity;
 
-out vec4 OutColor;
+uniform uint SSRMode;
+uniform sampler2D texPreviousRadiance;
+uniform float PreviousRadianceMips;
+uniform sampler2D texPreviousDepth;
+uniform uvec2 ViewportSize;
+
+uniform uint SSAOMode;
+
+layout(location= 0) out vec4 OutColor;
 
 void main()
 {
@@ -185,6 +193,11 @@ void main()
     {
         PixAmbiantOcclusion = texture(texAO, UV0).x;
     }
+    
+   // if (SSAOMode > 0)
+   // {
+   //     
+   // }
 
     // Clamp roughness
     PixRoughness = max(PixRoughness, 0.004);
@@ -258,9 +271,9 @@ void main()
                 vec2 u = Hammersley(i, IndirectLightingSampleCount);
 
                 // Ne
-                vec3 SampledDirection = SampleGGXVNDF_Intel2023(vNormalSpace, Alpha, Alpha, u.x, u.y);
+                vec3 SampledFace = SampleGGXVNDF_Intel2023(vNormalSpace, Alpha, Alpha, u.x, u.y);
 
-                vec3 n = normalize(TBN * SampledDirection);
+                vec3 n = normalize(TBN * SampledFace);
                 vec3 l = reflect(v, n);
                 vec3 h = normalize(v + l);
 
@@ -279,7 +292,83 @@ void main()
 
                 vec3 Reflectance = mix(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
 
-                vec3 SkyLight = SampleSkylightColor(l, PixRoughness);
+                // Screen space lighting
+                vec3 SkyLight = vec3(0);
+                if (SSRMode > 0)
+                {
+                    float depth = gl_FragCoord.z;
+
+                    bool hit = false;
+                    vec3 lView = normalize(WorldToView(cameras[0], l));
+                    float PixelDisplacement = length(lView.xy);
+                    
+                    if (PixelDisplacement > 0.0f)
+                    {
+                        vec4 pViewSpace = WorldToView(cameras[0], vec4(FragWorldPosition, 1.0f));
+                        pViewSpace.xyz /= pViewSpace.w;
+
+                        vec4 pImageSpace = WorldToProj(cameras[0], vec4(FragWorldPosition, 1.0f));
+                        pImageSpace.xyz /= pImageSpace.w;
+                        pImageSpace.xyz = pImageSpace.xyz / 2.0f + 0.5f; // Projective space to UV space
+
+                        vec3 lUV = ViewToProj(cameras[0], lView);
+                        lUV.xyz /= 2.0f; // Projective space to UV space
+
+                        vec3 scaledlUV = lUV * (1 / length(vec2(ViewportSize) / 2));
+                        vec3 scaledlView = ProjToView(cameras[0], scaledlUV);
+
+                        // float displacementFactor = lenght(scaledlView) / length(lView);
+                        float displacementFactor = length(scaledlView);
+
+                        // Reverse depth and V coordinates
+                        vec4 lProj = ViewToProj(cameras[0], vec4(lView, 0.0f));
+                        lProj.w *= -1;
+                        lProj.y *= -1;
+                        vec4 lView2 = ProjToView(cameras[0], lProj);
+                        lView = lView2.xyz;
+                        
+                        const uint kMaxSearchDistance = 256;
+                        const float bias = 0.01;
+                        for (uint i = 4; i < kMaxSearchDistance; i++)
+                        {
+                            vec3 ViewSpaceSample = pViewSpace.xyz + float(i) * displacementFactor * lView;
+                            vec4 ScreenSpaceSample = ViewToProj(cameras[0], vec4(ViewSpaceSample, 1.0f));
+                            ScreenSpaceSample.xyz /= ScreenSpaceSample.w;
+                            ScreenSpaceSample = ScreenSpaceSample / 2. + 0.5f; // Projective space to UV space
+                            
+                            if (
+                                ScreenSpaceSample.x < 0.0f || ScreenSpaceSample.x > 1.0f ||
+                                ScreenSpaceSample.y < 0.0f || ScreenSpaceSample.y > 1.0f ||
+                                ScreenSpaceSample.z < 0.0f || ScreenSpaceSample.z > 1.0f
+                            )
+                            {
+                                SkyLight = vec3(1,0,0);
+                                break;
+                            }
+                            
+                            float SampledDepth = texture(texPreviousDepth, ScreenSpaceSample.xy).x;
+                            if ((SampledDepth) < (ScreenSpaceSample.z ))
+                            {
+                                hit = true;
+                                SkyLight = texture(texPreviousRadiance, ScreenSpaceSample.xy, /*Alpha*/ pow(PixRoughness, 0.5f) * PreviousRadianceMips).xyz;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (hit)
+                    {
+                        SkyLight = mix(SkyLight, SampleSkylightColor(l, pow(PixRoughness, 0.5f)), PixRoughness);
+                    }
+                    else
+                    {
+                        SkyLight = SampleSkylightColor(l, pow(PixRoughness, 0.5f));
+                    }
+                }
+                else
+                {
+                    SkyLight = SampleSkylightColor(l, pow(PixRoughness, 0.5f));
+                }
 
                 sum += (G1 > 0.0f && G2 > 0.0f) ? Reflectance * SkyLight : vec3(0.0f);
             }

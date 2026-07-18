@@ -793,6 +793,10 @@ group "Samples"
             dependson {
                 "MiniEngine",
             }
+        
+            if gbUseSpirV then
+                links { "shaderc_combined" }
+            end
             
            filter {"system:linux", "action:gmake"}
                 -- OpenGL, GLFW and GLEW includes are provided by the system

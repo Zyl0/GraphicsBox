@@ -17,6 +17,11 @@ namespace FrameGraph
             VUseFrustumCulling(Resources.AddVariable("UseFrustumCulling", true)),
             VUseMSAA(Resources.GetLocation<Bool>("Use MSAA")),
             VMSAASampleCount(Resources.GetLocation<UInt>("MSAA Sample Count")),
+            VUseScreenSpaceReflections(Resources.AddVariable<Bool>("Use Screen Space Reflections", false)),
+            VUsePreviousRadiance(Resources.GetLocation<UInt>("Use Previous Radiance")),
+            PrevSceneRadiance(Resources.GetLocation<Texture2D>("Previous Scene Radiance")),
+            PrevSceneDepth(Resources.GetLocation<Texture2D>("Previous Scene Depth")),
+            VUseSSAO(Resources.AddVariable<Bool>("Use Screen Space AO", false)),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
             HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),
             FBDepthAttachment(Resources.Get<Texture2D>("Scene Depth")),
@@ -25,7 +30,15 @@ namespace FrameGraph
             SceneRadianceMSAAFB(FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance MSAA"), FrameBuffer::ClearColor(0.0)), &FBDepthAttachmentMSAA),
             CubemapPipeline(PipelineFromFile("Mesh To Radiance Cubemap", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineCubemapDefines)),
             HDRiPipeline(PipelineFromFile("Mesh To Radiance HDRi", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineHDRIDefines)),
-            Sampler(Sampler::Params{})
+            MaterialSampler(Sampler::Params{}),
+            PreviousFrameSampler(Sampler::Params{
+                .Magnification = Sampler::F_Nearest,
+                .Minification = Sampler::F_Nearest,
+                .WarpModeU = Sampler::W_ClampToEdge,
+                .WarpModeV = Sampler::W_ClampToEdge,
+                .WarpModeW = Sampler::W_ClampToEdge,
+                .MipMode = Sampler::M_Linear,
+            })
         {
         }
 
@@ -65,6 +78,18 @@ namespace FrameGraph
             //         SceneRadianceFB.Retarget(FrameBuffer::RetargetAttachment(Resources.Get<Texture2D>("Scene Radiance")), &FBDepthAttachment);
             //     }
             // }
+
+            if (Resources.HasChanged<Bool>(VUseScreenSpaceReflections))
+            {
+                if (Resources.GetValue<bool>(VUseScreenSpaceReflections))
+                {
+                    Resources.SetValue<UInt>(VUsePreviousRadiance, Resources.GetValue<UInt>(VUsePreviousRadiance) + 1);
+                }
+                else
+                {
+                    Resources.SetValue<UInt>(VUsePreviousRadiance, Resources.GetValue<UInt>(VUsePreviousRadiance) - 1);
+                }
+            }
         }
         
         void OnExecute(const CommandContext& Resources) override
@@ -86,7 +111,7 @@ namespace FrameGraph
             case 0: // Cubemap Sampling
                 Bind(CubemapPipeline);
                 
-                SetUniform(CubemapPipeline, "SkyLightCubeMap", 0, Resources.Get<TextureCube>(Cubemap), Sampler);
+                SetUniform(CubemapPipeline, "SkyLightCubeMap", 0, Resources.Get<TextureCube>(Cubemap), MaterialSampler);
                 SetUniform(CubemapPipeline, "SkyLightMipCount", Resources.Get<TextureCube>(Cubemap).MipCount());
                 
                 pipeline = &CubemapPipeline;
@@ -95,7 +120,7 @@ namespace FrameGraph
             case 1: // HDRI Sampling
                 Bind(HDRiPipeline);
                 
-                SetUniform(HDRiPipeline, "SkyLightHDRi", 0, Resources.Get<Texture2D>(HDRi), Sampler);
+                SetUniform(HDRiPipeline, "SkyLightHDRi", 0, Resources.Get<Texture2D>(HDRi), MaterialSampler);
                 SetUniform(HDRiPipeline, "SkyLightMipCount", Resources.Get<Texture2D>(HDRi).MipCount());
                 
                 pipeline = &HDRiPipeline;
@@ -117,6 +142,35 @@ namespace FrameGraph
             SetUniform(*pipeline, "LightColor", Resources.GetValue<Math::Vector3f>(VDirectionalLightColor));
             SetUniform(*pipeline, "LightIntensity", Resources.GetValue<Float>(VDirectionalLightIntensity));
             SetUniform(*pipeline, "IndirectLightingSampleCount", Resources.GetValue<UInt>(VIndirectLightSamples));
+
+            // Screen space effects
+            if (Resources.GetValue<Bool>(VUseScreenSpaceReflections) || Resources.GetValue<Bool>(VUseSSAO))
+            {
+                SetUniform(*pipeline, "texPreviousRadiance", 2, Resources.Get<Texture2D>(PrevSceneRadiance), PreviousFrameSampler);
+                SetUniform(*pipeline, "texPreviousDepth", 3, Resources.Get<Texture2D>(PrevSceneDepth), PreviousFrameSampler);
+                SetUniform(*pipeline, "PreviousRadianceMips", static_cast<float>(Resources.Get<Texture2D>(PrevSceneRadiance).MipCount()));
+                SetUniform(*pipeline, "ViewportSize", Resources.GetValue<Size2D>("Scene Radiance"));
+            }
+
+            // Screen space reflections
+            if (Resources.GetValue<Bool>(VUseScreenSpaceReflections))
+            {
+                SetUniform(*pipeline, "SSRMode", 1u);
+            }
+            else
+            {
+                SetUniform(*pipeline, "SSRMode", 0u);
+            }
+
+            // Screen space AO
+            if (Resources.GetValue<Bool>(VUseSSAO))
+            {
+                // SetUniform(*pipeline, "SSAOMode", 1u);
+            }
+            else
+            {
+                // SetUniform(*pipeline, "SSAOMode", 0u);
+            }
             
             // Uniform Data
             GLint GLTFBaseColor = GetUniformLocation(*pipeline, "BaseColor");
@@ -178,10 +232,10 @@ namespace FrameGraph
                 SetUniform(GLTFUseMRTexture, Material.metallicRoughnessTexture != UINT64_MAX);
                 SetUniform(GLTFUseAOTexture, Material.occlusionTexture != UINT64_MAX);
                 
-                if (Material.colorTexture != UINT64_MAX)                SetUniform(GLTFTexColor, 2, Resources.Scene().textures[Material.colorTexture], Sampler);
-                if (Material.normalTexture != UINT64_MAX)               SetUniform(GLTFTexNormal, 3, Resources.Scene().textures[Material.normalTexture], Sampler);
-                if (Material.metallicRoughnessTexture != UINT64_MAX)    SetUniform(GLTFTexMR, 4, Resources.Scene().textures[Material.metallicRoughnessTexture], Sampler);
-                if (Material.occlusionTexture != UINT64_MAX)            SetUniform(GLTFTexAO, 5, Resources.Scene().textures[Material.occlusionTexture], Sampler);
+                if (Material.colorTexture != UINT64_MAX)                SetUniform(GLTFTexColor, 4, Resources.Scene().textures[Material.colorTexture], MaterialSampler);
+                if (Material.normalTexture != UINT64_MAX)               SetUniform(GLTFTexNormal, 5, Resources.Scene().textures[Material.normalTexture], MaterialSampler);
+                if (Material.metallicRoughnessTexture != UINT64_MAX)    SetUniform(GLTFTexMR, 6, Resources.Scene().textures[Material.metallicRoughnessTexture], MaterialSampler);
+                if (Material.occlusionTexture != UINT64_MAX)            SetUniform(GLTFTexAO, 7, Resources.Scene().textures[Material.occlusionTexture], MaterialSampler);
                 
                 Bind(Mesh.GetVAO());
                 if (Mesh.GetIndexBuffer().has_value())
@@ -231,6 +285,11 @@ namespace FrameGraph
         Location VUseFrustumCulling;
         Location VUseMSAA;
         Location VMSAASampleCount;
+        Location VUseScreenSpaceReflections;
+        Location VUsePreviousRadiance;
+        Location PrevSceneRadiance;
+        Location PrevSceneDepth;
+        Location VUseSSAO;
         Location Cubemap;
         Location HDRi;
         FrameBuffer::DepthAttachment FBDepthAttachment;
@@ -241,6 +300,7 @@ namespace FrameGraph
         Shader::DefineArray<1> PipelineHDRIDefines = {Shader::Define("USE_HDRI_SKYLIGHT", "")};
         Pipeline CubemapPipeline;
         Pipeline HDRiPipeline;
-        Sampler Sampler;
+        Sampler MaterialSampler;
+        Sampler PreviousFrameSampler;
     };
 }

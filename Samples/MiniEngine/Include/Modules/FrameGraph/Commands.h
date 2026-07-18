@@ -507,6 +507,8 @@ namespace FrameGraph
 
     template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout);
     template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount);
+    template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips);
+    template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips, uint8_t SampleCount);
     template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, const Image& Image);
     template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, const Image& Image, bool UseMips);
     template<> FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize);
