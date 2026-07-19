@@ -369,6 +369,44 @@ Texture2D::Texture2D(uint32_t width, uint32_t height, Texture::Type type, Textur
     UnBind(*this);
 }
 
+Texture2D::Texture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips, uint8_t SampleCount):
+    m_Width(width), m_Height(height),
+    m_MipCount(UseMips ? miplevels(m_Width, m_Height) : 0), m_Type(type),
+    m_Layout(layout), m_SampleCount(SampleCount)
+{
+    GLCall(glGenTextures(1, &m_Texture))
+
+    Bind(*this);
+
+    // Texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, m_MipCount);
+
+    if (m_Width > 0 && m_Height > 0)
+    {
+        if (SampleCount > 0)
+        {
+            GLCall(glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SampleCount, ToGPUTextureType(type, layout), m_Width, m_Height, GL_TRUE))
+        }
+        else
+        {
+            GLCall(glTexImage2D(GL_TEXTURE_2D, 0,
+        ToGPUTextureType(type, layout), Width(), Height(), 0,
+        ToGLTextureLayout(type, layout), ToGLTextureType(type, layout), nullptr))
+        }
+    }
+
+    if (m_MipCount > 0)
+    {
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    UnBind(*this);
+}
+
 Texture2D::Texture2D(const Image& Image, bool UseMips):
     m_Width(Image.Width()), m_Height(Image.Height()),
     m_MipCount(UseMips ? miplevels(m_Width, m_Height) : 0), m_Type(Texture::ToTextureType(Image.ComponentType())),

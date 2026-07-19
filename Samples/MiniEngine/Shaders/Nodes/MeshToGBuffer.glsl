@@ -129,8 +129,10 @@ uniform sampler2D texMR;
 uniform sampler2D texAO;
 
 layout(location= 0) out vec3 OutColor;
-layout(location= 1) out vec4 OutPackedNormalTangent;
-layout(location= 2) out vec3 OutProperties;
+// layout(location= 1) out vec4 OutPackedNormalTangent;
+layout(location= 1) out vec3 OutNormal;
+layout(location= 2) out vec3 OutTangent;
+layout(location= 3) out vec3 OutProperties;
 
 void main()
 {
@@ -173,8 +175,11 @@ void main()
     vec3 v = normalize(CameraWorldPosition(cameras[0]) - FragWorldPosition);
     mat3 TBN =  FragTBN * LocalTBN;
 
+    OutNormal = TBN[2];
+    OutTangent = TBN[0];
+    
     // Encode into a pair of ochtahedron
-    OutPackedNormalTangent = vec4(EncodeOctahedron(/*Normal*/ TBN[2]), EncodeOctahedron(/*Tangent*/ TBN[0]));
+    // OutPackedNormalTangent = vec4(EncodeOctahedron(/*Normal*/ TBN[2]), EncodeOctahedron(/*Tangent*/ TBN[0]));
 
     OutProperties.x = PixRoughness;
     OutProperties.y = PixMetalness;

@@ -644,6 +644,62 @@ namespace FrameGraph
         return ObjectList<Texture2D>().Add(Name, width, height, type, layout, SampleCount);
     }
 
+    template<>
+    FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips)
+    {
+#ifdef ALWAYS_REFLECT_RENDERING_OBJECTS
+        if (m_ReflectionData.has_value())
+        {
+            if (ObjectList<Texture2D>().Has(Name))
+            {
+                return GetLocation<Texture2D>(Name);
+            }
+            
+            Location At = ObjectList<Texture2D>().Add(Name, width, height, type, layout, UseMips, (uint8_t)0);
+
+            _Graph::ReflectedObject<Texture2D> ReflectionData;
+            ReflectionData.FieldName = Name;
+            ReflectionData.HashedName = FrameGraph::ToName(Name);
+            ReflectionData.Location = At;
+            ReflectionData.Description = {};
+            
+            m_ReflectionData->m_Textures2D.push_back(ReflectionData);
+
+            return At;
+        }
+#endif // ALWAYS_REFLECT_RENDERING_OBJECTS
+        
+        return ObjectList<Texture2D>().Add(Name, width, height, type, layout, UseMips, (uint8_t)0);
+    }
+    template<>
+    FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips, uint8_t SampleCount)
+    {
+        
+#ifdef ALWAYS_REFLECT_RENDERING_OBJECTS
+        if (m_ReflectionData.has_value())
+        {
+            if (ObjectList<Texture2D>().Has(Name))
+            {
+                return GetLocation<Texture2D>(Name);
+            }
+            
+            Location At = ObjectList<Texture2D>().Add(Name, width, height, type, layout, UseMips, SampleCount);
+
+            _Graph::ReflectedObject<Texture2D> ReflectionData;
+            ReflectionData.FieldName = Name;
+            ReflectionData.HashedName = FrameGraph::ToName(Name);
+            ReflectionData.Location = At;
+            ReflectionData.Description = {};
+            
+            m_ReflectionData->m_Textures2D.push_back(ReflectionData);
+
+            return At;
+        }
+#endif // ALWAYS_REFLECT_RENDERING_OBJECTS
+        
+        return ObjectList<Texture2D>().Add(Name, width, height, type, layout, UseMips, SampleCount);
+    }
+
     template <>
     FrameGraph::Location CommandContext::Add<Texture2D>(std::string_view Name, const Image& Image)
     {

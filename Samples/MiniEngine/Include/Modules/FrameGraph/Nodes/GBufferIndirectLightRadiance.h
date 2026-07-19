@@ -20,6 +20,7 @@ namespace FrameGraph
             HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),
             GBufferAlbedo(Resources.GetLocation<Texture2D>("GBufferAlbedo")),
             GBufferNormal(Resources.GetLocation<Texture2D>("GBufferNormal")),
+            GBufferTangent(Resources.GetLocation<Texture2D>("GBufferTangent")),
             GBufferProperties(Resources.GetLocation<Texture2D>("GBufferProperties")),
             GBufferDepth(Resources.GetLocation<Texture2D>("Scene Depth")),
             FrameBuffer(FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance"), FrameBuffer::ClearColor(0.0f))),
@@ -51,12 +52,11 @@ namespace FrameGraph
         void OnExecute(const CommandContext& Resources) override
         {
             Bind(FrameBuffer);
-            FrameBuffer.Clear();
-
             Bind(Resources.Get<VertexArrayObject>(VEmptyVAO));
             
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_COLOR, GL_ONE);
+            glBlendEquation(GL_FUNC_ADD);
             
             const Pipeline* pipeline = nullptr;
             
@@ -92,9 +92,10 @@ namespace FrameGraph
             SetUniform(0, Resources.GetCameraBuffer());
             
             SetUniform(*pipeline, "GBufferAlbedo", 0, Resources.Get<Texture2D>(GBufferAlbedo), Sampler);
-            SetUniform(*pipeline, "GPackedNormalTangent", 1, Resources.Get<Texture2D>(GBufferNormal), Sampler);
-            SetUniform(*pipeline, "GBufferProperties", 2, Resources.Get<Texture2D>(GBufferProperties), Sampler);
-            SetUniform(*pipeline, "GBufferDepth", 3, Resources.Get<Texture2D>(GBufferDepth), Sampler);
+            SetUniform(*pipeline, "GPackedNormal", 1, Resources.Get<Texture2D>(GBufferNormal), Sampler);
+            SetUniform(*pipeline, "GPackedTangent", 2, Resources.Get<Texture2D>(GBufferTangent), Sampler);
+            SetUniform(*pipeline, "GBufferProperties", 3, Resources.Get<Texture2D>(GBufferProperties), Sampler);
+            SetUniform(*pipeline, "GBufferDepth", 4, Resources.Get<Texture2D>(GBufferDepth), Sampler);
             
             // Draw screen quad
             glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -113,6 +114,7 @@ namespace FrameGraph
         Location HDRi;
         Location GBufferAlbedo;
         Location GBufferNormal;
+        Location GBufferTangent;
         Location GBufferProperties;
         Location GBufferDepth;
         FrameBuffer FrameBuffer;

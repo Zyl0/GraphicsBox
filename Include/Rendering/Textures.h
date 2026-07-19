@@ -57,6 +57,7 @@ class Texture2D
 {
 public:
     Texture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount = 0);
+    Texture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips, uint8_t SampleCount = 0);
     Texture2D(const Image& Image, bool UseMips = true);
     Texture2D(uint32_t width, uint32_t height, Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips = true);
     Texture2D(const Texture2D& Other) = delete;

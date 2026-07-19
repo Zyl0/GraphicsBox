@@ -16,6 +16,7 @@ namespace FrameGraph
             VEmptyVAO(Resources.GetLocation<VertexArrayObject>("Empty VAO")),
             GBufferAlbedo(Resources.GetLocation<Texture2D>("GBufferAlbedo")),
             GBufferNormal(Resources.GetLocation<Texture2D>("GBufferNormal")),
+            GBufferTangent(Resources.GetLocation<Texture2D>("GBufferTangent")),
             GBufferProperties(Resources.GetLocation<Texture2D>("GBufferProperties")),
             GBufferDepth(Resources.GetLocation<Texture2D>("Scene Depth")),
             VDirectionalLightDirection(Resources.GetLocation<Math::Vector3f>("Light Direction")),
@@ -51,17 +52,21 @@ namespace FrameGraph
         {
             Bind(Pipeline);
             Bind(FrameBuffer);
-            FrameBuffer.Clear();
             Bind(Resources.Get<VertexArrayObject>(VEmptyVAO));
+
+            // glEnable(GL_BLEND);
+            // glBlendFunc(GL_SRC_COLOR, GL_ONE);
+            // glBlendEquation(GL_FUNC_ADD);
             
             // Scene storage buffers
             SetUniform(0, Resources.GetCameraBuffer());
         
             // GBuffer
             SetUniform(Pipeline, "GBufferAlbedo", 0, Resources.Get<Texture2D>(GBufferAlbedo), Sampler);
-            SetUniform(Pipeline, "GPackedNormalTangent", 1, Resources.Get<Texture2D>(GBufferNormal), Sampler);
-            SetUniform(Pipeline, "GBufferProperties", 2, Resources.Get<Texture2D>(GBufferProperties), Sampler);
-            SetUniform(Pipeline, "GBufferDepth", 3, Resources.Get<Texture2D>(GBufferDepth), Sampler);
+            SetUniform(Pipeline, "GPackedNormal", 1, Resources.Get<Texture2D>(GBufferNormal), Sampler);
+            SetUniform(Pipeline, "GPackedTangent", 2, Resources.Get<Texture2D>(GBufferTangent), Sampler);
+            SetUniform(Pipeline, "GBufferProperties", 3, Resources.Get<Texture2D>(GBufferProperties), Sampler);
+            SetUniform(Pipeline, "GBufferDepth", 4, Resources.Get<Texture2D>(GBufferDepth), Sampler);
             
             // Light properties
             SetUniform(Pipeline, "LightDirection", Resources.GetValue<Math::Vector3f>(VDirectionalLightDirection));
@@ -70,6 +75,8 @@ namespace FrameGraph
                     
             // Draw screen quad
             glDrawArrays(GL_TRIANGLES, 0, 3);
+            
+            // glDisable(GL_BLEND);
         
             UnBind(FrameBuffer);
             UnBind(Pipeline);
@@ -79,6 +86,7 @@ namespace FrameGraph
         Location VEmptyVAO;
         Location GBufferAlbedo;
         Location GBufferNormal;
+        Location GBufferTangent;
         Location GBufferProperties;
         Location GBufferDepth;
         Location VDirectionalLightDirection;
