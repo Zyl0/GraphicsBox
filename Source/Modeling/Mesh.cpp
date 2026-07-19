@@ -41,6 +41,72 @@ uint32_t Mesh::GetFaceCount() const
     }
 }
 
+uint32_t Mesh::FaceIndex(Mesh::VertexType FaceType, uint32_t FirstVertexIndex)
+{
+    switch (FaceType)
+    {
+    case POINTS:
+    case LINE_STRIP:
+    case LINE_LOOP:
+    case LINES:
+    case LINE_STRIP_ADJACENCY:
+    case LINES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. This geometry type is not made of faces.")
+
+    case PATCHES:
+    case TRIANGLE_STRIP_ADJACENCY:
+    case TRIANGLES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration.")
+
+    case TRIANGLE_STRIP:
+    case TRIANGLE_FAN:
+    case QUAD_STRIP:
+        return FirstVertexIndex;
+
+    case TRIANGLES:
+        return FirstVertexIndex / 3;
+
+    case QUADS:
+        return FirstVertexIndex / 4;
+
+    case _Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
+    }
+}
+
+uint32_t Mesh::FaceVertexIncrement(Mesh::VertexType FaceType)
+{
+    switch (FaceType)
+    {
+    case POINTS:
+    case LINE_STRIP:
+    case LINE_LOOP:
+    case LINES:
+    case LINE_STRIP_ADJACENCY:
+    case LINES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. This geometry type is not made of faces.")
+        
+    case PATCHES:
+    case TRIANGLE_STRIP_ADJACENCY:
+    case TRIANGLES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration.")
+        
+    case TRIANGLE_STRIP:
+    case TRIANGLE_FAN:
+    case QUAD_STRIP:
+        return 1;
+        
+    case TRIANGLES:
+        return 3;
+
+    case QUADS:
+        return 4;
+
+    case _Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
+    }
+}
+
 uint32_t Mesh::GetVertexCount() const
 {
     if (IsIndexedMesh())
@@ -651,38 +717,6 @@ void Mesh::Face::AssertFaceReadable(uint8_t vertex) const
     }
 }
 
-Mesh::Face::FaceIterator& Mesh::Face::FaceIterator::operator++()
-{
-    switch (m_MeshReference->GetMeshType())
-    {
-    case POINTS:
-    case LINE_STRIP:
-    case LINE_LOOP:
-    case LINES:
-    case LINE_STRIP_ADJACENCY:
-    case LINES_ADJACENCY:
-        ENUM_OUT_OF_RANGE("Cannot iterate on faces. This geometry type is not made of faces.")
-        
-    case PATCHES:
-    case TRIANGLE_STRIP_ADJACENCY:
-    case TRIANGLES_ADJACENCY:
-        ENUM_OUT_OF_RANGE("Cannot iterate on faces. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration.")
-        
-    case TRIANGLE_STRIP:
-    case TRIANGLE_FAN:
-    case QUAD_STRIP:
-        m_FirstVertex++; return *this;
-        
-    case TRIANGLES:
-        m_FirstVertex+=3; return *this;
-
-    case QUADS:
-        m_FirstVertex+=4; return *this;
-        
-    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
-    }
-}
-
 Mesh::ConstVertex Mesh::ConstFace::GetVertex(uint8_t index) const
 {
     AssertFaceReadable(index);
@@ -817,7 +851,7 @@ void Mesh::ConstFace::AssertFaceReadable(uint8_t vertex) const
     }
 }
 
-Mesh::ConstFace::ConstFaceIterator& Mesh::ConstFace::ConstFaceIterator::operator++()
+uint32_t Mesh::Faces::GetFaceFirstVertex(uint32_t index) const
 {
     switch (m_MeshReference->GetMeshType())
     {
@@ -837,13 +871,45 @@ Mesh::ConstFace::ConstFaceIterator& Mesh::ConstFace::ConstFaceIterator::operator
     case TRIANGLE_STRIP:
     case TRIANGLE_FAN:
     case QUAD_STRIP:
-        m_FirstVertex++; return *this;
+        return index;
 
     case TRIANGLES:
-        m_FirstVertex+=3; return *this;
+        return index * 3;
 
     case QUADS:
-        m_FirstVertex+=4; return *this;
+        return index * 4;
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
+    }
+}
+
+uint32_t Mesh::ConstFaces::GetFaceFirstVertex(uint32_t index) const
+{
+    switch (m_MeshReference->GetMeshType())
+    {
+    case POINTS:
+    case LINE_STRIP:
+    case LINE_LOOP:
+    case LINES:
+    case LINE_STRIP_ADJACENCY:
+    case LINES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. This geometry type is not made of faces.")
+
+    case PATCHES:
+    case TRIANGLE_STRIP_ADJACENCY:
+    case TRIANGLES_ADJACENCY:
+        ENUM_OUT_OF_RANGE("Cannot iterate on faces. PATCHES, TRIANGLE_STRIP_ADJACENCY and TRIANGLES_ADJACENCY geometry types is not supported for face iteration.")
+
+    case TRIANGLE_STRIP:
+    case TRIANGLE_FAN:
+    case QUAD_STRIP:
+        return index;
+
+    case TRIANGLES:
+        return index * 3;
+
+    case QUADS:
+        return index * 4;
 
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Cannot iterate on faces. Unimplemented geometry type.")
     }
