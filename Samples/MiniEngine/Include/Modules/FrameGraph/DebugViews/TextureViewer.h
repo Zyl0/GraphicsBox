@@ -166,6 +166,12 @@ namespace FrameGraph
                 SetUniform(DisplayTexturePipeline, "ShowGreen", ShowGreen);
                 SetUniform(DisplayTexturePipeline, "ShowBlue", ShowBlue);
                 SetUniform(DisplayTexturePipeline, "ShowAlpha", ShowAlpha);
+
+                SetUniform(DisplayTexturePipeline, "RedRange", RangeRed);
+                SetUniform(DisplayTexturePipeline, "GreenRange", RangeGreen);
+                SetUniform(DisplayTexturePipeline, "BlueRange", RangeBlue);
+                SetUniform(DisplayTexturePipeline, "AlphaRange", RangeAlpha);
+                
                 SetUniform(DisplayTexturePipeline, "UseOETF", UseOETF);
                 
                 // Draw screen quad
@@ -182,10 +188,10 @@ namespace FrameGraph
         
         void EditorUI() override
         {            
-            ImGui::Checkbox("Show Reds", &ShowRed);     ImGui::SameLine(); ImGui::DragFloat2("Red Range", RangeRed.data());
-            ImGui::Checkbox("Show Greens", &ShowGreen); ImGui::SameLine(); ImGui::DragFloat2("Green Range", RangeGreen.data());
-            ImGui::Checkbox("Show Blues", &ShowBlue);   ImGui::SameLine(); ImGui::DragFloat2("Blue Range", RangeBlue.data());
-            ImGui::Checkbox("Show Alphas", &ShowAlpha); ImGui::SameLine(); ImGui::DragFloat2("Alpha Range", RangeAlpha.data());
+            ImGui::Checkbox("Show Reds", &ShowRed);     ImGui::SameLine(); ImGui::DragFloat2("Red Range", RangeRed.data(), 0.01f);
+            ImGui::Checkbox("Show Greens", &ShowGreen); ImGui::SameLine(); ImGui::DragFloat2("Green Range", RangeGreen.data(), 0.01f);
+            ImGui::Checkbox("Show Blues", &ShowBlue);   ImGui::SameLine(); ImGui::DragFloat2("Blue Range", RangeBlue.data(), 0.01f);
+            ImGui::Checkbox("Show Alphas", &ShowAlpha); ImGui::SameLine(); ImGui::DragFloat2("Alpha Range", RangeAlpha.data(), 0.01f);
             RangeRed.x = std::min(RangeRed.x, RangeRed.y);
             RangeGreen.x = std::min(RangeGreen.x, RangeGreen.y);
             RangeBlue.x = std::min(RangeBlue.x, RangeBlue.y);

@@ -93,12 +93,28 @@ void main()
 
 uniform sampler2D Input;
 
+float InverseLerp(float A, float B, float T)
+{
+    return clamp((T - A) / (B - A), 0.0f, 1.0f);
+}
+
+vec3 InverseLerp(vec3 A, vec3 B, float T)
+{
+    return clamp((T - A) / (B - A), 0.0f, 1.0f);
+}
+
+
 // Channels
 uniform bool ConvertToGreyscale;
 uniform bool ShowRed;
 uniform bool ShowGreen;
 uniform bool ShowBlue;
 uniform bool ShowAlpha;
+
+uniform vec2 RedRange;
+uniform vec2 GreenRange;
+uniform vec2 BlueRange;
+uniform vec2 AlphaRange;
 
 uniform bool UseOETF;
 
@@ -113,6 +129,12 @@ void main()
     }
     else
     {
+        // Handle Ranges
+        finalColor.x = InverseLerp(RedRange.x, RedRange.y, finalColor.x);
+        finalColor.y = InverseLerp(GreenRange.x, GreenRange.y, finalColor.y);
+        finalColor.z = InverseLerp(BlueRange.x, BlueRange.y, finalColor.z);
+        finalColor.a = InverseLerp(AlphaRange.x, AlphaRange.y, finalColor.a);
+        
         // Channels
         finalColor.x = ShowRed ? finalColor.x : 0.0f;
         finalColor.y = ShowGreen ? finalColor.y : 0.0f;
