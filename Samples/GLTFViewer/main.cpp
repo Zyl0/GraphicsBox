@@ -29,6 +29,7 @@ using namespace Math;
 
 #include "Modules/FrameGraph/Nodes/NativeResolutionRadiance.h"
 #include "Modules/FrameGraph/Nodes/PreviousFrameRadiance.h"
+#include "Modules/FrameGraph/Nodes/MotionVectors.h"
 #include "Modules/FrameGraph/Nodes/SkylightToRadiance.h"
 #include "Modules/FrameGraph/Nodes/MeshToSceneRadiance.h"
 #include "Modules/FrameGraph/Nodes/MeshToGBuffer.h"
@@ -171,6 +172,7 @@ public:
         // Define rendering pipeline
         FrameGraph::Location NativeResolutionRadianceNode = FrameGraph->PushNode<FrameGraph::NativeResolutionRadiance>();
         FrameGraph::Location PreviousFrameNode = FrameGraph->PushNode<FrameGraph::PreviousRadiance>();
+        FrameGraph::Location MotionVectorsNode = FrameGraph->PushNode<FrameGraph::MotionVectors>();
         FrameGraph::Location SkylightToRadianceNode = FrameGraph->PushNode<FrameGraph::SkylightToRadiance>();
         FrameGraph::Location MeshToSceneRadianceNode = FrameGraph->PushNode<FrameGraph::MeshToSceneRadiance>();
         FrameGraph::Location MeshToGBufferNode = FrameGraph->PushNode<FrameGraph::MeshToGBuffer>();
@@ -184,6 +186,7 @@ public:
         FrameForward.Add(MeshToSceneRadianceNode);
         FrameForward.Add(ToneMappingCommandNode);
         FrameForward.Add(PreviousFrameNode);
+        FrameForward.Add(MotionVectorsNode);
 
         // Defered command list (frame pipeline 1)
         FrameDeffered.Add(NativeResolutionRadianceNode);
@@ -193,6 +196,7 @@ public:
         FrameDeffered.Add(GBufferIndirectLightRadianceNode);
         FrameDeffered.Add(ToneMappingCommandNode);
         FrameDeffered.Add(PreviousFrameNode);
+        FrameDeffered.Add(MotionVectorsNode);
 
         // Set current frame pipeline 
         NextFramePipeline = 0;

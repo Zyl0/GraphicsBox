@@ -1,5 +1,7 @@
 ﻿#include "Modules/Rendering/Shaders/Camera.h"
 
+#include "Rendering/GLHelper.h"
+
 namespace Rendering
 {
     void UpdateCameraData(CameraData& Data, const Camera& camera)
@@ -43,6 +45,20 @@ namespace Rendering
     void CameraArray::Resize(size_t Size)
     {
         m_Cameras.Data(nullptr, Size * sizeof(CameraData));
+
+        if (m_PreviousCameras.has_value())
+        {
+            m_PreviousCameras->Data(nullptr, Size * sizeof(CameraData));
+        }
+        
         m_Size = Size;
+    }
+
+    void CameraArray::SavePreviousCameras() const
+    {
+        AssertOrErrorCall(m_PreviousCameras.has_value(), return;, "Tried to copy cameras data to previous cameras data while previous camera is invalid. Missing call to EnablePreviousCameras")
+
+        glCopyNamedBufferSubData(m_Cameras.Handle(), m_PreviousCameras->Handle(), 0, 0, m_Size * sizeof(CameraData));
+        glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
     }
 }

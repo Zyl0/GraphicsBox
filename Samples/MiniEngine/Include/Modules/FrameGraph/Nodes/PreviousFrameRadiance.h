@@ -36,6 +36,8 @@ namespace FrameGraph
             
             // TODO introduce a temporal rendering node to know when to reset history
 
+            DebugScopeMarker scope("Copy To Previous Radiance");
+
             Size2D size = Resources.GetValue<Size2D>(VSceneRadianceSize);
 
             glCopyImageSubData(

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <span>
+#include <optional>
 
 #include "Math/Vector.h"
 #include "Math/Simd.h"
@@ -53,9 +54,17 @@ namespace Rendering
         void Resize(size_t Size);
         INLINE size_t Size() const { return m_Size; }
         INLINE size_t SizeInBytes() const { return m_Size * sizeof(CameraData); }
+
+        INLINE bool HasPreviousCameras() const {return m_PreviousCameras.has_value(); }
+        void EnablePreviousCameras() {m_PreviousCameras.emplace(kBaseCameraCount * sizeof(CameraData), nullptr);}
+        void DisablePreviousCameras() {m_PreviousCameras.reset();}
+        void SavePreviousCameras() const;
+        INLINE GLuint PreviousCamerasHandle() const { return m_PreviousCameras.has_value() ? m_PreviousCameras->Handle() : 0; }
+        INLINE const StorageBuffer* PreviousCamerasBuffer() const { return HasPreviousCameras() ? &(m_PreviousCameras.value()) : nullptr; }
         
     private:
         StorageBuffer m_Cameras;
+        std::optional<StorageBuffer> m_PreviousCameras;
         size_t m_Size = 0;
     };
 }

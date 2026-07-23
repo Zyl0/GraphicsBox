@@ -362,10 +362,18 @@ namespace FrameGraph
         const Rendering::CameraData& GetMainCameraData() const {return m_CPUArray[m_MainCamera];}
         FrameGraph::Location GetMainCamera() const {return m_MainCamera;}
         void SetMainCamera(FrameGraph::Location Index) {m_MainCamera = Index;}
+
+        INLINE bool HasPreviousCameras() const {return m_GPUArray.HasPreviousCameras(); }
+        INLINE void EnablePreviousCameras() {m_GPUArray.EnablePreviousCameras();}
+        INLINE void DisablePreviousCameras() {m_GPUArray.DisablePreviousCameras();}
+        INLINE GLuint PreviousCamerasHandle() const { return m_GPUArray.PreviousCamerasHandle(); }
+        INLINE const StorageBuffer* PreviousCamerasBuffer() const { return m_GPUArray.PreviousCamerasBuffer(); }
         
     private:
         void Update()
         {
+            m_GPUArray.SavePreviousCameras();
+            
             if (!m_HasChanged) return;
             
             m_GPUArray.UpdateCameras(m_CPUArray);
@@ -412,23 +420,26 @@ namespace FrameGraph
         template<typename T> FrameGraph::Location GetLocation(FrameGraph::Name Name) const {static_assert(sizeof(T) == 0, "Unsupported object type");}
         template<typename T> INLINE FrameGraph::Location GetLocation(std::string_view Name) const {return GetLocation<T>(FrameGraph::ToName(Name));}
 
-        INLINE Location AddCamera()                                                 {return m_CameraArray.AddCamera();}
-        INLINE Location AddCamera(const Camera& camera)                             {return m_CameraArray.AddCamera(camera);}
-        INLINE Location AddCamera(const Rendering::CameraData& camera)                         {return m_CameraArray.AddCamera(camera);}
-        INLINE void UpdateCamera(FrameGraph::Location Index, const Camera& camera)              {m_CameraArray.UpdateCamera(Index, camera);}
-        INLINE void UpdateCamera(FrameGraph::Location Index, const Rendering::CameraData& camera)          {m_CameraArray.UpdateCamera(Index, camera);}
+        INLINE Location AddCamera()                                                                 {return m_CameraArray.AddCamera();}
+        INLINE Location AddCamera(const Camera& camera)                                             {return m_CameraArray.AddCamera(camera);}
+        INLINE Location AddCamera(const Rendering::CameraData& camera)                              {return m_CameraArray.AddCamera(camera);}
+        INLINE void UpdateCamera(FrameGraph::Location Index, const Camera& camera)                  {m_CameraArray.UpdateCamera(Index, camera);}
+        INLINE void UpdateCamera(FrameGraph::Location Index, const Rendering::CameraData& camera)   {m_CameraArray.UpdateCamera(Index, camera);}
         
-        INLINE GLuint Handle() const                                                {return m_CameraArray.Handle();}
-        INLINE const StorageBuffer& Buffer() const                                  {return m_CameraArray.Buffer();}
+        INLINE size_t Size() const                                                                  {return m_CameraArray.Size();}
+        INLINE size_t SizeInBytes() const                                                           {return m_CameraArray.SizeInBytes();}
         
-        INLINE size_t Size() const                                                  {return m_CameraArray.Size(); }
-        INLINE size_t SizeInBytes() const                                           {return m_CameraArray.SizeInBytes(); }
-        
-        INLINE const Rendering::CameraData& GetCamera(FrameGraph::Location Index) const                    {return m_CameraArray.GetCamera(Index);}
-        INLINE const Rendering::CameraData& GetMainCameraData() const                          {return m_CameraArray.GetMainCameraData();}
-        INLINE FrameGraph::Location GetMainCamera() const                                       {return m_CameraArray.GetMainCamera();}
-        INLINE void SetMainCamera(FrameGraph::Location Index)                                   {m_CameraArray.SetMainCamera(Index);}
-        INLINE const StorageBuffer& GetCameraBuffer() const                         {return m_CameraArray.Buffer();}
+        INLINE const Rendering::CameraData& GetCamera(FrameGraph::Location Index) const             {return m_CameraArray.GetCamera(Index);}
+        INLINE const Rendering::CameraData& GetMainCameraData() const                               {return m_CameraArray.GetMainCameraData();}
+        INLINE FrameGraph::Location GetMainCamera() const                                           {return m_CameraArray.GetMainCamera();}
+        INLINE void SetMainCamera(FrameGraph::Location Index)                                       {m_CameraArray.SetMainCamera(Index);}
+        INLINE const StorageBuffer& GetCameraBuffer() const                                         {return m_CameraArray.Buffer();}
+
+        INLINE bool HasPreviousCameras() const                                                      {return m_CameraArray.HasPreviousCameras();}
+        INLINE void EnablePreviousCameras()                                                         {m_CameraArray.EnablePreviousCameras();}
+        INLINE void DisablePreviousCameras()                                                        {m_CameraArray.DisablePreviousCameras();}
+        INLINE GLuint GetPreviousCamerasHandle() const                                              {return m_CameraArray.PreviousCamerasHandle();}
+        INLINE const StorageBuffer* GetPreviousCamerasBuffer() const                                {return m_CameraArray.PreviousCamerasBuffer();}
         
         // TODO move to use the Mini Engine Scene instead
         INLINE const GLTF::GPUScene& Scene() const {return m_SceneTree;}

@@ -21,19 +21,35 @@ namespace FrameGraph
             VUsePreviousRadiance(Resources.GetLocation<UInt>("Use Previous Radiance")),
             PrevSceneRadiance(Resources.GetLocation<Texture2D>("Previous Scene Radiance")),
             PrevSceneDepth(Resources.GetLocation<Texture2D>("Previous Scene Depth")),
+            VUseMotionVectors(Resources.GetLocation<UInt>("Use Motion Vectors")),
+            VUsePreviousMotionVectors(Resources.GetLocation<UInt>("Use Previous Motion Vectors")),
             VUseSSAO(Resources.AddVariable<Bool>("Use Screen Space AO", false)),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
             HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),
             FBDepthAttachment(Resources.Get<Texture2D>("Scene Depth")),
             FBDepthAttachmentMSAA(Resources.Get<Texture2D>("Scene Depth MSAA")),
-            SceneRadianceFB(FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance"), FrameBuffer::ClearColor(0.0)), &FBDepthAttachment),
-            SceneRadianceMSAAFB(FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance MSAA"), FrameBuffer::ClearColor(0.0)), &FBDepthAttachmentMSAA),
+            SceneRadianceFB(std::array{
+                FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance"), FrameBuffer::ClearColor(0.0)),
+                FrameBuffer::Attachment(Resources.Get<Texture2D>("Motion Vectors"), FrameBuffer::ClearColor(0.0))
+            }, &FBDepthAttachment),
+            SceneRadianceMSAAFB(std::array{
+                FrameBuffer::Attachment(Resources.Get<Texture2D>("Scene Radiance MSAA"), FrameBuffer::ClearColor(0.0)),
+                FrameBuffer::Attachment(Resources.Get<Texture2D>("Motion Vectors MSAA"), FrameBuffer::ClearColor(0.0)),
+            }, &FBDepthAttachmentMSAA),
             CubemapPipeline(PipelineFromFile("Mesh To Radiance Cubemap", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineCubemapDefines)),
             HDRiPipeline(PipelineFromFile("Mesh To Radiance HDRi", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Nodes/MeshToRadiance.glsl", PipelineHDRIDefines)),
             MaterialSampler(Sampler::Params{}),
-            PreviousFrameSampler(Sampler::Params{
+            PreviousFrameSamplerDepth(Sampler::Params{
                 .Magnification = Sampler::F_Nearest,
                 .Minification = Sampler::F_Nearest,
+                .WarpModeU = Sampler::W_ClampToEdge,
+                .WarpModeV = Sampler::W_ClampToEdge,
+                .WarpModeW = Sampler::W_ClampToEdge,
+                .MipMode = Sampler::M_NoMip,
+            }),
+            PreviousFrameSamplerColor(Sampler::Params{
+                .Magnification = Sampler::F_Linear,
+                .Minification = Sampler::F_Linear,
                 .WarpModeU = Sampler::W_ClampToEdge,
                 .WarpModeV = Sampler::W_ClampToEdge,
                 .WarpModeW = Sampler::W_ClampToEdge,
@@ -146,9 +162,7 @@ namespace FrameGraph
             // Screen space effects
             if (Resources.GetValue<Bool>(VUseScreenSpaceReflections) || Resources.GetValue<Bool>(VUseSSAO))
             {
-                SetUniform(*pipeline, "texPreviousRadiance", 2, Resources.Get<Texture2D>(PrevSceneRadiance), PreviousFrameSampler);
-                SetUniform(*pipeline, "texPreviousDepth", 3, Resources.Get<Texture2D>(PrevSceneDepth), PreviousFrameSampler);
-                SetUniform(*pipeline, "PreviousRadianceMips", static_cast<float>(Resources.Get<Texture2D>(PrevSceneRadiance).MipCount()));
+                SetUniform(*pipeline, "texPreviousDepth", 3, Resources.Get<Texture2D>(PrevSceneDepth), PreviousFrameSamplerDepth);
                 SetUniform(*pipeline, "ViewportSize", Resources.GetValue<Size2D>("Scene Radiance"));
             }
 
@@ -156,6 +170,8 @@ namespace FrameGraph
             if (Resources.GetValue<Bool>(VUseScreenSpaceReflections))
             {
                 SetUniform(*pipeline, "SSRMode", 1u);
+                SetUniform(*pipeline, "texPreviousRadiance", 2, Resources.Get<Texture2D>(PrevSceneRadiance), PreviousFrameSamplerColor);
+                SetUniform(*pipeline, "PreviousRadianceMips", static_cast<float>(Resources.Get<Texture2D>(PrevSceneRadiance).MipCount()));
             }
             else
             {
@@ -171,6 +187,9 @@ namespace FrameGraph
             {
                 // SetUniform(*pipeline, "SSAOMode", 0u);
             }
+
+            // Motion vectors
+            SetUniform(*pipeline, "WriteMotionVectors", Resources.GetValue<UInt>(VUseMotionVectors));
             
             // Uniform Data
             GLint GLTFBaseColor = GetUniformLocation(*pipeline, "BaseColor");
@@ -188,6 +207,10 @@ namespace FrameGraph
             
             // Scene storage buffers
             SetUniform(0, Resources.GetCameraBuffer());
+            if (Resources.GetPreviousCamerasBuffer())
+            {
+                SetUniform(1, *Resources.GetPreviousCamerasBuffer());
+            }
             
             // For now we only support GLTF materials
             // TODO generify material system and migrate to a scene mesh type
@@ -287,6 +310,8 @@ namespace FrameGraph
         Location VMSAASampleCount;
         Location VUseScreenSpaceReflections;
         Location VUsePreviousRadiance;
+        Location VUseMotionVectors;
+        Location VUsePreviousMotionVectors;
         Location PrevSceneRadiance;
         Location PrevSceneDepth;
         Location VUseSSAO;
@@ -301,6 +326,7 @@ namespace FrameGraph
         Pipeline CubemapPipeline;
         Pipeline HDRiPipeline;
         Sampler MaterialSampler;
-        Sampler PreviousFrameSampler;
+        Sampler PreviousFrameSamplerDepth;
+        Sampler PreviousFrameSamplerColor;
     };
 }

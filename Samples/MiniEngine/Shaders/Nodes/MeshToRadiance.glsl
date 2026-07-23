@@ -3,10 +3,16 @@
 // Scene cameras
 #include "Include/Camera.glsl"
 
-layout(binding = 0, std430) readonly buffer Cameras
+layout(binding = 0, std430) readonly buffer CurrentCameras
 {
     CameraData cameras[];
 };
+
+layout(binding = 1, std430) readonly buffer PreviousCameras
+{
+    CameraData prevCameras[];
+};
+
 
 #ifdef VERTEX_SHADER
 layout(location= 0) in vec3 position;
@@ -170,7 +176,10 @@ uniform uvec2 ViewportSize;
 
 uniform uint SSAOMode;
 
+uniform uint WriteMotionVectors;
+
 layout(location= 0) out vec4 OutColor;
+layout(location= 1) out vec3 OutMotion;
 
 void main()
 {
@@ -193,6 +202,12 @@ void main()
     {
         PixAmbiantOcclusion = texture(texAO, UV0).x;
     }
+
+    // Motion
+    vec4 CurrentCameraPosition = WorldToProj(cameras[0], vec4(FragWorldPosition, 1.0f)); CurrentCameraPosition /= CurrentCameraPosition.w;
+    vec4 PreviousCameraPosition = WorldToProj(prevCameras[0], vec4(FragWorldPosition, 1.0f)); PreviousCameraPosition /= PreviousCameraPosition.w;
+    vec3 Motion = PreviousCameraPosition.xyw - CurrentCameraPosition.xyw;
+    Motion /= 2.0f; // To UV space
     
    // if (SSAOMode > 0)
    // {
@@ -335,6 +350,9 @@ void main()
                             vec4 ScreenSpaceSample = ViewToProj(cameras[0], vec4(ViewSpaceSample, 1.0f));
                             ScreenSpaceSample.xyz /= ScreenSpaceSample.w;
                             ScreenSpaceSample = ScreenSpaceSample / 2. + 0.5f; // Projective space to UV space
+
+                            // Account for motion
+                            ScreenSpaceSample.xy += Motion.xy;
                             
                             if (
                                 ScreenSpaceSample.x < 0.0f || ScreenSpaceSample.x > 1.0f ||
@@ -347,7 +365,7 @@ void main()
                             }
                             
                             float SampledDepth = texture(texPreviousDepth, ScreenSpaceSample.xy).x;
-                            if ((SampledDepth) < (ScreenSpaceSample.z ))
+                            if ((SampledDepth - Motion.z) < (ScreenSpaceSample.z ))
                             {
                                 hit = true;
                                 SkyLight = texture(texPreviousRadiance, ScreenSpaceSample.xy, /*Alpha*/ pow(PixRoughness, 0.5f) * PreviousRadianceMips).xyz;
@@ -379,5 +397,17 @@ void main()
 
     OutColor.xyz = finalColor;
     OutColor.w = 1.0;
+
+
+    // utMotion = vec3(0);
+    
+    // Motion by reprojection
+    if (WriteMotionVectors > 0)
+    {
+        OutMotion = Motion;
+    }
+    else
+    {
+    }
 }
 #endif // FRAGMENT_SHADER
