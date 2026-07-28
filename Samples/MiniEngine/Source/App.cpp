@@ -168,8 +168,12 @@ namespace Engine
                             // Tick modules
                             for (TypeHash ID : m_Engine.m_UpdateOrder)
                             {
-                                ImGui::Begin(m_Engine.GetModuleName(ID).data());
                                 IModule* module = m_Engine.m_Modules[ID].get();
+
+                                EditorWindowParams params = module->EditorWindow();
+                                if (!params.Valid) continue;
+
+                                ImGui::Begin(m_Engine.GetModuleName(ID).data());
                         
                                 ImGui::PushID(module);
                                 module->EditorUI();

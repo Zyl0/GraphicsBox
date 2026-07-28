@@ -243,6 +243,15 @@ public:
     {
     }
 
+    Engine::EditorWindowParams EditorWindow() override
+    {
+        Engine::EditorWindowParams params;
+        params.Valid = true;
+        params.Category = Engine::EditorWindowParams::Visualisation;
+        params.Layer = Engine::EditorWindowParams::Sim;
+        return params;
+    }
+
     void EditorUI() override
     {
         FrameGraph::Module* FrameGraph = Engine::GetModule<FrameGraph::Module>(Context());

@@ -23,6 +23,15 @@ namespace FrameGraph
 
         void Shutdown() override;
 
+        Engine::EditorWindowParams EditorWindow() override
+        {
+            Engine::EditorWindowParams params;
+            params.Valid = true;
+            params.Category = Engine::EditorWindowParams::Visualisation;
+            params.Layer = Engine::EditorWindowParams::Editor;
+            return params;
+        }
+
         void EditorUI() override;
 
         template<typename T> 
@@ -45,7 +54,7 @@ namespace FrameGraph
         void UnsetDebugView();
         void SetDebugViewTexture(Location Texture, ETextureViewer_TexType TexType, size_t Mip, size_t Depth, size_t Index, size_t Sample);
         void SelectLatestCommands();
-        
+
         std::optional<CommandPool> m_CommandPool;
         std::optional<FrameBuffer> m_OutputFrameBuffer;
         std::vector<std::span<const Location>> m_CommandLists;

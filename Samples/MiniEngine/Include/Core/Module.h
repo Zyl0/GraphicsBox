@@ -6,6 +6,27 @@
 
 namespace Engine
 {
+    struct alignas(4) EditorWindowParams
+    {
+        bool Valid = false;
+        bool HideOnStart = false;
+
+        enum ECategory : uint8_t
+        {
+            Main,
+            Tool,
+            Visualisation,
+        } Category = Main;
+
+        // TODO move to an input layer system
+        enum InputLayer : uint8_t
+        {
+            Bottom,
+            Sim,
+            Editor
+        } Layer = Bottom;
+    };
+
     class Spec;
     class IModule
     {
@@ -23,6 +44,7 @@ namespace Engine
 
         virtual void Shutdown() {}
 
+        virtual EditorWindowParams EditorWindow() { return EditorWindowParams{}; }
         virtual void EditorUI() {}
 
         class Context& Context() {return m_Context;}

@@ -22,6 +22,15 @@ namespace Window
 
         void Shutdown() override;
 
+        Engine::EditorWindowParams EditorWindow() override
+        {
+            Engine::EditorWindowParams params;
+            params.Valid = true;
+            params.Category = Engine::EditorWindowParams::Visualisation;
+            params.Layer = Engine::EditorWindowParams::Editor;
+            return params;
+        }
+
         void EditorUI() override;
         
         bool ShouldClose();
