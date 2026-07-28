@@ -891,6 +891,10 @@ group "Samples"
                     "stb_image_write"
                 }
 
+                if gbUseShaderc then
+                    links { "shaderc_combined" }
+                end
+
                 -- Window specific 
                 if gbWindowAPI== "glfw" then
                     -- OpenGL, GLFW and GLEW includes are provided by the system -- TODO
