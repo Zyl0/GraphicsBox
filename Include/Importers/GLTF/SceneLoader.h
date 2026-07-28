@@ -52,7 +52,14 @@ namespace GLTF
         float thickness =       0.0f;
         float attenuation =     0.0f;
         Color attenuationColor;
-        bool twoSided = false;
+        enum EFlags
+        {
+            None =          0,
+            TwoSided =      1 << 0,
+            Masked =        1 << 1,
+            Transparent =   1 << 2,
+            NoShadows =     1 << 3,
+        } flags = None;
 
         Texture colorTexture = UINT64_MAX;
         Texture emissiveTexture = UINT64_MAX;
@@ -64,6 +71,9 @@ namespace GLTF
         Texture transmissionTexture = UINT64_MAX;
         Texture thicknessTexture = UINT64_MAX;
     };
+    
+    INLINE Material::EFlags operator|(Material::EFlags a, Material::EFlags b) {return static_cast<Material::EFlags>(static_cast<int>(a) | static_cast<int>(b)); }
+    INLINE Material::EFlags operator&(Material::EFlags a, Material::EFlags b) {return static_cast<Material::EFlags>(static_cast<int>(a) & static_cast<int>(b)); }
     
     struct MeshInstance
     {

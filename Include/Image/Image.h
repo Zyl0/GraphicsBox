@@ -33,10 +33,20 @@ struct Image
     
     enum Encoding : uint8_t
     {
+        // Normalized Data
         Linear = 0,
+        
+        // sRGB encoded Data
         sRGB,
+        
+        // PQ encoded Data
         PQ,
-        LogC
+        
+        // LogC encoded Data
+        LogC,
+        
+        // Raw Data (like linear but not normalized)
+        Unencoded
     };
     
     static uint32_t ChannelSize(Type ComponentType);
@@ -45,7 +55,17 @@ struct Image
 
     enum FileType : uint8_t
     {
-        JPG, PNG, TGA, BMP, HDR, _Count
+        JPG, 
+        PNG, 
+        TGA, 
+        BMP, 
+        HDR, 
+        
+        DDS,
+        
+        EXR,
+        
+        _Count
     };
 
     Image();
@@ -91,6 +111,8 @@ private:
 };
 
 Image ImageLoad(const std::filesystem::path& ImagePath, Image::Type ComponentType);
+
+Image ImageLoadFromMemory(const uint8_t* Buffer, size_t Size, Image::FileType Type);
 
 bool ImageStore(const std::filesystem::path& OutputPath, const Image& Image, Image::FileType Type);
 

@@ -3,8 +3,281 @@
 #ifdef USE_TINY_GLTF
 #include <tiny_gltf.h>
 
+#include "Image/Image.h"
+
+// Required by the NVidia RTXDI Assets repo having dds textures referenced as pngs
+#define GLTF_LOADER_TRY_REPLACE_EXTENTIONS_IF_REFERENCE_NOT_RIGHT
+
 namespace  GLTF
 {
+    static struct CustomImageLoaderState
+    {
+        // std::filesystem::path gltfPath;
+        Image::FileType imageFileType;
+        bool imageHasReplacedExtension;
+    };
+
+    static bool IsImageExention(std::string_view extention)
+    {
+        if (
+            extention.compare(".dds") == 0 ||
+            extention.compare(".exr") == 0 ||
+            extention.compare(".png") == 0 ||
+            extention.compare(".jpg") == 0 ||
+            extention.compare(".jepg") == 0 ||
+            extention.compare(".tga") == 0 ||
+            extention.compare(".bmp") == 0 ||
+            extention.compare(".hdr") == 0 
+            ) 
+            return true;
+
+        return false;
+    }
+    
+    static bool CustomFileExists(const std::string &abs_filename, void *user_data) 
+    {
+        CustomImageLoaderState* State = static_cast<CustomImageLoaderState*>(user_data);
+        State->imageHasReplacedExtension = false;
+
+        std::filesystem::path p(abs_filename);
+        if (p.has_extension())
+        {
+            static std::array<const std::string_view, 8> extensionsToCheck {
+                ".dds", ".exr", ".png", ".jpg", ".jpeg", ".tga", ".bmp", ".hdr"
+            };
+                
+            static std::array<const Image::FileType, 8> extensionsType {
+                Image::FileType::DDS,
+                Image::FileType::EXR, 
+                Image::FileType::PNG, 
+                Image::FileType::JPG, 
+                Image::FileType::JPG, 
+                Image::FileType::TGA,
+                Image::FileType::BMP, 
+                Image::FileType::HDR
+            };
+                
+            
+            std::string extension = p.extension().generic_string();
+            
+            if (extension == ".gltf" || extension == ".glb") {}
+            else
+            if (IsImageExention(extension))
+            {
+                if (! std::filesystem::exists(p))
+                {
+                    State->imageHasReplacedExtension = true;
+                    for (size_t i = 0; i < extensionsToCheck.size(); i++)
+                    {
+                        p.replace_extension(extensionsToCheck[i]);
+                        if (std::filesystem::exists(p))
+                        {
+                            State->imageFileType = extensionsType[i];
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    for (size_t i = 0; i < extensionsToCheck.size(); i++)
+                    {
+                        if (extension == extensionsToCheck[i])
+                        {
+                            State->imageFileType = extensionsType[i];
+                            break;
+                        }
+                    }
+                }
+                
+                if (! std::filesystem::exists(p))
+                {
+                    EngineLoggerErrorF("Failed to find file \"%ls\"", p.c_str());
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                EngineLoggerErrorF("Unsupported file extension type \"%ls\"", p.extension().c_str());
+            }
+        }
+        
+        return tinygltf::FileExists(abs_filename, user_data);
+    }
+
+    static bool CustomReadWholeFile(std::vector<unsigned char> *out, std::string *err, const std::string &filepath, void *user_data) 
+    {
+        CustomImageLoaderState* State = static_cast<CustomImageLoaderState*>(user_data);
+        
+        if (State->imageHasReplacedExtension)
+        {
+            std::filesystem::path p(filepath);
+            switch (State->imageFileType)
+            {
+            case Image::JPG:
+                p.replace_extension(".jpg");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
+                }
+                
+                p.replace_extension(".jpeg");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::PNG:
+                p.replace_extension(".png");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::TGA:
+                p.replace_extension(".tga");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::BMP:
+                p.replace_extension(".bmp");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::HDR:
+                p.replace_extension(".hdr");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::DDS:
+                p.replace_extension(".dds");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::EXR:
+                p.replace_extension(".exr");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
+                }
+                break;
+                
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image file type")
+            }
+        }
+        
+        return tinygltf::ReadWholeFile(out, err, filepath, user_data);
+    }
+
+    static bool CustomGetFileSizeInBytes(size_t *filesize_out, std::string *err, const std::string &filepath, void *user_data) 
+    {
+                CustomImageLoaderState* State = static_cast<CustomImageLoaderState*>(user_data);
+        
+        if (State->imageHasReplacedExtension)
+        {
+            std::filesystem::path p(filepath);
+            switch (State->imageFileType)
+            {
+            case Image::JPG:
+                p.replace_extension(".jpg");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
+                }
+                
+                p.replace_extension(".jpeg");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::PNG:
+                p.replace_extension(".png");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::TGA:
+                p.replace_extension(".tga");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::BMP:
+                p.replace_extension(".bmp");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::HDR:
+                p.replace_extension(".hdr");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::DDS:
+                p.replace_extension(".dds");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
+                }
+                break;
+            case Image::EXR:
+                p.replace_extension(".exr");
+                if (std::filesystem::exists(p))
+                {
+                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
+                }
+                break;
+                
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image file type")
+            }
+        }
+        
+        return tinygltf::GetFileSizeInBytes(filesize_out, err, filepath, user_data);
+    }
+
+    static bool CustomImageLoader(tinygltf::Image* image, const int image_idx, std::string* err, std::string* warn,
+                     int req_width, int req_height, const unsigned char* bytes, int size, void* user_data)
+    {
+        if (size == 0) return false;
+        
+        CustomImageLoaderState* State = static_cast<CustomImageLoaderState*>(user_data);
+        
+        Image LoadedImage = ImageLoadFromMemory(bytes, size, State->imageFileType);
+        if (LoadedImage.Width() == 0 || LoadedImage.Height() == 0)
+        {
+            if (err) *err += "Failed to decode image from memory.";
+#ifdef CONFIG_DEBUG
+            EngineRuntimeBREAKPOINT
+#endif // CONFIG_DEBUG
+            return false;
+        }
+        image->width = static_cast<int>(LoadedImage.Width());
+        image->height = static_cast<int>(LoadedImage.Height());
+        image->component = static_cast<int>(LoadedImage.ComponentCount());
+        image->bits = 8;
+        image->pixel_type = TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE;
+        image->image.resize(LoadedImage.DataSize());
+        std::memcpy(image->image.data(), LoadedImage.Data(), LoadedImage.DataSize());
+        return true;
+    }
+    
     static bool TryLoopOverBufferFromAccessor(
         const tinygltf::Model& model, uint32_t AccessorIndex, const std::vector<uint32_t>* OptIterationIndexList,
         const std::function<bool(const tinygltf::Accessor& Accessor)>& execCheckType,
@@ -201,7 +474,15 @@ namespace  GLTF
                 MaterialObject.normalTexture = material.normalTexture.index;
             }
 
-            MaterialObject.twoSided = material.doubleSided;
+            MaterialObject.flags = MaterialObject.flags | (material.doubleSided ? Material::EFlags::TwoSided :  Material::EFlags::None);
+            if (material.alphaMode.compare("BLEND") == 0)
+            {
+                MaterialObject.flags = MaterialObject.flags | Material::EFlags::Transparent;
+            }
+            if (material.alphaMode.compare("MASK") == 0)
+            {
+                MaterialObject.flags = MaterialObject.flags | Material::EFlags::Masked;
+            }
 
             //KHR_materials_ior
             if(material.extensions.contains("KHR_materials_ior"))
@@ -264,6 +545,30 @@ namespace  GLTF
                      }
                  }
              }
+            
+            // KHR_materials_pbrSpecularGlossiness
+            if (material.extensions.contains("KHR_materials_pbrSpecularGlossiness"))
+            {
+                auto& extension = material.extensions.at("KHR_materials_pbrSpecularGlossiness");
+
+                if (extension.Has("diffuseTexture"))
+                {
+                    int32_t textureIndex = extension.Get("diffuseTexture").Get("index").GetNumberAsInt();
+                    if (textureIndex >= 0)
+                    {
+                        MaterialObject.colorTexture = textureIndex;
+                    }
+                }
+
+                // TODO the rest of the extension
+                if (extension.Has("specularFactor"))
+                {
+                    MaterialObject.specularColor.x = static_cast<float>(extension.Get("specularFactor").Get(0).GetNumberAsDouble());
+                    MaterialObject.specularColor.x = static_cast<float>(extension.Get("specularFactor").Get(1).GetNumberAsDouble());
+                    MaterialObject.specularColor.x = static_cast<float>(extension.Get("specularFactor").Get(2).GetNumberAsDouble());
+                    MaterialObject.specularColor.w = 1.0f;
+                }
+            }
         }
     }
 
@@ -343,6 +648,20 @@ namespace  GLTF
     bool LoadCPUScene(const std::filesystem::path& path, CPUScene& scene)
     {
         tinygltf::TinyGLTF loader;
+
+        CustomImageLoaderState State{};
+        
+        loader.SetImageLoader(CustomImageLoader, &State);
+        tinygltf::FsCallbacks customFs = 
+        {
+            &CustomFileExists,
+            &tinygltf::ExpandFilePath,
+            &CustomReadWholeFile,
+            &tinygltf::WriteWholeFile,
+            &CustomGetFileSizeInBytes,
+            & State
+        };
+         loader.SetFsCallbacks(customFs);
 
         AssertOrErrorCallF(exists(path), return false, "No such file or directory \"%s\"", path.generic_string().c_str())
         if(!exists(path)) return false;
@@ -798,7 +1117,15 @@ namespace  GLTF
                 MaterialObject.normalTexture = material.normalTexture.index;
             }
 
-            MaterialObject.twoSided = material.doubleSided;
+            MaterialObject.flags = MaterialObject.flags | (material.doubleSided ? Material::EFlags::TwoSided :  Material::EFlags::None);
+            if (material.alphaMode.compare("BLEND") == 0)
+            {
+                MaterialObject.flags = MaterialObject.flags | Material::EFlags::Transparent;
+            }
+            if (material.alphaMode.compare("MASK") == 0)
+            {
+                MaterialObject.flags = MaterialObject.flags | Material::EFlags::Masked;
+            }
 
             //KHR_materials_ior
             if(material.extensions.contains("KHR_materials_ior"))
@@ -859,6 +1186,30 @@ namespace  GLTF
                      {
                          MaterialObject.transmissionTexture = textureIndex;
                      }
+                 }
+             }
+
+             // KHR_materials_pbrSpecularGlossiness
+             if (material.extensions.contains("KHR_materials_pbrSpecularGlossiness"))
+             {
+                 auto& extension = material.extensions.at("KHR_materials_pbrSpecularGlossiness");
+
+                 if (extension.Has("diffuseTexture"))
+                 {
+                     int32_t textureIndex = extension.Get("diffuseTexture").Get("index").GetNumberAsInt();
+                     if (textureIndex >= 0)
+                     {
+                         MaterialObject.colorTexture = textureIndex;
+                     }
+                 }
+
+                 // TODO the rest of the extension
+                 if (extension.Has("specularFactor"))
+                 {
+                     MaterialObject.specularColor.x = static_cast<float>(extension.Get("specularFactor").Get(0).GetNumberAsDouble());
+                     MaterialObject.specularColor.x = static_cast<float>(extension.Get("specularFactor").Get(1).GetNumberAsDouble());
+                     MaterialObject.specularColor.x = static_cast<float>(extension.Get("specularFactor").Get(2).GetNumberAsDouble());
+                     MaterialObject.specularColor.w = 1.0f;
                  }
              }
         }
@@ -934,6 +1285,19 @@ namespace  GLTF
     bool LoadGPUScene(const std::filesystem::path& path, GPUScene& scene)
     {
         tinygltf::TinyGLTF loader;
+
+        CustomImageLoaderState State{};
+         
+         loader.SetImageLoader(CustomImageLoader, &State);
+         tinygltf::FsCallbacks customFs = {
+             &CustomFileExists,
+             &tinygltf::ExpandFilePath,
+             &CustomReadWholeFile,
+             &tinygltf::WriteWholeFile,
+             &CustomGetFileSizeInBytes,
+             &State
+         };
+         loader.SetFsCallbacks(customFs);
 
         AssertOrErrorCallF(exists(path), return false, "No such file or directory \"%s\"", path.generic_string().c_str())
         if(!exists(path)) return false;

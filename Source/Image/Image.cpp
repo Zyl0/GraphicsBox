@@ -5,6 +5,9 @@
 #include <vector>
 #include <stb_image.h>
 #include <stb_image_write.h>
+#include <tinyddsloader.h>
+#include <bcdec.h>
+#include <tinyexr.h>
 
 #include "Shared/Annotations.h"
 #include "Shared/Assertion.h"
@@ -184,15 +187,498 @@ size_t Image::DataSize() const
     return static_cast<size_t>(m_Width) * m_Height * PixelSize();
 }
 
-Image ImageLoad(const std::filesystem::path& ImagePath, Image::Type ComponentType)
+static Image LoadImageDDSFromMemory(const uint8_t* data, size_t size)
 {
-    AssertOrErrorCallF(exists(ImagePath), return Image(0,0, ComponentType, Image::R),
-        "Could not open image %s, No such file or directory", ImagePath.generic_string().c_str())
+    using namespace tinyddsloader;
+    
+    AssertOrErrorCall(data != nullptr && size > 0, return Image(0,0, Image::UnsignedByte, Image::R), 
+        "Invalid image data")
+    
+    DDSFile dds;
+    auto ret = dds.Load(data, size);
+    
+    if (ret == Result::Success && dds.GetMipCount() > 0)
+    {
+        const DDSFile::ImageData* mip0 = dds.GetImageData(0, 0);
+        uint32_t width = mip0->m_width;
+        uint32_t height = mip0->m_height;
+        DDSFile::DXGIFormat format = dds.GetFormat();
 
+        switch (format)
+        {
+        case DDSFile::DXGIFormat::R32G32B32A32_Float:
+            return Image(width, height, Image::Float, Image::RGBA, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32G32B32A32_UInt:
+            return Image(width, height, Image::UnsignedInt, Image::RGBA, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32G32B32A32_SInt:
+            return Image(width, height, Image::Int, Image::RGBA, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32G32B32_Float:
+            return Image(width, height, Image::Float, Image::RGB, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32G32B32_UInt:
+            return Image(width, height, Image::UnsignedInt, Image::RGB, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32G32B32_SInt:
+            return Image(width, height, Image::Int, Image::RGB, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16G16B16A16_UNorm:
+            return Image(width, height, Image::UnsignedShort, Image::RGBA, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16G16B16A16_UInt:
+            return Image(width, height, Image::UnsignedShort, Image::RGBA, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16G16B16A16_SNorm:
+            return Image(width, height, Image::Short, Image::RGBA, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16G16B16A16_SInt:
+            return Image(width, height, Image::Short, Image::RGBA, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32G32_Float:
+            return Image(width, height, Image::Float, Image::RG, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32G32_UInt:
+            return Image(width, height, Image::UnsignedInt, Image::RG, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32G32_SInt:
+            return Image(width, height, Image::Int, Image::RG, Image::Unencoded, mip0->m_mem);
+        
+        case DDSFile::DXGIFormat::R8G8B8A8_UNorm:
+            return Image(width, height, Image::UnsignedByte, Image::RGBA, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8G8B8A8_UNorm_SRGB:
+            return Image(width, height, Image::UnsignedByte, Image::RGBA, Image::sRGB, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8G8B8A8_UInt:
+            return Image(width, height, Image::UnsignedByte, Image::RGBA, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8G8B8A8_SNorm:
+            return Image(width, height, Image::Byte, Image::RGBA, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8G8B8A8_SInt:
+            return Image(width, height, Image::Byte, Image::RGBA, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16G16_UNorm:
+            return Image(width, height, Image::UnsignedShort, Image::RG, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16G16_UInt:
+            return Image(width, height, Image::UnsignedShort, Image::RG, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16G16_SNorm:
+            return Image(width, height, Image::Short, Image::RG, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16G16_SInt:
+            return Image(width, height, Image::Short, Image::RG, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::D32_Float:
+        case DDSFile::DXGIFormat::R32_Float:
+            return Image(width, height, Image::Float, Image::R, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32_UInt:
+            return Image(width, height, Image::UnsignedInt, Image::R, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R32_SInt:
+            return Image(width, height, Image::Int, Image::R, Image::Unencoded, mip0->m_mem);
+
+        case DDSFile::DXGIFormat::R8G8_UNorm:
+            return Image(width, height, Image::UnsignedByte, Image::RG, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8G8_UInt:
+            return Image(width, height, Image::UnsignedByte, Image::RG, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8G8_SNorm:
+            return Image(width, height, Image::Byte, Image::RG, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8G8_SInt:
+            return Image(width, height, Image::Byte, Image::RG, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::D16_UNorm:
+        case DDSFile::DXGIFormat::R16_UNorm:
+            return Image(width, height, Image::UnsignedShort, Image::R, Image::Linear, mip0->m_mem);
+        
+        case DDSFile::DXGIFormat::R16_UInt:
+            return Image(width, height, Image::UnsignedShort, Image::R, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16_SNorm:
+            return Image(width, height, Image::Short, Image::R, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R16_SInt:
+            return Image(width, height, Image::Short, Image::R, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::A8_UNorm:
+        case DDSFile::DXGIFormat::R8_UNorm:
+            return Image(width, height, Image::UnsignedByte, Image::R, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8_UInt:
+            return Image(width, height, Image::UnsignedByte, Image::R, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8_SNorm:
+            return Image(width, height, Image::Byte, Image::R, Image::Linear, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::R8_SInt:
+            return Image(width, height, Image::Byte, Image::R, Image::Unencoded, mip0->m_mem);
+        
+
+        case DDSFile::DXGIFormat::B8G8R8X8_UNorm:
+            return Image(width, height, Image::UnsignedByte, Image::BGR, Image::Unencoded, mip0->m_mem);
+        case DDSFile::DXGIFormat::B8G8R8X8_UNorm_SRGB:
+            return Image(width, height, Image::UnsignedByte, Image::BGR, Image::sRGB, mip0->m_mem);
+            
+            
+        case DDSFile::DXGIFormat::BC1_UNorm:
+        case DDSFile::DXGIFormat::BC1_UNorm_SRGB:
+        {
+            std::vector<uint8_t> rgba(width * height * 4);
+            uint32_t pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 8 + (x / 4) * 8;
+                uint8_t* dst = rgba.data() + (size_t)(y * pitch + x * 4);
+                bcdec_bc1(block, dst, pitch);
+            }
+            return Image(width, height, Image::UnsignedByte, Image::RGBA, Image::sRGB, rgba.data());
+        }
+            
+        case DDSFile::DXGIFormat::BC2_UNorm:
+        case DDSFile::DXGIFormat::BC2_UNorm_SRGB:
+        {
+            std::vector<uint8_t> rgba(width * height * 4);
+            uint32_t pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                uint8_t* dst = rgba.data() + (size_t)(y * pitch + x * 4);
+                bcdec_bc2(block, dst, pitch);
+            }
+            return Image(width, height, Image::UnsignedByte, Image::RGBA, Image::sRGB, rgba.data());
+        }
+            
+        case DDSFile::DXGIFormat::BC3_UNorm:
+        case DDSFile::DXGIFormat::BC3_UNorm_SRGB:
+        {
+            std::vector<uint8_t> rgba(width * height * 4);
+            uint32_t pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                uint8_t* dst = rgba.data() + (size_t)(y * pitch + x * 4);
+                bcdec_bc3(block, dst, pitch);
+            }
+            return Image(width, height, Image::UnsignedByte, Image::RGBA, Image::sRGB, rgba.data());
+        }
+            
+        case DDSFile::DXGIFormat::BC4_UNorm:
+        case DDSFile::DXGIFormat::BC4_SNorm:
+        {
+            std::vector<uint8_t> r(width * height * 1);
+            uint32_t pitch = width * 1;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 8 + (x / 4) * 8;
+                uint8_t* dst = r.data() + (size_t)(y * pitch + x * 4);
+                bcdec_bc4(block, dst, pitch);
+            }
+            return Image(width, height, Image::UnsignedByte, Image::R, Image::Linear, r.data());
+        }
+            
+        case DDSFile::DXGIFormat::BC5_UNorm:
+        case DDSFile::DXGIFormat::BC5_SNorm:
+        {
+            std::vector<uint8_t> rg(width * height * 2);
+            uint32_t pitch = width * 2;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                uint8_t* dst = rg.data() + (size_t)(y * pitch + x * 4);
+                bcdec_bc5(block, dst, pitch);
+            }
+            
+            return Image(width, height, Image::UnsignedByte, Image::RG, Image::Linear, rg.data());
+        }
+        
+        case DDSFile::DXGIFormat::BC6H_UF16:
+        {
+            std::vector<float> rgb(width * height * 3);
+            int pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+                for (uint32_t x = 0; x < width; x += 4) 
+                {
+                    const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                    float* dst = rgb.data() + (size_t)(y * pitch + x * 3);
+                    bcdec_bc6h_float(block, dst, pitch, false);
+                }
+    
+            return Image(width, height, Image::Float, Image::RGB, Image::Linear, rgb.data());
+        }
+            
+        case DDSFile::DXGIFormat::BC6H_SF16:
+        {
+            std::vector<float> rgb(width * height * 3);
+            int pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                float* dst = rgb.data() + (size_t)(y * pitch + x * 3);
+                bcdec_bc6h_float(block, dst, pitch, true);
+            }
+        
+            return Image(width, height, Image::Float, Image::RGB, Image::Linear, rgb.data());
+        }
+            
+            break;
+            
+        case DDSFile::DXGIFormat::BC7_UNorm:
+        case DDSFile::DXGIFormat::BC7_UNorm_SRGB:
+        {
+            std::vector<uint8_t> rgba(width * height * 4);
+            int pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                uint8_t* dst = rgba.data() + (size_t)(y * pitch + x * 4);
+                bcdec_bc7(block, dst, pitch);
+            }
+            
+            return Image(width, height, Image::UnsignedByte, Image::RGBA, Image::sRGB, rgba.data());
+        }
+            
+        case DDSFile::DXGIFormat::B8G8R8A8_UNorm:
+            // return Image(width, height, Image::UnsignedByte, Image::BGR, Image::Unencoded, mip0->m_mem);
+        case DDSFile::DXGIFormat::B8G8R8A8_UNorm_SRGB:
+            // return Image(width, height, Image::UnsignedByte, Image::BGR, Image::sRGB, mip0->m_mem);
+        case DDSFile::DXGIFormat::Unknown:
+        case DDSFile::DXGIFormat::R32G32B32A32_Typeless:
+        case DDSFile::DXGIFormat::R32G32B32_Typeless:
+        case DDSFile::DXGIFormat::R16G16B16A16_Typeless:
+        case DDSFile::DXGIFormat::R32G32_Typeless:
+        case DDSFile::DXGIFormat::R32G8X24_Typeless:
+        case DDSFile::DXGIFormat::R10G10B10A2_Typeless:
+        case DDSFile::DXGIFormat::R8G8B8A8_Typeless:
+        case DDSFile::DXGIFormat::R16G16_Typeless:
+        case DDSFile::DXGIFormat::R32_Typeless:
+        case DDSFile::DXGIFormat::R24G8_Typeless:
+        case DDSFile::DXGIFormat::R8G8_Typeless:
+        case DDSFile::DXGIFormat::R16_Typeless:
+        case DDSFile::DXGIFormat::R8_Typeless:
+        case DDSFile::DXGIFormat::BC1_Typeless:
+        case DDSFile::DXGIFormat::BC2_Typeless:
+        case DDSFile::DXGIFormat::BC3_Typeless:
+        case DDSFile::DXGIFormat::BC4_Typeless:
+        case DDSFile::DXGIFormat::BC5_Typeless:
+        case DDSFile::DXGIFormat::B8G8R8A8_Typeless:
+        case DDSFile::DXGIFormat::B8G8R8X8_Typeless:
+        case DDSFile::DXGIFormat::BC6H_Typeless:
+        case DDSFile::DXGIFormat::BC7_Typeless:
+        case DDSFile::DXGIFormat::R16G16B16A16_Float:
+        case DDSFile::DXGIFormat::D32_Float_S8X24_UInt:
+        case DDSFile::DXGIFormat::R32_Float_X8X24_Typeless:
+        case DDSFile::DXGIFormat::X32_Typeless_G8X24_UInt:
+        case DDSFile::DXGIFormat::R10G10B10A2_UNorm:
+        case DDSFile::DXGIFormat::R10G10B10A2_UInt:
+        case DDSFile::DXGIFormat::R11G11B10_Float:
+        case DDSFile::DXGIFormat::R16G16_Float:
+        case DDSFile::DXGIFormat::D24_UNorm_S8_UInt:
+        case DDSFile::DXGIFormat::R24_UNorm_X8_Typeless:
+        case DDSFile::DXGIFormat::X24_Typeless_G8_UInt:
+        case DDSFile::DXGIFormat::R16_Float:
+        case DDSFile::DXGIFormat::R1_UNorm:
+        case DDSFile::DXGIFormat::R9G9B9E5_SHAREDEXP:
+        case DDSFile::DXGIFormat::R8G8_B8G8_UNorm:
+        case DDSFile::DXGIFormat::G8R8_G8B8_UNorm:
+        case DDSFile::DXGIFormat::B5G6R5_UNorm:
+        case DDSFile::DXGIFormat::B5G5R5A1_UNorm: 
+        case DDSFile::DXGIFormat::R10G10B10_XR_BIAS_A2_UNorm:
+        case DDSFile::DXGIFormat::AYUV:
+        case DDSFile::DXGIFormat::Y410:
+        case DDSFile::DXGIFormat::Y416:
+        case DDSFile::DXGIFormat::NV12:
+        case DDSFile::DXGIFormat::P010:
+        case DDSFile::DXGIFormat::P016:
+        case DDSFile::DXGIFormat::YUV420_OPAQUE:
+        case DDSFile::DXGIFormat::YUY2:
+        case DDSFile::DXGIFormat::Y210:
+        case DDSFile::DXGIFormat::Y216:
+        case DDSFile::DXGIFormat::NV11:
+        case DDSFile::DXGIFormat::AI44:
+        case DDSFile::DXGIFormat::IA44:
+        case DDSFile::DXGIFormat::P8:
+        case DDSFile::DXGIFormat::A8P8:
+        case DDSFile::DXGIFormat::B4G4R4A4_UNorm:
+        case DDSFile::DXGIFormat::P208:
+        case DDSFile::DXGIFormat::V208:
+        case DDSFile::DXGIFormat::V408:
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported DDS texture type")
+        }
+    }
+
+    switch (ret) 
+    {
+    case tinyddsloader::ErrorFileOpen:          EngineLoggerError("Failed to load DDS image. returned result is ErrorFileOpen"); break;
+    case tinyddsloader::ErrorRead:              EngineLoggerError("Failed to load DDS image. returned result is ErrorRead"); break;
+    case tinyddsloader::ErrorMagicWord:         EngineLoggerError("Failed to load DDS image. returned result is ErrorMagicWord"); break;
+    case tinyddsloader::ErrorSize:              EngineLoggerError("Failed to load DDS image. returned result is ErrorSize"); break;
+    case tinyddsloader::ErrorVerify:            EngineLoggerError("Failed to load DDS image. returned result is ErrorVerify"); break;
+    case tinyddsloader::ErrorNotSupported:      EngineLoggerError("Failed to load DDS image. returned result is ErrorNotSupported"); break;
+    case tinyddsloader::ErrorInvalidData:       EngineLoggerError("Failed to load DDS image. returned result is ErrorInvalidData"); break;
+        
+    case tinyddsloader::Success:
+    if (dds.GetMipCount() == 0)                 EngineLoggerError("Failed to load DDS image. no error but image has no mip");
+        
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("DDS image read failed for unknown reasons")
+    }
+    
+    return Image(0,0, Image::UnsignedByte, Image::R);
+}
+
+static Image LoadImageDDS(const std::filesystem::path& ImagePath, Image::Type ComponentType)
+{
+    std::ifstream file(ImagePath, std::ios::binary | std::ios::ate);
+    AssertOrErrorCallF(file.is_open(), return Image(0,0, ComponentType, Image::R),
+        "Could not open file %s", ImagePath.generic_string().c_str())
+
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<uint8_t> buffer(size);
+    if (file.read(reinterpret_cast<char*>(buffer.data()), size))
+    {
+        return LoadImageDDSFromMemory(buffer.data(), size);
+    }
+
+    return Image(0,0,Image::UnsignedByte, Image::R);
+}
+
+static Image LoadImageEXRFromMemory(const uint8_t* data, size_t size)
+{
+    int width, height;
+    float* image;
+    const char* err = NULL;
+    
+    int ret = IsEXRFromMemory(data, size);
+    AssertOrErrorCallF(ret == TINYEXR_SUCCESS, Image(0,0,Image::UnsignedByte, Image::R), "File not found or given file is not a EXR format. code %d\n", ret)
+    
+    ret = LoadEXRFromMemory(&image, &width, &height, data, size, &err);
+    
+    if (ret != TINYEXR_SUCCESS) 
+    {
+        if (err) 
+        {
+            EngineLoggerErrorF("Load EXR err: %s(code %d)\n", err, ret);
+        } 
+        else 
+        {
+            EngineLoggerErrorF("Load EXR err: code = %d\n", ret);
+        }
+        EngineRuntimeBREAKPOINT
+        
+        FreeEXRErrorMessage(err);
+        return Image(0,0,Image::UnsignedByte, Image::R);
+    }
+    
+    Image Result(width, height, Image::Float, Image::RGBA, Image::Linear, image);
+    
+    free(image);
+    
+    return Result;
+}
+
+static Image LoadImageEXR(const std::filesystem::path& ImagePath, Image::Type ComponentType)
+{
+    int width, height;
+    float* image;
+    const char* err = NULL;
+    std::string path = ImagePath.generic_string().c_str();
+    
+    int ret = IsEXR(path.c_str());
+    AssertOrErrorCallF(ret == TINYEXR_SUCCESS, Image(0,0,Image::UnsignedByte, Image::R), "File not found or given file is not a EXR format. code %d\n", ret)
+    
+    ret = LoadEXR(&image, &width, &height, path.c_str(), &err);
+    
+    if (ret != TINYEXR_SUCCESS) 
+    {
+        if (err) 
+        {
+            EngineLoggerErrorF("Load EXR err: %s(code %d)\n", err, ret);
+        } 
+        else 
+        {
+            EngineLoggerErrorF("Load EXR err: code = %d\n", ret);
+        }
+        EngineRuntimeBREAKPOINT
+        
+        FreeEXRErrorMessage(err);
+        return Image(0,0,Image::UnsignedByte, Image::R);
+    }
+    
+    Image Result(width, height, Image::Float, Image::RGBA, Image::Linear, image);
+    
+    free(image);
+    
+    return Result;
+}
+
+static Image LoadImageSTBFromMemory(const uint8_t* data, size_t size, Image::FileType FileType)
+{
+    int Width = 0, Height = 0, ChannelCount = 0;
+    void* Buffer;
+    Image::Type componentType;
+    Image::Encoding encoding;
+    
+    switch (FileType)
+    {
+    case Image::JPG:
+    case Image::PNG:
+    case Image::TGA:
+    case Image::BMP:
+        Buffer = stbi_load_from_memory(data, size, &Width, &Height, &ChannelCount, 0);
+        componentType = Image::UnsignedByte;
+        encoding = Image::sRGB;
+        break;
+        
+    case Image::HDR:
+        Buffer = stbi_loadf_from_memory(data, size, &Width, &Height, &ChannelCount, 0);
+        componentType = Image::Float;
+        encoding = Image::Linear;
+        break;
+        
+    case Image::DDS:
+    case Image::EXR:
+    case Image::_Count:
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported file type")
+        }
+
+    Image::Layout Layout;
+    switch (ChannelCount)
+    {
+    case 1: Layout = Image::R;      break;
+    case 2: Layout = Image::RG;     break;
+    case 3: Layout = Image::RGB;    break;
+    case 4: Layout = Image::RGBA;   break;
+
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported channel count")
+        }
+    Image Image(Width, Height, componentType, Layout, encoding, Buffer);
+
+    stbi_image_free(Buffer);
+
+    return Image;
+}
+
+static Image LoadImageSTB(const std::filesystem::path& ImagePath, Image::Type ComponentType)
+{
     int Width = 0, Height = 0, ChannelCount = 0;
     void* Buffer;
     Image::Encoding encoding;
-    
+        
     switch (ComponentType)
     {
     case Image::UnsignedByte:
@@ -235,6 +721,46 @@ Image ImageLoad(const std::filesystem::path& ImagePath, Image::Type ComponentTyp
     return Image;
 }
 
+Image ImageLoad(const std::filesystem::path& ImagePath, Image::Type ComponentType)
+{
+    AssertOrErrorCallF(exists(ImagePath), return Image(0,0, ComponentType, Image::R),
+        "Could not open image %s, No such file or directory", ImagePath.generic_string().c_str())
+    
+    if (ImagePath.extension().compare(".dds") == 0)
+    {
+        return LoadImageDDS(ImagePath, ComponentType);
+    }
+    else if (ImagePath.extension().compare(".exr") == 0)
+    {
+        return LoadImageEXR(ImagePath, ComponentType);
+    }
+    else
+    {
+        return LoadImageSTB(ImagePath, ComponentType);
+    }
+}
+
+Image ImageLoadFromMemory(const uint8_t* Buffer, size_t Size, Image::FileType Type)
+{
+    switch (Type)
+    {
+    case Image::JPG:
+    case Image::PNG:
+    case Image::TGA:
+    case Image::BMP:
+    case Image::HDR:
+        return LoadImageSTBFromMemory(Buffer, Size, Type);
+        
+    case Image::DDS:
+        return LoadImageDDSFromMemory(Buffer, Size);
+        
+    case Image::EXR:
+        return LoadImageEXRFromMemory(Buffer, Size);
+        
+    case Image::_Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image format")
+    }
+}
 
 bool ImageStore(const std::filesystem::path& OutputPath, const Image& Image, Image::FileType Type)
 {
@@ -280,7 +806,33 @@ bool ImageStore(const std::filesystem::path& OutputPath, const Image& Image, Ima
         }
         ENUM_OUT_OF_RANGE("HDR only supports float textures")
 
-
+    case Image::EXR:
+        if (Image.ComponentType() == Image::Float)
+        {
+            const char* err = NULL;
+            int ret = SaveEXR((float*) Image.Data(), Image.Width(), Image.Height(), Image.ComponentCount(), false, OutputPath.generic_string().c_str(), &err);
+            
+            if (ret != TINYEXR_SUCCESS) 
+            {
+                if (err) 
+                {
+                    EngineLoggerErrorF("Load EXR err: %s(code %d)\n", err, ret);
+                } 
+                else 
+                {
+                    EngineLoggerErrorF("Load EXR err: code = %d\n", ret);
+                }
+                EngineRuntimeBREAKPOINT
+        
+                FreeEXRErrorMessage(err);
+                return false;
+            }
+            
+            return true;
+        }
+        ENUM_OUT_OF_RANGE("EXR only supports float textures")
+        
+    case Image::DDS:
     case Image::_Count:
     SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported export format")
     }

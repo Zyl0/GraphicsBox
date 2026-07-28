@@ -173,6 +173,26 @@ group "Dependencies"
         files {
             path.join(gb_LibsImplementDir, "stb_image_write.cpp")
         }
+    
+    project "BCDec"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
+        -- Project includes
+        includedirs {
+            path.join(gb_SourceDependencyDir, "stb"),
+            path.join(gb_SourceDependencyDir, "BCDec"),
+            path.join(gb_IncludeDir, "Shared")
+        }
+
+        -- Project files    
+        files { 
+            path.join(gb_SourceDependencyDir, "BCDec", "bcdec.h"),
+            path.join(gb_LibsImplementDir, "bcdec.cpp")
+        }
 
 if _ACTION ~= "cmake" then
     project "CTTI"
@@ -192,6 +212,48 @@ if _ACTION ~= "cmake" then
             path.join(gb_SourceDependencyDir, "ctti", "include", "**.hpp")
         }
 end
+
+    project "TinyDDS"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
+        -- Project includes
+        includedirs {
+            path.join(gb_SourceDependencyDir, "stb"),
+            path.join(gb_SourceDependencyDir, "TinyDDS"),
+            path.join(gb_IncludeDir, "Shared")
+        }
+
+        -- Project files    
+        files { 
+            path.join(gb_SourceDependencyDir, "TinyDDS", "tinyddsloader.h"),
+            path.join(gb_LibsImplementDir, "tiny_dds.cpp")
+        }
+        
+    project "TinyEXR"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
+        -- Project includes
+        includedirs {
+            path.join(gb_SourceDependencyDir, "stb"),
+            path.join(gb_SourceDependencyDir, "TinyEXR"),
+            path.join(gb_IncludeDir, "Shared")
+        }
+
+        -- Project files    
+        files {
+            path.join(gb_SourceDependencyDir, "TinyGLTF", "tinyexr.h"),
+            path.join(gb_LibsImplementDir, "tiny_exr.cpp")
+        }
+    
+        links {"stb_image"}
 
     project "TinyGLTF"
         language "C++"
@@ -372,6 +434,9 @@ group "Utilites"
         -- Project includes
         includedirs {
             gb_IncludeDir,
+            path.join(gb_SourceDependencyDir, "BCDec"),
+            path.join(gb_SourceDependencyDir, "TinyDDS"),
+            path.join(gb_SourceDependencyDir, "TinyEXR"),
             path.join(gb_SourceDependencyDir, "stb"),
             path.join(gb_IncludeDir, "Image")
         }
@@ -390,11 +455,18 @@ group "Utilites"
         dependson {
             "stb_image",
             "stb_image_write",
+            "Memory",
+            "BCDec",
+            "TinyDDS",
+            "TinyEXR"
         }
         links {
             "stb_image",
             "stb_image_write",
-            "Memory"
+            "Memory",
+            "BCDec",
+            "TinyDDS",
+            "TinyEXR"
         }
     
     project "Importers"
