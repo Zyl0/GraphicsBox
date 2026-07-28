@@ -372,7 +372,7 @@ namespace FrameGraph
     private:
         void Update()
         {
-            m_GPUArray.SavePreviousCameras();
+            if (HasPreviousCameras()) m_GPUArray.SavePreviousCameras();
             
             if (!m_HasChanged) return;
             

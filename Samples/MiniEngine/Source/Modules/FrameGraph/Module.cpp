@@ -39,6 +39,8 @@ namespace FrameGraph
         VOutputSize = Resources().AddVariable<FrameGraph::Size2D>("Output", FrameGraph::Size2D{InitialWidth, InitialHeight});
         Resources().Add<VertexArrayObject>("Empty VAO");
 
+        Resources().EnablePreviousCameras();
+        
         m_OutputFrameBuffer.emplace(FrameBuffer::Attachment(Resources().Get<Texture2D>(TexOutput), FrameBuffer::ClearColor(0.0f)));
 
         m_CommandPool->PushDebugView<TextureViewer>();
