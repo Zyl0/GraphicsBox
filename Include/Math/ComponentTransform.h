@@ -57,7 +57,7 @@ Math::WorldTransform<type> operator *(const Math::WorldTransform<type> &Parent, 
     Math::WorldTransform<type> result;
     result.Scale = Parent.Scale * Child.Scale;
     result.Rotation = Parent.Rotation * Child.Rotation;
-    result.Position = Parent.Position + Parent.Rotation(Child.Position);
+    result.Position = Parent.TransformPosition(Child.Position);
 
     return result;
 }
