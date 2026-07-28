@@ -6,7 +6,7 @@ gb_msvc_c_version =        "c11"
 -- Linux/GCC or CLang
 gb_gnuc_cpp_version =      "gnu++20"
 gb_gnuc_c_version =        "gnu11"
-gb_linux_toolset =         "clang-21"
+gb_linux_toolset =         "gcc"
 
 -- Pathes
 gb_SolutionDir =               path.getabsolute(".")
