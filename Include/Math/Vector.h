@@ -443,7 +443,7 @@ namespace Math
     }
 
     template<typename type>
-    Point3t<type> Min( const Point3t<type>& a, Point3t<type>& b )
+    Point3t<type> Min( const Point3t<type>& a, const Point3t<type>& b )
     { 
         return Point3t<type>( std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z) ); 
     }

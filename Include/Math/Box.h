@@ -38,7 +38,8 @@ namespace Math
             return (Index == 0) ? a : b;
         }
         
-        INLINE Point Center() const {return 0.5 * (a + b);}
+        INLINE Point Center() const {return (a + b) * 0.5f;}
+        INLINE type Center(size_t Index) const {return (a[Index] + b[Index]) * 0.5;}
         INLINE Vector Diagonal() const {return b - a;}
         INLINE Vector Size() const {return Diagonal();}
         INLINE Type Radius() const {return Magnitude(Diagonal());}
@@ -48,6 +49,32 @@ namespace Math
         
         INLINE bool Inside(const Box3T& other) const {return ((a < other.a) && (b > other.b));}
         INLINE bool Inside(const Vector& point) const {return (b < point.a) && (a > point.b);}
+        
+        Box3T& Insert( const Point& p )
+        {
+            a.x = std::min(a.x, p.x); 
+            a.y = std::min(a.y, p.y); 
+            a.z = std::min(a.z, p.z); 
+            
+            b.x = std::max(b.x, p.x); 
+            b.y = std::max(b.y, p.y); 
+            b.z = std::max(b.z, p.z); 
+            
+            return *this;
+        }
+        
+        Box3T& Insert( const Box3T& box )
+        {
+            a.x = std::min(a.x, box.a.x); 
+            a.y = std::min(a.y, box.a.y); 
+            a.z = std::min(a.z, box.a.z); 
+            
+            b.x = std::max(b.x, box.b.x); 
+            b.y = std::max(b.y, box.b.y); 
+            b.z = std::max(b.z, box.b.z); 
+            
+            return *this;
+        }
         
         void Translate(const Vector& t)
         {
