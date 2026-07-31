@@ -336,6 +336,38 @@ Texture::Layout Texture::LayoutFromPackedType(Texture::Type type)
     }
 }
 
+Image::Type Texture::ToImageType(Texture::Type type)
+{
+    switch (type)
+    {
+    case Texture::UnsignedByte:       return Image::UnsignedByte;
+    case Texture::Byte:               return Image::Byte;
+    case Texture::UnsignedShort:      return Image::UnsignedShort;
+    case Texture::Short:              return Image::Short;
+    case Texture::UnsignedInt:        return Image::UnsignedInt;
+    case Texture::Int:                return Image::Int;
+    case Texture::Float:              return Image::Float;
+    
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported texture type in GPU")
+    }
+}
+
+Image::Layout Texture::ToImageLayout(Texture::Layout type)
+{
+    switch (type)
+    {
+    case R:              return Image::R;
+    case RG:             return Image::RG;
+    case RGB:            return Image::RGB;
+    case BGR:            return Image::BGR;
+    case RGBA:           return Image::RGBA;
+    case ARGB:           return Image::ARGB;
+    case ABGR:           return Image::ABGR;
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported texture layout in GPU")
+    }
+}
+
 Texture2D::Texture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount):
     m_Width(width), m_Height(height),
     m_MipCount(0), m_Type(type),
@@ -619,7 +651,7 @@ void Texture2D::Data(uint8_t SampleCount)
     UnBind(*this);
 }
 
-void Texture2D::Export(Image& Export)
+void Texture2D::Export(Image& Export) const
 {
     AssertOrErrorCall(ComponentLayout() == Texture::ToTextureLayout(Export.ComponentLayout()), return;, "Output image Format doesn't match GPU image Format");
     bool IsFormatCompatible = false;

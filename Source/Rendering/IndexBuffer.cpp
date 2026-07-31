@@ -35,6 +35,34 @@ void IndexBuffer::BufferSubData(const void* data, size_t offset, size_t size)
     UnBind(*this);
 }
 
+uint32_t IndexBuffer::ExportSize() const
+{
+    GLint size = 0;
+    Bind(*this);
+    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+    UnBind(*this);
+    
+    return size;
+}
+
+void IndexBuffer::Export(void* data, uint32_t size) const
+{
+    Bind(*this);
+    
+    GLCall(glGetBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, size, data))
+    
+    UnBind(*this);
+}
+
+void IndexBuffer::SubExport(void* data, uint32_t size, uint32_t offset) const
+{
+    Bind(*this);
+    
+    GLCall(glGetBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size, data))
+    
+    UnBind(*this);
+}
+
 GLenum ToGLIndexType(IndexBuffer::IndexType Type)
 {
     switch (Type)

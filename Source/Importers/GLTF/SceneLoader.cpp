@@ -83,3 +83,18 @@ namespace  GLTF
     }
 
 }
+
+void EnableMaterialAsBuffers(GLTF::GPUScene& scene)
+{
+    EngineLoggerWarn("EnableMaterialAsBuffers feature not yet implemented");
+}
+
+void EnableMaterialAsUnifiedBuffer(GLTF::GPUScene& scene)
+{
+    EngineLoggerWarn("EnableMaterialAsUnifiedBuffer feature not yet implemented");
+}
+
+void EnableTexturesAsBindlessArrays(GLTF::GPUScene& scene)
+{
+    EngineLoggerWarn("EnableTexturesAsBindlessArrays feature not yet implemented");
+}

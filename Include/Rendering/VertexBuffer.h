@@ -36,6 +36,10 @@ public:
     void Data(const void** buffers, const size_t* bufferSizes, size_t numBuffers);
     
     void SubData(const void* data, size_t offset, size_t size);
+    
+    uint32_t ExportSize() const;
+    void Export(void* data, uint32_t size) const;
+    void SubExport(void* data, uint32_t size, uint32_t offset) const;
 
 private:
     GLuint m_VertexBuffer;

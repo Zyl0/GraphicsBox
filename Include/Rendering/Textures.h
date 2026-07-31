@@ -44,9 +44,12 @@ namespace Texture
         DS
     };
     
-    static Texture::Type ToTextureType(Image::Type type);
-    static Texture::Layout ToTextureLayout(Image::Layout type);
-    static Texture::Layout LayoutFromPackedType(Texture::Type type);
+    Texture::Type ToTextureType(Image::Type type);
+    Texture::Layout ToTextureLayout(Image::Layout type);
+    Texture::Layout LayoutFromPackedType(Texture::Type type);
+    
+    Image::Type ToImageType(Texture::Type type);
+    Image::Layout ToImageLayout(Texture::Layout type);
 }
 
 GLenum ToGLTextureType(Texture::Type type, Texture::Layout layout);
@@ -72,7 +75,7 @@ public:
     void Data(const Image& Image, bool UseMips = true);
     void Data(Image::Type type, Image::Layout layout, const void* ImageData, size_t ImageSize, bool UseMips = true);
     void Data(uint8_t SampleCount);
-    void Export(Image& Export);
+    void Export(Image& Export) const;
 
     INLINE GLuint Handle() const                    { return m_Texture;}
     INLINE uint32_t Width() const                   { return m_Width;}

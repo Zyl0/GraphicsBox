@@ -46,6 +46,34 @@ void VertexBuffer::SubData(const void* data, size_t offset, size_t size)
     UnBind(*this);
 }
 
+uint32_t VertexBuffer::ExportSize() const
+{
+    GLint size = 0;
+    Bind(*this);
+    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+    UnBind(*this);
+    
+    return size;
+}
+
+void VertexBuffer::Export(void* data, uint32_t size) const
+{
+    Bind(*this);
+    
+    GLCall(glGetBufferSubData(GL_ARRAY_BUFFER, 0, size, data))
+    
+    UnBind(*this);
+}
+
+void VertexBuffer::SubExport(void* data, uint32_t size, uint32_t offset) const
+{
+    Bind(*this);
+    
+    GLCall(glGetBufferSubData(GL_ARRAY_BUFFER, offset, size, data))
+    
+    UnBind(*this);
+}
+
 void Bind(const VertexBuffer& VertexBuffer)
 {
     GLCall(glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer.Handle()))

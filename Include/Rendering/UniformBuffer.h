@@ -38,6 +38,8 @@ public:
 
     void Data(const void* data, uint32_t size);
     void SubData(const  void* data, uint32_t size, uint32_t offset);
+    void Export(void* data, uint32_t size) const;
+    void SubExport(void* data, uint32_t size, uint32_t offset) const;
     
     INLINE GLuint Handle() const    { return m_UBO; }
     INLINE uint32_t Size() const    { return m_Size; }

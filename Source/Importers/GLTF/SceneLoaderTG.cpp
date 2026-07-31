@@ -496,6 +496,8 @@ namespace  GLTF
              //KHR_materials_specular
              if(material.extensions.contains("KHR_materials_specular"))
              {
+                 MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularExt;
+                 
                  auto& extension = material.extensions.at("KHR_materials_specular");
 
                  if(extension.Has("specularFactor"))
@@ -531,6 +533,8 @@ namespace  GLTF
              //KHR_materials_transmission
              if(material.extensions.contains("KHR_materials_transmission"))
              {
+                 MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseTransmissionExt;
+                 
                  auto& extension = material.extensions.at("KHR_materials_transmission");
 
                  if(extension.Has("transmissionFactor"))
@@ -1139,6 +1143,8 @@ namespace  GLTF
              //KHR_materials_specular
              if(material.extensions.contains("KHR_materials_specular"))
              {
+                 MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularExt;
+                 
                  auto& extension = material.extensions.at("KHR_materials_specular");
 
                  if(extension.Has("specularFactor"))
@@ -1174,6 +1180,8 @@ namespace  GLTF
              //KHR_materials_transmission
              if(material.extensions.contains("KHR_materials_transmission"))
              {
+                 MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseTransmissionExt;
+                 
                  auto& extension = material.extensions.at("KHR_materials_transmission");
 
                  if(extension.Has("transmissionFactor"))

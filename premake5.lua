@@ -668,6 +668,7 @@ group "Samples"
             path.join(gb_SourceDependencyDir, "imgui"),
             path.join(gb_SourceDependencyDir, "ctti", "include"),
             path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
+            path.join(gb_SourceDependencyDir, "Lyra", "include"),
         }
 
         -- Project files
@@ -784,6 +785,7 @@ group "Samples"
     SampleProjects = {
         "AntiAliasing",
         "GLTFViewer",
+        "MiniEngineCooker",
         "MiniEngineSample",
         "PBR",
         "RayTracingBase",
@@ -809,7 +811,9 @@ group "Samples"
                 "SHADERS_GLOBAL=\"" .. path.join(gb_SamplesDir, "MiniEngine", "Shaders") .. "\"",
                 "RESOURCES_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Resources") .. "\"",
                 "SHADERS_PROJECT=\"" .. path.join(gb_SamplesDir, name, "Shaders") .. "\"",
-                "TEMP_DIR=\"" .. path.join(gb_TempDir, name) .. "\""
+                "TEMP_DIR=\"" .. path.join(gb_TempDir, name) .. "\"",
+                "TEMP_BAKED=\"" .. path.join(gb_TempDir, "Baked") .. "\"",
+                "TEMP_BAKED_SCENES=\"" .. path.join(gb_TempDir,  "Baked", "Scenes") .. "\"",
             }
         
             if gbUseSampleScenes then

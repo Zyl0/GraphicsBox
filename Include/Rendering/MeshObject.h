@@ -69,7 +69,10 @@ struct MeshObject
         m_EditMode = Other.m_EditMode;
         return *this;
     }
-
+    
+    std::span<const VertexArrayObject::Layout> GetLayouts() const {return m_Layouts;}
+    std::span<const VertexBuffer> GetVertexBuffers() const {return m_VertexBuffers;}
+    
 private:
     std::vector<VertexArrayObject::Layout> m_Layouts;
     VertexArrayObject m_Vao;

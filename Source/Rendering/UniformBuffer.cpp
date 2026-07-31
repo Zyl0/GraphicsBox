@@ -11,7 +11,7 @@ UniformBuffer::UniformBuffer(uint32_t Size, const void* data):
     glGenBuffers(1, &m_UBO);
 
     Bind(*this);
-    glBufferData(GL_UNIFORM_BUFFER, Size, data, GL_STATIC_DRAW);
+    GLCall(glBufferData(GL_UNIFORM_BUFFER, Size, data, GL_STATIC_DRAW))
     UnBind(*this);
 }
 
@@ -27,14 +27,28 @@ void UniformBuffer::Data(const void* data, uint32_t size)
     m_Size = size;
     
     Bind(*this);
-    glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
+    GLCall(glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW))
     UnBind(*this);
 }
 
 void UniformBuffer::SubData(const void* data, uint32_t size, uint32_t offset)
 {
     Bind(*this);
-    glBufferSubData(GL_UNIFORM_BUFFER, offset, size, data);
+    GLCall(glBufferSubData(GL_UNIFORM_BUFFER, offset, size, data))
+    UnBind(*this);
+}
+
+void UniformBuffer::Export(void* data, uint32_t size) const
+{
+    Bind(*this);
+    GLCall(glGetBufferSubData(GL_UNIFORM_BUFFER, 0, size, data))
+    UnBind(*this);
+}
+
+void UniformBuffer::SubExport(void* data, uint32_t size, uint32_t offset) const
+{
+    Bind(*this);
+    GLCall(glGetBufferSubData(GL_UNIFORM_BUFFER, offset, size, data))
     UnBind(*this);
 }
 

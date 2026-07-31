@@ -105,11 +105,13 @@ public:
 		void Push<Math::Vector4f>(unsigned int count);
 
 		INLINE const std::vector<Element>& GetElements() const { return m_elements; }
-		INLINE unsigned int GetStride() const { return m_stride; }
+		INLINE uint32_t GetStride() const { return m_stride; }
+		
+		void Replace(std::span<const Element> elements, uint32_t Stride);
 		
 	private:
 		std::vector<Element> m_elements;
-		unsigned int m_stride = 0;
+		uint32_t m_stride = 0;
 	};
 	
 	// TODO complete implementation for geometry

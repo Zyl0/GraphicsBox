@@ -84,6 +84,16 @@ void VertexArrayObject::Layout::Push<Math::Vector4t<float>>(unsigned int count)
 	m_stride += count * 4 * Element::GetSizeOfType(GL_FLOAT);
 }
 
+void VertexArrayObject::Layout::Replace(std::span<const Element> elements, uint32_t Stride)
+{
+	m_elements.resize(elements.size());
+	for (size_t i = 0; i < elements.size(); i++)
+	{
+		m_elements[i] = elements[i];
+	}
+	m_stride = Stride;
+}
+
 VertexArrayObject::VertexArrayObject()
 {
 	glGenVertexArrays(1, &m_VAO);

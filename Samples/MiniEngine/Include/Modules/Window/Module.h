@@ -65,12 +65,15 @@ namespace Window
         void _SetViewportSubViewport(uint32_t Width = 0, uint32_t Height = 0);
         void _DisableSubViewport();
         
+        void RequestClose() {m_ShouldClose = true;}
+        
     private:
         void* m_Window;
         uint32_t m_Width, m_Height;
         double m_CurrentMouseX, m_CurrentMouseY, m_LastMouseX, m_LastMouseY;
         bool m_IsReduced;
         bool m_ShouldResize;
+        bool m_ShouldClose;
         
         bool m_IsCurrentViewportSubViewport = false;
         bool m_ShouldResizeSubViewport = false;

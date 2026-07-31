@@ -539,6 +539,651 @@ static Image LoadImageDDSFromMemory(const uint8_t* data, size_t size)
     return Image(0,0, Image::UnsignedByte, Image::R);
 }
 
+static bool LoadImageDDSFromMemory(const uint8_t* data, size_t size, Image& Image)
+{
+    using namespace tinyddsloader;
+    
+    AssertOrErrorCall(data != nullptr && size > 0, return false, "Invalid image data")
+    
+    DDSFile dds;
+    auto ret = dds.Load(data, size);
+    
+    if (ret == Result::Success && dds.GetMipCount() > 0)
+    {
+        const DDSFile::ImageData* mip0 = dds.GetImageData(0, 0);
+        uint32_t width = mip0->m_width;
+        uint32_t height = mip0->m_height;
+        DDSFile::DXGIFormat format = dds.GetFormat();
+        
+        Image::Type componentType;
+        Image::Layout componentLayout;
+        Image::Encoding encoding;
+        
+        // Decode image types
+        // Reserve decoding buffer
+        switch (format)
+        {
+        case DDSFile::DXGIFormat::R32G32B32A32_Float:
+            componentType = Image::Float;
+            componentLayout = Image::RGBA;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R32G32B32A32_UInt:
+            componentType = Image::UnsignedInt;
+            componentLayout = Image::RGBA;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R32G32B32A32_SInt:
+            componentType = Image::Int;
+            componentLayout = Image::RGBA;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R32G32B32_Float:
+            componentType = Image::Float;
+            componentLayout = Image::RGB;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R32G32B32_UInt:
+            componentType = Image::UnsignedInt;
+            componentLayout = Image::RGB;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R32G32B32_SInt:
+            componentType = Image::Int;
+            componentLayout = Image::RGB;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R16G16B16A16_UNorm:
+            componentType = Image::UnsignedShort;
+            componentLayout = Image::RGBA;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R16G16B16A16_UInt:
+            componentType = Image::UnsignedShort;
+            componentLayout = Image::RGBA;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R16G16B16A16_SNorm:
+            componentType = Image::Short;
+            componentLayout = Image::RGBA;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R16G16B16A16_SInt:
+            componentType = Image::Short;
+            componentLayout = Image::RGBA;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R32G32_Float:
+            componentType = Image::Float;
+            componentLayout = Image::RG;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R32G32_UInt:
+            componentType = Image::UnsignedInt;
+            componentLayout = Image::RG;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R32G32_SInt:
+            componentType = Image::Int;
+            componentLayout = Image::RG;
+            encoding = Image::Unencoded;
+            break;
+        
+        case DDSFile::DXGIFormat::R8G8B8A8_UNorm:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::RGBA;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R8G8B8A8_UNorm_SRGB:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::RGBA;
+            encoding = Image::sRGB;
+            break;
+            
+        case DDSFile::DXGIFormat::R8G8B8A8_UInt:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::RGBA;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R8G8B8A8_SNorm:
+            componentType = Image::Byte;
+            componentLayout = Image::RGBA;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R8G8B8A8_SInt:
+            componentType = Image::Byte;
+            componentLayout = Image::RGBA;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R16G16_UNorm:
+            componentType = Image::UnsignedShort;
+            componentLayout = Image::RG;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R16G16_UInt:
+            componentType = Image::UnsignedShort;
+            componentLayout = Image::RG;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R16G16_SNorm:
+            componentType = Image::Short;
+            componentLayout = Image::RG;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R16G16_SInt:
+            componentType = Image::Short;
+            componentLayout = Image::RG;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::D32_Float:
+        case DDSFile::DXGIFormat::R32_Float:
+            componentType = Image::Float;
+            componentLayout = Image::R;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R32_UInt:
+            componentType = Image::UnsignedInt;
+            componentLayout = Image::R;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R32_SInt:
+            componentType = Image::Int;
+            componentLayout = Image::R;
+            encoding = Image::Unencoded;
+            break;
+
+        case DDSFile::DXGIFormat::R8G8_UNorm:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::RG;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R8G8_UInt:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::RG;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R8G8_SNorm:
+            componentType = Image::Byte;
+            componentLayout = Image::RG;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R8G8_SInt:
+            componentType = Image::Byte;
+            componentLayout = Image::RG;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::D16_UNorm:
+        case DDSFile::DXGIFormat::R16_UNorm:
+            componentType = Image::UnsignedShort;
+            componentLayout = Image::R;
+            encoding = Image::Linear;
+            break;
+        
+        case DDSFile::DXGIFormat::R16_UInt:
+            componentType = Image::UnsignedShort;
+            componentLayout = Image::R;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R16_SNorm:
+            componentType = Image::Short;
+            componentLayout = Image::R;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R16_SInt:
+            componentType = Image::Short;
+            componentLayout = Image::R;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::A8_UNorm:
+        case DDSFile::DXGIFormat::R8_UNorm:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::R;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R8_UInt:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::R;
+            encoding = Image::Unencoded;
+            break;
+            
+        case DDSFile::DXGIFormat::R8_SNorm:
+            componentType = Image::Byte;
+            componentLayout = Image::R;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::R8_SInt:
+            componentType = Image::Byte;
+            componentLayout = Image::R;
+            encoding = Image::Unencoded;
+            break;            
+            
+        case DDSFile::DXGIFormat::BC1_UNorm:
+        case DDSFile::DXGIFormat::BC2_UNorm:
+        case DDSFile::DXGIFormat::BC3_UNorm:
+        case DDSFile::DXGIFormat::BC7_UNorm:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::RGBA;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::BC1_UNorm_SRGB:
+        case DDSFile::DXGIFormat::BC2_UNorm_SRGB:
+        case DDSFile::DXGIFormat::BC3_UNorm_SRGB:
+        case DDSFile::DXGIFormat::BC7_UNorm_SRGB:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::RGBA;
+            encoding = Image::sRGB;
+            break;
+
+            
+        case DDSFile::DXGIFormat::BC4_UNorm:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::R;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::BC4_SNorm:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::R;
+            encoding = Image::sRGB;
+            break;
+            
+        case DDSFile::DXGIFormat::BC5_UNorm:
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::RG;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::BC5_SNorm:
+            componentType = Image::Byte;
+            componentLayout = Image::RG;
+            encoding = Image::Linear;
+            break;
+        
+        case DDSFile::DXGIFormat::BC6H_UF16:
+            
+        case DDSFile::DXGIFormat::BC6H_SF16:
+            componentType = Image::Float;
+            componentLayout = Image::RGB;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::B8G8R8X8_UNorm:
+            EngineRuntimeCrash("Image buffers does not yet support padding")
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::BGR;
+            encoding = Image::Linear;
+            break;
+            
+        case DDSFile::DXGIFormat::B8G8R8X8_UNorm_SRGB:
+            EngineRuntimeCrash("Image buffers does not yet support padding")
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::BGR;
+            encoding = Image::sRGB;
+            break;
+        
+        case DDSFile::DXGIFormat::B8G8R8A8_UNorm:
+            EngineRuntimeCrash("Image buffers does not support reversed layout with alpha at the end (BGRA)")
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::BGR;
+            encoding = Image::Linear;
+            break;
+            // return Image(width, height, Image::UnsignedByte, Image::BGR, Image::Unencoded, mip0->m_mem);
+            
+        case DDSFile::DXGIFormat::B8G8R8A8_UNorm_SRGB:
+            EngineRuntimeCrash("Image buffers does not support reversed layout with alpha at the end (BGRA)")
+            componentType = Image::UnsignedByte;
+            componentLayout = Image::BGR;
+            encoding = Image::sRGB;
+            break;
+            
+        case DDSFile::DXGIFormat::Unknown:
+        case DDSFile::DXGIFormat::R32G32B32A32_Typeless:
+        case DDSFile::DXGIFormat::R32G32B32_Typeless:
+        case DDSFile::DXGIFormat::R16G16B16A16_Typeless:
+        case DDSFile::DXGIFormat::R32G32_Typeless:
+        case DDSFile::DXGIFormat::R32G8X24_Typeless:
+        case DDSFile::DXGIFormat::R10G10B10A2_Typeless:
+        case DDSFile::DXGIFormat::R8G8B8A8_Typeless:
+        case DDSFile::DXGIFormat::R16G16_Typeless:
+        case DDSFile::DXGIFormat::R32_Typeless:
+        case DDSFile::DXGIFormat::R24G8_Typeless:
+        case DDSFile::DXGIFormat::R8G8_Typeless:
+        case DDSFile::DXGIFormat::R16_Typeless:
+        case DDSFile::DXGIFormat::R8_Typeless:
+        case DDSFile::DXGIFormat::BC1_Typeless:
+        case DDSFile::DXGIFormat::BC2_Typeless:
+        case DDSFile::DXGIFormat::BC3_Typeless:
+        case DDSFile::DXGIFormat::BC4_Typeless:
+        case DDSFile::DXGIFormat::BC5_Typeless:
+        case DDSFile::DXGIFormat::B8G8R8A8_Typeless:
+        case DDSFile::DXGIFormat::B8G8R8X8_Typeless:
+        case DDSFile::DXGIFormat::BC6H_Typeless:
+        case DDSFile::DXGIFormat::BC7_Typeless:
+        case DDSFile::DXGIFormat::R16G16B16A16_Float:
+        case DDSFile::DXGIFormat::D32_Float_S8X24_UInt:
+        case DDSFile::DXGIFormat::R32_Float_X8X24_Typeless:
+        case DDSFile::DXGIFormat::X32_Typeless_G8X24_UInt:
+        case DDSFile::DXGIFormat::R10G10B10A2_UNorm:
+        case DDSFile::DXGIFormat::R10G10B10A2_UInt:
+        case DDSFile::DXGIFormat::R11G11B10_Float:
+        case DDSFile::DXGIFormat::R16G16_Float:
+        case DDSFile::DXGIFormat::D24_UNorm_S8_UInt:
+        case DDSFile::DXGIFormat::R24_UNorm_X8_Typeless:
+        case DDSFile::DXGIFormat::X24_Typeless_G8_UInt:
+        case DDSFile::DXGIFormat::R16_Float:
+        case DDSFile::DXGIFormat::R1_UNorm:
+        case DDSFile::DXGIFormat::R9G9B9E5_SHAREDEXP:
+        case DDSFile::DXGIFormat::R8G8_B8G8_UNorm:
+        case DDSFile::DXGIFormat::G8R8_G8B8_UNorm:
+        case DDSFile::DXGIFormat::B5G6R5_UNorm:
+        case DDSFile::DXGIFormat::B5G5R5A1_UNorm: 
+        case DDSFile::DXGIFormat::R10G10B10_XR_BIAS_A2_UNorm:
+        case DDSFile::DXGIFormat::AYUV:
+        case DDSFile::DXGIFormat::Y410:
+        case DDSFile::DXGIFormat::Y416:
+        case DDSFile::DXGIFormat::NV12:
+        case DDSFile::DXGIFormat::P010:
+        case DDSFile::DXGIFormat::P016:
+        case DDSFile::DXGIFormat::YUV420_OPAQUE:
+        case DDSFile::DXGIFormat::YUY2:
+        case DDSFile::DXGIFormat::Y210:
+        case DDSFile::DXGIFormat::Y216:
+        case DDSFile::DXGIFormat::NV11:
+        case DDSFile::DXGIFormat::AI44:
+        case DDSFile::DXGIFormat::IA44:
+        case DDSFile::DXGIFormat::P8:
+        case DDSFile::DXGIFormat::A8P8:
+        case DDSFile::DXGIFormat::B4G4R4A4_UNorm:
+        case DDSFile::DXGIFormat::P208:
+        case DDSFile::DXGIFormat::V208:
+        case DDSFile::DXGIFormat::V408:
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported DDS texture type")
+        }
+        
+        AssertOrErrorCallF(width == Image.Width() && height == Image.Height(), return false, "Given Image (%ux%u) and decoded Image (%dx%d) size missmatch", Image.Width(), Image.Height(), width, height)
+        AssertOrErrorCall(Image.ComponentLayout() == componentLayout, return false, "Given Image and decoded Image Channel missmatch")
+        AssertOrErrorCall(Image.ComponentType() == componentType, return false, "Given Image and decoded image type mismatch")
+        AssertOrErrorCall(Image.ComponentEncoding() == encoding, return false, "Given Image and decoded image type mismatch")
+
+        // Decode the image if encoded else copy the result to the image
+        switch (format)
+        {            
+        case DDSFile::DXGIFormat::BC1_UNorm:
+        case DDSFile::DXGIFormat::BC1_UNorm_SRGB:
+        {
+            uint32_t pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 8 + (x / 4) * 8;
+                uint8_t* dst = (uint8_t*)(Image.Data()) + (size_t)(y * pitch + x * 4);
+                bcdec_bc1(block, dst, pitch);
+            }
+        }
+        break;
+            
+        case DDSFile::DXGIFormat::BC2_UNorm:
+        case DDSFile::DXGIFormat::BC2_UNorm_SRGB:
+        {
+            uint32_t pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                uint8_t* dst = (uint8_t*)(Image.Data()) + (size_t)(y * pitch + x * 4);
+                bcdec_bc2(block, dst, pitch);
+            }
+        }
+        break;
+            
+        case DDSFile::DXGIFormat::BC3_UNorm:
+        case DDSFile::DXGIFormat::BC3_UNorm_SRGB:
+        {
+            uint32_t pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                uint8_t* dst = (uint8_t*)(Image.Data()) + (size_t)(y * pitch + x * 4);
+                bcdec_bc3(block, dst, pitch);
+            }
+        }
+        break;
+            
+        case DDSFile::DXGIFormat::BC4_UNorm:
+        case DDSFile::DXGIFormat::BC4_SNorm:
+        {
+            uint32_t pitch = width * 1;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 8 + (x / 4) * 8;
+                uint8_t* dst = (uint8_t*)(Image.Data()) + (size_t)(y * pitch + x * 4);
+                bcdec_bc4(block, dst, pitch);
+            }
+        }
+        break;
+            
+        case DDSFile::DXGIFormat::BC5_UNorm:
+        case DDSFile::DXGIFormat::BC5_SNorm:
+        {
+            uint32_t pitch = width * 2;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                uint8_t* dst = (uint8_t*)(Image.Data()) + (size_t)(y * pitch + x * 4);
+                bcdec_bc5(block, dst, pitch);
+            }
+        }
+        break;
+        
+        case DDSFile::DXGIFormat::BC6H_UF16:
+        {
+            int pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                float* dst = (float*)(Image.Data()) + (size_t)(y * pitch + x * 3);
+                bcdec_bc6h_float(block, dst, pitch, false);
+            }
+        }
+        break;
+            
+        case DDSFile::DXGIFormat::BC6H_SF16:
+        {
+            int pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                float* dst = (float*)(Image.Data()) + (size_t)(y * pitch + x * 3);
+                bcdec_bc6h_float(block, dst, pitch, true);
+            }
+        }
+        break;
+            
+        case DDSFile::DXGIFormat::BC7_UNorm:
+        case DDSFile::DXGIFormat::BC7_UNorm_SRGB:
+        {
+            int pitch = width * 4;
+            for (uint32_t y = 0; y < height; y += 4)
+            for (uint32_t x = 0; x < width; x += 4) 
+            {
+                const uint8_t* block = reinterpret_cast<const uint8_t*>(mip0->m_mem) + (y / 4) * (width / 4) * 16 + (x / 4) * 16;
+                uint8_t* dst = (uint8_t*)(Image.Data()) + (size_t)(y * pitch + x * 4);
+                bcdec_bc7(block, dst, pitch);
+            }
+        }
+        
+        case DDSFile::DXGIFormat::R32G32B32A32_Float:            
+        case DDSFile::DXGIFormat::R32G32B32A32_UInt:            
+        case DDSFile::DXGIFormat::R32G32B32A32_SInt:            
+        case DDSFile::DXGIFormat::R32G32B32_Float:            
+        case DDSFile::DXGIFormat::R32G32B32_UInt:            
+        case DDSFile::DXGIFormat::R32G32B32_SInt:            
+        case DDSFile::DXGIFormat::R16G16B16A16_UNorm:            
+        case DDSFile::DXGIFormat::R16G16B16A16_UInt:            
+        case DDSFile::DXGIFormat::R16G16B16A16_SNorm:            
+        case DDSFile::DXGIFormat::R16G16B16A16_SInt:            
+        case DDSFile::DXGIFormat::R32G32_Float:            
+        case DDSFile::DXGIFormat::R32G32_UInt:            
+        case DDSFile::DXGIFormat::R32G32_SInt:
+        case DDSFile::DXGIFormat::R8G8B8A8_UNorm:            
+        case DDSFile::DXGIFormat::R8G8B8A8_UNorm_SRGB:            
+        case DDSFile::DXGIFormat::R8G8B8A8_UInt:            
+        case DDSFile::DXGIFormat::R8G8B8A8_SNorm:            
+        case DDSFile::DXGIFormat::R8G8B8A8_SInt:            
+        case DDSFile::DXGIFormat::R16G16_UNorm:            
+        case DDSFile::DXGIFormat::R16G16_UInt:            
+        case DDSFile::DXGIFormat::R16G16_SNorm:            
+        case DDSFile::DXGIFormat::R16G16_SInt:            
+        case DDSFile::DXGIFormat::D32_Float:
+        case DDSFile::DXGIFormat::R32_Float:
+        case DDSFile::DXGIFormat::R32_UInt:            
+        case DDSFile::DXGIFormat::R32_SInt:
+        case DDSFile::DXGIFormat::R8G8_UNorm:            
+        case DDSFile::DXGIFormat::R8G8_UInt:            
+        case DDSFile::DXGIFormat::R8G8_SNorm:            
+        case DDSFile::DXGIFormat::R8G8_SInt:            
+        case DDSFile::DXGIFormat::D16_UNorm:
+        case DDSFile::DXGIFormat::R16_UNorm:        
+        case DDSFile::DXGIFormat::R16_UInt:            
+        case DDSFile::DXGIFormat::R16_SNorm:            
+        case DDSFile::DXGIFormat::R16_SInt:            
+        case DDSFile::DXGIFormat::A8_UNorm:
+        case DDSFile::DXGIFormat::R8_UNorm:            
+        case DDSFile::DXGIFormat::R8_UInt:            
+        case DDSFile::DXGIFormat::R8_SNorm:            
+        case DDSFile::DXGIFormat::R8_SInt:
+            memcpy(Image.Data(), mip0->m_mem , Image.DataSize());
+            break;
+            
+        case DDSFile::DXGIFormat::B8G8R8X8_UNorm:
+        case DDSFile::DXGIFormat::B8G8R8X8_UNorm_SRGB:
+        case DDSFile::DXGIFormat::B8G8R8A8_UNorm:
+        case DDSFile::DXGIFormat::B8G8R8A8_UNorm_SRGB:
+        case DDSFile::DXGIFormat::Unknown:
+        case DDSFile::DXGIFormat::R32G32B32A32_Typeless:
+        case DDSFile::DXGIFormat::R32G32B32_Typeless:
+        case DDSFile::DXGIFormat::R16G16B16A16_Typeless:
+        case DDSFile::DXGIFormat::R32G32_Typeless:
+        case DDSFile::DXGIFormat::R32G8X24_Typeless:
+        case DDSFile::DXGIFormat::R10G10B10A2_Typeless:
+        case DDSFile::DXGIFormat::R8G8B8A8_Typeless:
+        case DDSFile::DXGIFormat::R16G16_Typeless:
+        case DDSFile::DXGIFormat::R32_Typeless:
+        case DDSFile::DXGIFormat::R24G8_Typeless:
+        case DDSFile::DXGIFormat::R8G8_Typeless:
+        case DDSFile::DXGIFormat::R16_Typeless:
+        case DDSFile::DXGIFormat::R8_Typeless:
+        case DDSFile::DXGIFormat::BC1_Typeless:
+        case DDSFile::DXGIFormat::BC2_Typeless:
+        case DDSFile::DXGIFormat::BC3_Typeless:
+        case DDSFile::DXGIFormat::BC4_Typeless:
+        case DDSFile::DXGIFormat::BC5_Typeless:
+        case DDSFile::DXGIFormat::B8G8R8A8_Typeless:
+        case DDSFile::DXGIFormat::B8G8R8X8_Typeless:
+        case DDSFile::DXGIFormat::BC6H_Typeless:
+        case DDSFile::DXGIFormat::BC7_Typeless:
+        case DDSFile::DXGIFormat::R16G16B16A16_Float:
+        case DDSFile::DXGIFormat::D32_Float_S8X24_UInt:
+        case DDSFile::DXGIFormat::R32_Float_X8X24_Typeless:
+        case DDSFile::DXGIFormat::X32_Typeless_G8X24_UInt:
+        case DDSFile::DXGIFormat::R10G10B10A2_UNorm:
+        case DDSFile::DXGIFormat::R10G10B10A2_UInt:
+        case DDSFile::DXGIFormat::R11G11B10_Float:
+        case DDSFile::DXGIFormat::R16G16_Float:
+        case DDSFile::DXGIFormat::D24_UNorm_S8_UInt:
+        case DDSFile::DXGIFormat::R24_UNorm_X8_Typeless:
+        case DDSFile::DXGIFormat::X24_Typeless_G8_UInt:
+        case DDSFile::DXGIFormat::R16_Float:
+        case DDSFile::DXGIFormat::R1_UNorm:
+        case DDSFile::DXGIFormat::R9G9B9E5_SHAREDEXP:
+        case DDSFile::DXGIFormat::R8G8_B8G8_UNorm:
+        case DDSFile::DXGIFormat::G8R8_G8B8_UNorm:
+        case DDSFile::DXGIFormat::B5G6R5_UNorm:
+        case DDSFile::DXGIFormat::B5G5R5A1_UNorm: 
+        case DDSFile::DXGIFormat::R10G10B10_XR_BIAS_A2_UNorm:
+        case DDSFile::DXGIFormat::AYUV:
+        case DDSFile::DXGIFormat::Y410:
+        case DDSFile::DXGIFormat::Y416:
+        case DDSFile::DXGIFormat::NV12:
+        case DDSFile::DXGIFormat::P010:
+        case DDSFile::DXGIFormat::P016:
+        case DDSFile::DXGIFormat::YUV420_OPAQUE:
+        case DDSFile::DXGIFormat::YUY2:
+        case DDSFile::DXGIFormat::Y210:
+        case DDSFile::DXGIFormat::Y216:
+        case DDSFile::DXGIFormat::NV11:
+        case DDSFile::DXGIFormat::AI44:
+        case DDSFile::DXGIFormat::IA44:
+        case DDSFile::DXGIFormat::P8:
+        case DDSFile::DXGIFormat::A8P8:
+        case DDSFile::DXGIFormat::B4G4R4A4_UNorm:
+        case DDSFile::DXGIFormat::P208:
+        case DDSFile::DXGIFormat::V208:
+        case DDSFile::DXGIFormat::V408:
+            UNREACHABLE;
+            
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported texture format")
+        }
+        
+        return true;
+    }
+
+    switch (ret) 
+    {
+    case tinyddsloader::ErrorFileOpen:          EngineLoggerError("Failed to load DDS image. returned result is ErrorFileOpen"); break;
+    case tinyddsloader::ErrorRead:              EngineLoggerError("Failed to load DDS image. returned result is ErrorRead"); break;
+    case tinyddsloader::ErrorMagicWord:         EngineLoggerError("Failed to load DDS image. returned result is ErrorMagicWord"); break;
+    case tinyddsloader::ErrorSize:              EngineLoggerError("Failed to load DDS image. returned result is ErrorSize"); break;
+    case tinyddsloader::ErrorVerify:            EngineLoggerError("Failed to load DDS image. returned result is ErrorVerify"); break;
+    case tinyddsloader::ErrorNotSupported:      EngineLoggerError("Failed to load DDS image. returned result is ErrorNotSupported"); break;
+    case tinyddsloader::ErrorInvalidData:       EngineLoggerError("Failed to load DDS image. returned result is ErrorInvalidData"); break;
+        
+    case tinyddsloader::Success:
+    if (dds.GetMipCount() == 0)                 EngineLoggerError("Failed to load DDS image. no error but image has no mip");
+        
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("DDS image read failed for unknown reasons")
+    }
+    
+    return false;
+}
+
 static Image LoadImageDDS(const std::filesystem::path& ImagePath, Image::Type ComponentType)
 {
     std::ifstream file(ImagePath, std::ios::binary | std::ios::ate);
@@ -589,6 +1234,47 @@ static Image LoadImageEXRFromMemory(const uint8_t* data, size_t size)
     free(image);
     
     return Result;
+}
+
+static bool LoadImageEXRFromMemory(const uint8_t* data, size_t size, Image& Image)
+{
+    AssertOrErrorCall(data != nullptr && size > 0, return false, "Invalid image data")
+    
+    int width, height;
+    float* image;
+    const char* err = NULL;
+    
+    int ret = IsEXRFromMemory(data, size);
+    AssertOrErrorCallF(ret == TINYEXR_SUCCESS, return false, "File not found or given file is not a EXR format. code %d\n", ret)
+    
+    ret = LoadEXRFromMemory(&image, &width, &height, data, size, &err);
+    
+    if (ret != TINYEXR_SUCCESS) 
+    {
+        if (err) 
+        {
+            EngineLoggerErrorF("Load EXR err: %s(code %d)\n", err, ret);
+        } 
+        else 
+        {
+            EngineLoggerErrorF("Load EXR err: code = %d\n", ret);
+        }
+        EngineRuntimeBREAKPOINT
+        
+        FreeEXRErrorMessage(err);
+        return false;
+    }
+    
+    AssertOrErrorCallF(width == Image.Width() && height == Image.Height(), return false, "Given Image (%ux%u) and decoded Image (%dx%d) size missmatch", Image.Width(), Image.Height(), width, height)
+    AssertOrErrorCall(Image.ComponentType() == Image::Float, return false, "Given Image and decoded image type mismatch")
+    AssertOrErrorCall(Image.ComponentLayout() == Image::RGBA || Image.ComponentLayout() == Image::ABGR || Image.ComponentLayout() == Image::ARGB, return false, "Given Image and decoded Image Channel type missmatch")
+    AssertOrErrorCall(Image.ComponentEncoding() == Image::Linear, return false, "Given Image and decoded image type mismatch")
+    
+    memcpy(Image.Data(), image, Image.DataSize());
+    
+    free(image);
+    
+    return true;
 }
 
 static Image LoadImageEXR(const std::filesystem::path& ImagePath, Image::Type ComponentType)
@@ -664,13 +1350,71 @@ static Image LoadImageSTBFromMemory(const uint8_t* data, size_t size, Image::Fil
     case 3: Layout = Image::RGB;    break;
     case 4: Layout = Image::RGBA;   break;
 
-        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported channel count")
-        }
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported channel count")
+    }
     Image Image(Width, Height, componentType, Layout, encoding, Buffer);
 
     stbi_image_free(Buffer);
 
     return Image;
+}
+
+static bool LoadImageSTBFromMemory(const uint8_t* data, size_t size, Image::FileType FileType, Image& Image)
+{    
+    int Width = 0, Height = 0, ChannelCount = 0;
+    void* Buffer;
+    Image::Type componentType;
+    Image::Encoding encoding;
+    
+    switch (FileType)
+    {
+    case Image::JPG:
+    case Image::PNG:
+    case Image::TGA:
+    case Image::BMP:
+        Buffer = stbi_load_from_memory(data, size, &Width, &Height, &ChannelCount, 0);
+        componentType = Image::UnsignedByte;
+        encoding = Image::sRGB;
+        break;
+        
+    case Image::HDR:
+        Buffer = stbi_loadf_from_memory(data, size, &Width, &Height, &ChannelCount, 0);
+        componentType = Image::Float;
+        encoding = Image::Linear;
+        break;
+        
+    case Image::DDS:
+    case Image::EXR:
+    case Image::_Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported file type")
+    }
+
+    Image::Layout Layout;
+    switch (ChannelCount)
+    {
+    case 1: Layout = Image::R;      break;
+    case 2: Layout = Image::RG;     break;
+    case 3: Layout = Image::RGB;    break;
+    case 4: Layout = Image::RGBA;   break;
+
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported channel count")
+    }
+    
+    AssertOrErrorCallF(Width == Image.Width() && Height == Image.Height(), goto on_failed, "Given Image (%ux%u) and decoded Image (%dx%d) size missmatch", Image.Width(), Image.Height(), Width, Height)
+    AssertOrErrorCallF(ChannelCount == Image.ComponentCount(), goto on_failed, "Given Image (%u) and decoded Image (%d) Channel count missmatch", Image.ComponentCount(), ChannelCount)
+    AssertOrErrorCall(Image.ComponentType() == componentType, goto on_failed, "Given Image and decoded image type mismatch")
+    AssertOrErrorCall(Image.ComponentEncoding() == encoding, goto on_failed, "Given Image and decoded image type mismatch")
+    
+    memcpy(Image.Data(), Buffer, Image.DataSize());
+
+    stbi_image_free(Buffer);
+
+    return true;
+    
+on_failed:
+    stbi_image_free(Buffer);
+
+    return false;
 }
 
 static Image LoadImageSTB(const std::filesystem::path& ImagePath, Image::Type ComponentType)
@@ -762,6 +1506,28 @@ Image ImageLoadFromMemory(const uint8_t* Buffer, size_t Size, Image::FileType Ty
     }
 }
 
+bool ImageLoadFromMemory(const uint8_t* Buffer, size_t Size, Image::FileType Type, Image& Image)
+{
+    switch (Type)
+    {
+    case Image::JPG:
+    case Image::PNG:
+    case Image::TGA:
+    case Image::BMP:
+    case Image::HDR:
+        return LoadImageSTBFromMemory(Buffer, Size, Type, Image);
+        
+    case Image::DDS:
+        return LoadImageDDSFromMemory(Buffer, Size, Image);
+        
+    case Image::EXR:
+        return LoadImageEXRFromMemory(Buffer, Size, Image);
+        
+    case Image::_Count:
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image format")
+        }
+}
+
 bool ImageStore(const std::filesystem::path& OutputPath, const Image& Image, Image::FileType Type)
 {
     if (!exists(OutputPath.parent_path()))
@@ -827,6 +1593,98 @@ bool ImageStore(const std::filesystem::path& OutputPath, const Image& Image, Ima
                 FreeEXRErrorMessage(err);
                 return false;
             }
+            
+            return true;
+        }
+        ENUM_OUT_OF_RANGE("EXR only supports float textures")
+        
+    case Image::DDS:
+    case Image::_Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported export format")
+    }
+}
+
+static struct stbi_out_buffer
+{
+    uint8_t** OutBuffer; size_t* Size;
+};
+
+static void stb_image_write_func(void *context, void *data, int size)
+{    
+    stbi_out_buffer* WriteBuffer = static_cast<stbi_out_buffer*>(context);
+    
+    AssertOrErrorCall(size > 0, return;, "Encoded image size is negative")
+    
+    *(WriteBuffer->OutBuffer) = (uint8_t*)malloc(size);
+    *(WriteBuffer->Size) = size;
+    
+    memcpy( *(WriteBuffer->OutBuffer), data, size);
+}
+
+bool ImageStoreToMemory(const Image& Image, Image::FileType Type, uint8_t** OutBuffer, size_t* Size)
+{
+    stbi_out_buffer WriteBuffer{.OutBuffer = OutBuffer, .Size = Size};
+    
+    switch (Type)
+    {
+    case Image::JPG: 
+        if (Image.ComponentType() == Image::UnsignedByte || Image.ComponentType() == Image::Byte)
+        {
+            return stbi_write_jpg_to_func(&stb_image_write_func, &WriteBuffer, Image.Width(), Image.Height(), Image.ComponentCount(), Image.Data(), 90 /*TODO expose*/) > 0;
+        }
+        ENUM_OUT_OF_RANGE("JPGs only supports int and uint 8 textures")
+
+    case Image::PNG: 
+        if (Image.ComponentType() == Image::UnsignedByte || Image.ComponentType() == Image::Byte)
+        {
+            return stbi_write_png_to_func(&stb_image_write_func, &WriteBuffer, Image.Width(), Image.Height(), Image.ComponentCount(), Image.Data(), Image.Width() * Image.PixelSize()) > 0;
+        }
+        ENUM_OUT_OF_RANGE("PNGs only supports int and uint 8 textures")
+
+    case Image::TGA:
+        if (Image.ComponentType() == Image::UnsignedByte || Image.ComponentType() == Image::Byte)
+        {
+            return stbi_write_tga_to_func(&stb_image_write_func, &WriteBuffer, Image.Width(), Image.Height(), Image.ComponentCount(), Image.Data()) > 0;
+        }
+        ENUM_OUT_OF_RANGE("TGA only supports int and uint 8 textures")
+
+    case Image::BMP:
+        if (Image.ComponentType() == Image::UnsignedByte || Image.ComponentType() == Image::Byte)
+        {
+            return stbi_write_bmp_to_func(&stb_image_write_func, &WriteBuffer, Image.Width(), Image.Height(), Image.ComponentCount(), Image.Data()) > 0;
+        }
+        ENUM_OUT_OF_RANGE("Bitmap only supports int and uint 8 textures")
+
+    case Image::HDR:
+        if (Image.ComponentType() == Image::Float)
+        {
+            return stbi_write_hdr_to_func(&stb_image_write_func, &WriteBuffer, Image.Width(), Image.Height(), Image.ComponentCount(), (float*) Image.Data()) > 0;
+        }
+        ENUM_OUT_OF_RANGE("HDR only supports float textures")
+
+    case Image::EXR:
+        if (Image.ComponentType() == Image::Float)
+        {
+            const char* err = NULL;
+            
+            int ret = SaveEXRToMemory((float*) Image.Data(), Image.Width(), Image.Height(), Image.ComponentCount(), /* TODO expose */ false, OutBuffer, &err);
+            
+            if (ret < 0) 
+            {
+                if (err) 
+                {
+                    EngineLoggerErrorF("Load EXR err: %s(code %d)\n", err, ret);
+                } 
+                else 
+                {
+                    EngineLoggerErrorF("Load EXR err: code = %d\n", ret);
+                }
+                EngineRuntimeBREAKPOINT
+        
+                FreeEXRErrorMessage(err);
+                return false;
+            }
+            *Size = ret;
             
             return true;
         }

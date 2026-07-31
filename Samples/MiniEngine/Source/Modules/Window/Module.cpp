@@ -88,6 +88,7 @@ namespace Window
         glfwSetWindowUserPointer(window, this);
         
         m_Window = window;
+        m_ShouldClose = false;
             
         return;
         
@@ -168,6 +169,8 @@ terminate_glfw_window:
 
     bool Module::ShouldClose()
     {
+        if (m_ShouldClose) return true;
+        
 #ifdef WINDOW_GLFW
         GLFWwindow* window = (GLFWwindow*)m_Window;
     

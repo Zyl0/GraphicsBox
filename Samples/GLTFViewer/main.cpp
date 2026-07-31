@@ -128,11 +128,21 @@ public:
         // Load scene data
         {
             std::filesystem::path path;
+            
+                        
+            if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.gbs" ,path))
+            // if (GetAbsoluteFilePath(std::filesystem::path("RTXDI-Assets") / "bistro" / "bistro.gbs", path))
+            {
+                AssertOrError( GBS::LoadGPUScene(path, FrameGraph->Resources().Scene()), "Failed to load scene")
+            }
+            else 
             if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.glb" ,path))
             // if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "MetalRoughSpheres" / "glTF-Binary" /"MetalRoughSpheres.glb" ,path))
             // if (GetAbsoluteFilePath(std::filesystem::path("glTF-Sample-Assets") / "Models" / "MetalRoughSpheres" / "glTF" /"MetalRoughSpheres.gltf" ,path))
             // if (GetAbsoluteFilePath(std::filesystem::path("Willy") / "Splash" /"splash.gltf" ,path))
             // if (GetAbsoluteFilePath(std::filesystem::path("Willy") / "BistroGLTF" /"exterior.glb" ,path))
+            // if (GetAbsoluteFilePath(std::filesystem::path("RTXDI-Assets") / "bistro" / "bistro.gltf", path))
+            // if (GetAbsoluteFilePath(std::filesystem::path("RTXDI-Assets") / "bistro" / "bistro.gbs", path))
             {
                 AssertOrError( GLTF::LoadGPUScene(path, FrameGraph->Resources().Scene()), "Failed to load scene")
             }
@@ -463,6 +473,7 @@ int main(int argc, char* argv[])
     AddSearchPath(RESOURCES_GLOBAL);
     AddSearchPath(RESOURCES_PROJECT);
     AddSearchPath(RESOURCES_SAMPLE_SCENES);
+    AddSearchPath(TEMP_BAKED_SCENES);
     ShaderAddSearchPath(SHADERS_GLOBAL);
     ShaderAddSearchPath(SHADERS_PROJECT);
     

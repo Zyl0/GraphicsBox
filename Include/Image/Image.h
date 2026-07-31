@@ -114,7 +114,11 @@ Image ImageLoad(const std::filesystem::path& ImagePath, Image::Type ComponentTyp
 
 Image ImageLoadFromMemory(const uint8_t* Buffer, size_t Size, Image::FileType Type);
 
+bool ImageLoadFromMemory(const uint8_t* Buffer, size_t Size, Image::FileType Type, Image& Image);
+
 bool ImageStore(const std::filesystem::path& OutputPath, const Image& Image, Image::FileType Type);
+
+bool ImageStoreToMemory(const Image& Image, Image::FileType Type, uint8_t** OutBuffer, size_t* Size);
 
 struct ImageCube
 {
