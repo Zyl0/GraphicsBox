@@ -199,25 +199,25 @@ static Box3f FaceBounds(Mesh::ConstFaces Mesh, uint32_t FaceIndex)
     return {min, max};
 }
 
-static Box3f FaceGroupBounds(Mesh::ConstFaces Mesh, const uint32_t begin, const uint32_t end)
+static Box3f FaceGroupBounds(Mesh::ConstFaces Mesh, std::span<const BLASElement> Elements, const uint32_t begin, const uint32_t end)
 {
     Box3f box = FaceBounds(Mesh, begin);
     
     for(uint32_t i= begin +1; i < end; i++)
     {
-        box.Insert(FaceBounds(Mesh, i));
+        box.Insert(FaceBounds(Mesh, Elements[i]));
     }
         
     return box;
 }
 
-static Box3f FaceGroupCentroidBounds(Mesh::ConstFaces Mesh, const uint32_t begin, const uint32_t end)
+static Box3f FaceGroupCentroidBounds(Mesh::ConstFaces Mesh, std::span<const BLASElement> Elements, const uint32_t begin, const uint32_t end)
 {    
     Box3f box = FaceBounds(Mesh, begin), centroidBox(box.Center(), box.Center());
     
     for(uint32_t i= begin +1; i < end; i++)
     {
-        box = FaceBounds(Mesh, i);
+        box = FaceBounds(Mesh, Elements[i]);
         centroidBox.Insert(box.Center());
     }
         
@@ -253,11 +253,11 @@ static uint32_t BuildBLASNode(BLAS& BVH, Mesh::ConstFaces Mesh, const uint32_t b
     if(end - begin < (BVH.Meta.LeafSize + 1))
     {
         uint32_t index = BVH.Tree.size();
-        BVH.Tree.push_back( MakeBLASLeaf( FaceGroupBounds(Mesh, begin, end), begin, end ) );
+        BVH.Tree.push_back( MakeBLASLeaf( FaceGroupBounds(Mesh, BVH.Elements, begin, end), begin, end ) );
         return index;
     }
     
-    Box3f cbounds = FaceGroupCentroidBounds(Mesh, begin, end);
+    Box3f cbounds = FaceGroupCentroidBounds(Mesh, BVH.Elements, begin, end);
     Vector3f d = Vector3f(cbounds.a, cbounds.b);
     
     // Pick the widest centroid axis
@@ -389,6 +389,8 @@ trace_leaf:
                     if (!m_ClosestHit || m_ClosestHit.t > hit.t)
                     {
                         m_ClosestHit = hit;
+                        m_tmax = std::min(m_tmax, hit.t);
+                        m_CurrentElementIndex = ElementIndex + 1;
                         return hit;
                     }
                 }

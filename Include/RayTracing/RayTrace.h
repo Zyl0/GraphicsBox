@@ -108,7 +108,7 @@ struct BVHT
     };
     
     INLINE Math::Box3f Bounds() const {return !Tree.empty() ? Tree[Head].Bounds : Math::Box3f();}
-    INLINE bool Empty() const {return !Tree.empty();}
+    INLINE bool Empty() const {return Tree.empty();}
     
     std::vector<T> Elements;
     std::vector<Node> Tree;

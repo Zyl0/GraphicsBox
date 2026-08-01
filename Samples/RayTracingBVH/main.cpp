@@ -97,8 +97,8 @@ public:
 
         // Load scene data
         {
-            std::filesystem::path relativePath = std::filesystem::path("Meshes") / "CornellBox-Original.glb";
-            // std::filesystem::path relativePath = std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.glb";
+            // std::filesystem::path relativePath = std::filesystem::path("Meshes") / "CornellBox-Original.glb";
+            std::filesystem::path relativePath = std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.glb";
             std::filesystem::path path;
             // if (GetAbsoluteFilePath(std::filesystem::path("Meshes") / "CornellBox-Original.glb" ,path))
             if (GetAbsoluteFilePath(relativePath ,path))
@@ -126,7 +126,7 @@ public:
                     for (uint8_t group = 0, end = mesh.GetVertexGroups().size(); group < end; group++)
                     {
                         BLASTable[std::pair(meshIndex, group)] = m_CPUMeshesBLASs.size();
-                        m_CPUMeshesBLASs.emplace_back(BuildBLAS(mesh, group, 2));
+                        m_CPUMeshesBLASs.emplace_back(BuildBLAS(mesh, group, 32));
                     }
                 }
                 auto stop= std::chrono::high_resolution_clock::now();
@@ -626,7 +626,7 @@ public:
             Ray PrimaryRay = {
                 .origin = Start.xyz(), 
                 .direction = Normalize(End.xyz() - Start.xyz()), 
-                .distance = m_ZFar - m_ZNear
+                .distance = Magnitude(End.xyz() - Start.xyz())
             };
 
             Hit ClosestHit = Hit();
@@ -752,7 +752,7 @@ public:
             Ray PrimaryRay = {
                 .origin = Start.xyz(), 
                 .direction = Normalize(End.xyz() - Start.xyz()), 
-                .distance = m_ZFar - m_ZNear
+                .distance = Magnitude(End.xyz() - Start.xyz())
             };
             
             // if (x == (Width / 2) && y == (Height / 2)) {EngineRuntimeBREAKPOINT}
