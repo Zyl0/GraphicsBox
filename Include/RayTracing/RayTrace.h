@@ -26,10 +26,10 @@ struct Hit
 
 Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray);
 
-float VertexInterpolate(const Hit& Hit, float a, float b, float c);
-Math::Vector2f VertexInterpolate(const Hit& Hit, Math::Vector2f a, Math::Vector2f b, Math::Vector2f c);
-Math::Vector3f VertexInterpolate(const Hit& Hit, Math::Vector3f a, Math::Vector3f b, Math::Vector3f c);
-Math::Vector4f VertexInterpolate(const Hit& Hit, Math::Vector4f a, Math::Vector4f b, Math::Vector4f c);
+float VertexInterpolateTriangle(const Hit& Hit, float a, float b, float c);
+Math::Vector2f VertexInterpolateTriangle(const Hit& Hit, Math::Vector2f a, Math::Vector2f b, Math::Vector2f c);
+Math::Vector3f VertexInterpolateTriangle(const Hit& Hit, Math::Vector3f a, Math::Vector3f b, Math::Vector3f c);
+Math::Vector4f VertexInterpolateTriangle(const Hit& Hit, Math::Vector4f a, Math::Vector4f b, Math::Vector4f c);
 
 class TraceRay
 {

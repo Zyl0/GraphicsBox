@@ -31,22 +31,22 @@ Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray)
     return Hit(t, u, v, Face.FirstVertex());
 }
 
-float VertexInterpolate(const Hit& Hit, float a, float b, float c)
+float VertexInterpolateTriangle(const Hit& Hit, float a, float b, float c)
 {
     return (1 - Hit.u - Hit.v) * a + Hit.u * b + Hit.v * c;
 }
 
-Math::Vector2f VertexInterpolate(const Hit& Hit, Math::Vector2f a, Math::Vector2f b, Math::Vector2f c)
+Math::Vector2f VertexInterpolateTriangle(const Hit& Hit, Math::Vector2f a, Math::Vector2f b, Math::Vector2f c)
 {
     return a * (1.f - Hit.u - Hit.v) + b * Hit.u + c * Hit.v;
 }
 
-Math::Vector3f VertexInterpolate(const Hit& Hit, Math::Vector3f a, Math::Vector3f b, Math::Vector3f c)
+Math::Vector3f VertexInterpolateTriangle(const Hit& Hit, Math::Vector3f a, Math::Vector3f b, Math::Vector3f c)
 {
     return a * (1.f - Hit.u - Hit.v) + b * Hit.u + c * Hit.v;
 }
 
-Math::Vector4f VertexInterpolate(const Hit& Hit, Math::Vector4f a, Math::Vector4f b, Math::Vector4f c)
+Math::Vector4f VertexInterpolateTriangle(const Hit& Hit, Math::Vector4f a, Math::Vector4f b, Math::Vector4f c)
 {
     return a * (1.f - Hit.u - Hit.v) + b * Hit.u + c * Hit.v;
 }
@@ -201,7 +201,7 @@ static Box3f FaceBounds(Mesh::ConstFaces Mesh, uint32_t FaceIndex)
 
 static Box3f FaceGroupBounds(Mesh::ConstFaces Mesh, std::span<const BLASElement> Elements, const uint32_t begin, const uint32_t end)
 {
-    Box3f box = FaceBounds(Mesh, begin);
+    Box3f box = FaceBounds(Mesh, Elements[begin]);
     
     for(uint32_t i= begin +1; i < end; i++)
     {
@@ -213,7 +213,7 @@ static Box3f FaceGroupBounds(Mesh::ConstFaces Mesh, std::span<const BLASElement>
 
 static Box3f FaceGroupCentroidBounds(Mesh::ConstFaces Mesh, std::span<const BLASElement> Elements, const uint32_t begin, const uint32_t end)
 {    
-    Box3f box = FaceBounds(Mesh, begin), centroidBox(box.Center(), box.Center());
+    Box3f box = FaceBounds(Mesh, Elements[begin]), centroidBox(box.Center(), box.Center());
     
     for(uint32_t i= begin +1; i < end; i++)
     {
