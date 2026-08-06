@@ -11,12 +11,12 @@
 [submodule "CTTI"]
 	path = Dependencies/LibSources/ctti
 	url = https://github.com/Manu343726/ctti.git
-[submodule "TinyDDS"]
-	path = Dependencies/LibSources/TinyDDS
-	url = https://github.com/benikabocha/tinyddsloader.git
 [submodule "TinyEXR"]
 	path = Dependencies/LibSources/TinyEXR
 	url = https://github.com/syoyo/tinyexr.git
+[submodule "TinyDDS"]
+	path = Dependencies/LibSources/TinyDDS
+	url = https://github.com/benikabocha/tinyddsloader.git
 [submodule "BCDec"]
 	path = Dependencies/LibSources/BCDec
 	url = https://github.com/iOrange/bcdec.git
