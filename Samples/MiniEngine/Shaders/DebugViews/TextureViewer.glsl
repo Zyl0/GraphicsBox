@@ -5,6 +5,17 @@
 
 #ifdef FRAGMENT_SHADER
 
+float InverseLerp(float A, float B, float T)
+{
+    return clamp((T - A) / (B - A), 0.0f, 1.0f);
+}
+
+vec3 InverseLerp(vec3 A, vec3 B, float T)
+{
+    return clamp((T - A) / (B - A), 0.0f, 1.0f);
+}
+
+
 layout(location = 0) in vec2 UV;
 layout(location = 1) in vec2 UVProj;
 
@@ -61,10 +72,10 @@ void main()
     }
     
     // Ranges adjustments
-    finalColor.x = (finalColor.x - RangeRed.x) / (finalColor.x - RangeRed.y);
-    finalColor.y = (finalColor.y - RangeGreen.x) / (finalColor.y - RangeGreen.y);
-    finalColor.z = (finalColor.z - RangeBlue.x) / (finalColor.z - RangeBlue.y);
-    finalColor.w = (finalColor.w - RangeAlpha.x) / (finalColor.w - RangeAlpha.y);
+    finalColor.x = InverseLerp(RangeRed.x, RangeRed.y, finalColor.x);
+    finalColor.y = InverseLerp(RangeGreen.x, RangeGreen.y, finalColor.y);
+    finalColor.z = InverseLerp(RangeBlue.x, RangeBlue.y, finalColor.z);
+    finalColor.a = InverseLerp(RangeAlpha.x, RangeAlpha.y, finalColor.a);
     
     OutColor = finalColor;
 }
@@ -93,28 +104,12 @@ void main()
 
 uniform sampler2D Input;
 
-float InverseLerp(float A, float B, float T)
-{
-    return clamp((T - A) / (B - A), 0.0f, 1.0f);
-}
-
-vec3 InverseLerp(vec3 A, vec3 B, float T)
-{
-    return clamp((T - A) / (B - A), 0.0f, 1.0f);
-}
-
-
 // Channels
 uniform bool ConvertToGreyscale;
 uniform bool ShowRed;
 uniform bool ShowGreen;
 uniform bool ShowBlue;
 uniform bool ShowAlpha;
-
-uniform vec2 RedRange;
-uniform vec2 GreenRange;
-uniform vec2 BlueRange;
-uniform vec2 AlphaRange;
 
 uniform bool UseOETF;
 
@@ -129,12 +124,6 @@ void main()
     }
     else
     {
-        // Handle Ranges
-        finalColor.x = InverseLerp(RedRange.x, RedRange.y, finalColor.x);
-        finalColor.y = InverseLerp(GreenRange.x, GreenRange.y, finalColor.y);
-        finalColor.z = InverseLerp(BlueRange.x, BlueRange.y, finalColor.z);
-        finalColor.a = InverseLerp(AlphaRange.x, AlphaRange.y, finalColor.a);
-        
         // Channels
         finalColor.x = ShowRed ? finalColor.x : 0.0f;
         finalColor.y = ShowGreen ? finalColor.y : 0.0f;
