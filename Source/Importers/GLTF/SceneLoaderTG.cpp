@@ -279,48 +279,6 @@ namespace  GLTF
     }
     
     static bool TryLoopOverBufferFromAccessor(
-        const tinygltf::Model& model, uint32_t AccessorIndex, const std::vector<uint32_t>* OptIterationIndexList,
-        const std::function<bool(const tinygltf::Accessor& Accessor)>& execCheckType,
-        const std::function<void(const void* sample, size_t byteStride, const tinygltf::Accessor& Accessor)>& execLoopBody)
-    {
-        bool useIndexes = OptIterationIndexList != nullptr;
-
-        const auto& accessor = model.accessors[AccessorIndex];
-        if(!execCheckType(accessor)) return false;
-        
-        const auto& bufferView = model.bufferViews[accessor.bufferView];
-        const auto& buffer = model.buffers[bufferView.buffer];
-
-        const uint8_t* rawBuffer = buffer.data.data() + bufferView.byteOffset;
-        const size_t rawBufferSize = bufferView.byteLength;
-        const size_t byteStride = tinygltf::GetComponentSizeInBytes(accessor.componentType) * tinygltf::GetNumComponentsInType(accessor.type);
-
-        if(useIndexes)
-        {
-            for (uint32_t index : *OptIterationIndexList)
-            {
-                size_t offset = accessor.byteOffset + index * byteStride;
-                Assert(offset + byteStride <= rawBufferSize)
-                const int8_t* sample = (int8_t*)(rawBuffer + offset);
-                execLoopBody(sample, byteStride, accessor);
-            }
-        }
-        else
-        {
-            size_t offset = accessor.byteOffset;
-
-            for (size_t i = 0 ; i < accessor.count ; ++i)
-            {
-                const int8_t* sample = (int8_t*)(rawBuffer + offset);
-                execLoopBody(sample, byteStride, accessor);
-                offset += byteStride;
-            }
-        }
-
-        return true;
-    }
-    
-    static bool TryLoopOverBufferFromAccessor(
     const tinygltf::Model& model, uint32_t AccessorIndex,
     const std::function<bool(const tinygltf::Accessor& Accessor)>& execCheckType,
     std::span<const uint8_t>& OutView, size_t& OutElementCount)
@@ -753,6 +711,7 @@ namespace  GLTF
             {
                 int TinyGLTFComponentType;
                 std::span<const uint8_t> View;
+                size_t Count;
             };
             
             // states
@@ -799,7 +758,7 @@ namespace  GLTF
                     
                     AssertOrErrorCall(Indexes.empty() || Indexes.front().TinyGLTFComponentType ==  model.accessors[primitive.indices].componentType, continue;, "Primitive index buffer type missmatch")
                     
-                    Indexes.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[primitive.indices].componentType, .View = CurrentView});
+                    Indexes.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[primitive.indices].componentType, .View = CurrentView, .Count = CurrentVertexCount});
                 }
                 
                 if(primitive.attributes.contains("POSITION"))
@@ -820,7 +779,7 @@ namespace  GLTF
                     
                     AssertOrErrorCall(Positions.empty() || Positions.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
-                    Positions.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
+                    Positions.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView, .Count = IsIndexed ? Dummy : CurrentVertexCount});
                 }
                 if(primitive.attributes.contains("NORMAL"))
                 {
@@ -841,7 +800,7 @@ namespace  GLTF
                     
                     AssertOrErrorCall(Normals.empty() || Normals.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
-                    Normals.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
+                    Normals.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView, .Count = IsIndexed ? Dummy : CurrentVertexCount});
                 }
                 if(primitive.attributes.contains("TEXCOORD_0"))
                 {
@@ -862,7 +821,7 @@ namespace  GLTF
                     
                     AssertOrErrorCall(TextCoords.empty() || TextCoords.front().TinyGLTFComponentType ==  model.accessors[AccessorIndex].componentType, continue;, "Primitive buffer type missmatch")
                     
-                    TextCoords.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView});
+                    TextCoords.push_back(BufferDataView{.TinyGLTFComponentType = model.accessors[AccessorIndex].componentType, .View = CurrentView, .Count = IsIndexed ? Dummy : CurrentVertexCount});
                 }
                 
                 // todo vertex color
@@ -871,21 +830,13 @@ namespace  GLTF
             
             if (!Indexes.empty())
             {
-                size_t Size = 0;
-                
-                for (const auto& view : Indexes)
-                {
-                    Size += view.View.size();
-                }
-                
                 switch(Indexes.front().TinyGLTFComponentType)
                 {
                 case TINYGLTF_COMPONENT_TYPE_BYTE:
                     {
-                        size_t Count = (Size) / sizeof(int8_t);
                         for (const auto& view : Indexes)
                         {
-                            for (size_t i = 0; i < Count; i++)
+                            for (size_t i = 0; i < view.Count; i++)
                             {
                                 MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int8_t*)(view.View.data()))[i] ));
                             }
@@ -895,10 +846,9 @@ namespace  GLTF
                     
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
                     {
-                        size_t Count = (Size) / sizeof(uint8_t);
                         for (const auto& view : Indexes)
                         {
-                            for (size_t i = 0; i < Count; i++)
+                            for (size_t i = 0; i < view.Count; i++)
                             {
                                 MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((uint8_t*)(view.View.data()))[i] ));
                             }
@@ -908,10 +858,9 @@ namespace  GLTF
                     
                 case TINYGLTF_COMPONENT_TYPE_SHORT:
                     {
-                        size_t Count = (Size) / sizeof(int16_t);
                         for (const auto& view : Indexes)
                         {
-                            for (size_t i = 0; i < Count; i++)
+                            for (size_t i = 0; i < view.Count; i++)
                             {
                                 MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int16_t*)(view.View.data()))[i] ));
                             }
@@ -921,10 +870,9 @@ namespace  GLTF
                     
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
                     {
-                        size_t Count = (Size) / sizeof(uint16_t);
                         for (const auto& view : Indexes)
                         {
-                            for (size_t i = 0; i < Count; i++)
+                            for (size_t i = 0; i < view.Count; i++)
                             {
                                 MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((uint16_t*)(view.View.data()))[i] ));
                             }
@@ -934,10 +882,9 @@ namespace  GLTF
                     
                 case TINYGLTF_COMPONENT_TYPE_INT:
                     {
-                        size_t Count = (Size) / sizeof(int32_t);
                         for (const auto& view : Indexes)
                         {
-                            for (size_t i = 0; i < Count; i++)
+                            for (size_t i = 0; i < view.Count; i++)
                             {
                                 MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int32_t*)(view.View.data()))[i] ));
                             }
@@ -947,10 +894,9 @@ namespace  GLTF
                     
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
                     {
-                        size_t Count = (Size) / sizeof(uint32_t);
                         for (const auto& view : Indexes)
                         {
-                            MeshObject.AddVertexPolygonIndexes({(const uint32_t*)(view.View.data()), Count});
+                            MeshObject.AddVertexPolygonIndexes({(const uint32_t*)(view.View.data()), view.Count });
                         }
                     }
                     break;
@@ -961,31 +907,22 @@ namespace  GLTF
             }
             if (!Positions.empty())
             {
-                size_t Size = 0;
-                
-                for (const auto& view : Positions)
-                {
-                    Size += view.View.size();
-                }
-                
                 switch (Positions.front().TinyGLTFComponentType)
                 {
                 case TINYGLTF_COMPONENT_TYPE_FLOAT:
                     {
-                        size_t Count = Size / sizeof(Math::Vector3f);
                         for (const auto& view : Positions)
                         {
-                            MeshObject.AddVertexPositions({(const Math::Point3f*)(view.View.data()), Count});
+                            MeshObject.AddVertexPositions({(const Math::Point3f*)(view.View.data()), view.Count});
                         }
                     }
                 break;
                     
                 case TINYGLTF_COMPONENT_TYPE_DOUBLE:
                     {
-                        size_t Count = Size / sizeof(Math::Vector3d);
                         for (const auto& view : Positions)
                         {
-                            for (size_t i = 0; i < Count; i++)
+                            for (size_t i = 0; i < view.Count; i++)
                             {
                                 const Math::Point3d* asVec3d = (const Math::Point3d*)(view.View.data()) + i;
                                 MeshObject.AddVertexPosition(Math::Point3f(
@@ -1007,32 +944,23 @@ namespace  GLTF
                 }
             }
             if (!Normals.empty())
-            {
-                size_t Size = 0;
-                
-                for (const auto& view : Normals)
-                {
-                    Size += view.View.size();
-                }
-                
+            {                
                 switch (Normals.front().TinyGLTFComponentType)
                 {
                 case TINYGLTF_COMPONENT_TYPE_FLOAT:
                     {
-                        size_t Count = Size / sizeof(Math::Vector3f);
                         for (const auto& view : Normals)
                         {
-                            MeshObject.AddVertexNormals({(const Math::Vector3f*)(view.View.data()), Count});
+                            MeshObject.AddVertexNormals({(const Math::Vector3f*)(view.View.data()), view.Count});
                         }
                     }
                 break;
                     
                 case TINYGLTF_COMPONENT_TYPE_DOUBLE:
                     {
-                        size_t Count = Size / sizeof(Math::Vector3d);
                         for (const auto& view : Normals)
                         {
-                            for (size_t i = 0; i < Count; i++)
+                            for (size_t i = 0; i < view.Count; i++)
                             {
                                 const Math::Vector3d* asVec3d = (const Math::Vector3d*)(view.View.data()) + i;
                                 MeshObject.AddVertexNormal(Math::Vector3f(
@@ -1047,32 +975,23 @@ namespace  GLTF
                 }
             }
             if (!TextCoords.empty())
-            {
-                size_t Size = 0;
-                
-                for (const auto& view : TextCoords)
-                {
-                    Size += view.View.size();
-                }
-                
+            {                
                 switch (TextCoords.front().TinyGLTFComponentType)
                 {
                 case TINYGLTF_COMPONENT_TYPE_FLOAT:
                     {
-                        size_t Count = Size / sizeof(Math::Vector2f);
                         for (const auto& view : TextCoords)
                         {
-                            MeshObject.AddVertexTextureCoordinates({(const Math::Vector2f*)(view.View.data()), Count});
+                            MeshObject.AddVertexTextureCoordinates({(const Math::Vector2f*)(view.View.data()), view.Count});
                         }
                     }
                 break;
                     
                 case TINYGLTF_COMPONENT_TYPE_DOUBLE:
                     {
-                        size_t Count = Size / sizeof(Math::Vector2d);
                         for (const auto& view : TextCoords)
                         {
-                            for (size_t i = 0; i < Count; i++)
+                            for (size_t i = 0; i < view.Count; i++)
                             {
                                 const Math::Vector2d* asVec2d = (const Math::Vector2d*)(view.View.data()) + i;
                                 MeshObject.AddVertexTextureCoordinate(Math::Vector2f(
@@ -1083,6 +1002,15 @@ namespace  GLTF
                         }
                     }
                 break;
+                }
+                
+                // todo fix, when having smaller pool of textcoord in some meshes, fils textcoords to match position buffer
+                if (MeshObject.GetPositions().size() > MeshObject.GetTextureCoordinates().size())
+                {
+                    for (size_t i = MeshObject.GetTextureCoordinates().size(); i < MeshObject.GetPositions().size(); i++)
+                    {
+                        MeshObject.AddVertexTextureCoordinate(Math::Vector2f(0.f));
+                    }
                 }
             }            
             
