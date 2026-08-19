@@ -5,7 +5,7 @@
 #include "Rendering/FrameBuffers.h"
 
 namespace FrameGraph
-{
+{    
     class MotionVectors  : public ICommand
     {
     public:
@@ -13,7 +13,7 @@ namespace FrameGraph
             ICommand(Resources),
             SceneRadianceSize(Resources.GetValue<Size2D>("Scene Radiance")),
             VSceneRadianceSize(Resources.GetLocation<Size2D>("Scene Radiance")),
-            VUseMSAA(Resources.AddVariable("Use MSAA", false)),
+            VUseMSAA(Resources.GetLocation<Bool>("Use MSAA")),
             VMSAASampleCount(Resources.AddVariable<UInt>("MSAA Sample Count", 4)),
             VUseMotionVectors(Resources.AddVariable<UInt>("Use Motion Vectors", 0u)),
             VUsePreviousMotionVectors(Resources.AddVariable<UInt>("Use Previous Motion Vectors", 0u)),
@@ -73,7 +73,6 @@ namespace FrameGraph
         void OnExecute(const CommandContext& Resources) override
         {
             if (Resources.GetValue<UInt>(VUsePreviousMotionVectors) > 0) 
-            
             {
                 DebugScopeMarker scope("Copy To Previous Motion Vectors");
 
@@ -111,7 +110,132 @@ namespace FrameGraph
             }
         }
 
+        void RegisterDebugViews(CommandContext& Resources, CommandDebugViewList& DebugViews) override
+        {
+            DebugViews.PushDebugView<DebugView>(Resources);
+        }
+
     private:
+        class DebugView : public ICommandDebugView
+        {
+        public:
+            DebugView(CommandContext& Resources): 
+                ICommandDebugView(Resources),
+                SceneRadianceSize(Resources.GetLocation<Size2D>("Scene Radiance")),
+                VSceneRadianceSize(Resources.GetLocation<Size2D>("Scene Radiance")),
+                MotionVectors(Resources.GetLocation<Texture2D>("Motion Vectors")),
+                MotionVectorsMSAA(Resources.GetLocation<Texture2D>("Motion Vectors MSAA")),
+                VUseMSAA(Resources.GetLocation<Bool>("Use MSAA")),
+                ResolveMSAAFrameBuffer(FrameBuffer::Attachment(Resources.Get<Texture2D>("Motion Vectors"), FrameBuffer::ClearColor(0.0)), nullptr),
+                MSAAFrameBuffer(FrameBuffer::Attachment(Resources.Get<Texture2D>("Motion Vectors MSAA"), FrameBuffer::ClearColor(0.0)), nullptr),
+                DrawMotionVectors(PipelineFromFile("Visualize Motion Vectors", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "DebugViews/MotionVectors.glsl", DrawMotionVectorsDefines)),
+                DrawMotionArrows(PipelineFromFile("Visualize Motion Arrows", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "DebugViews/MotionVectors.glsl", DrawMotionArrowsDefines)),
+                FrameBuffer(FrameBuffer::Attachment(Resources.Get<Texture2D>("Output"), FrameBuffer::ClearColor(0.0f)))
+            {}
+
+            ~DebugView() override {}
+
+        protected:
+            void OnReloadShaders(CommandContext& Resources) override
+            {
+                PipelineUpdateFromFile(DrawMotionVectors, "DebugViews/MotionVectors.glsl", DrawMotionVectorsDefines);
+                PipelineUpdateFromFile(DrawMotionArrows, "DebugViews/MotionVectors.glsl", DrawMotionArrowsDefines);
+            }
+            
+            void OnUpdate(CommandContext& Resources, double DeltaTime) override
+            {
+                if (Resources.HasChanged<Size2D>(VSceneRadianceSize))
+                {
+                    SceneRadianceSize = Resources.GetValue<Size2D>(VSceneRadianceSize);
+                    ResolveMSAAFrameBuffer.Resize(SceneRadianceSize.x, SceneRadianceSize.y);
+                    MSAAFrameBuffer.Resize(SceneRadianceSize.x, SceneRadianceSize.y);
+                    FrameBuffer.Resize(SceneRadianceSize.x, SceneRadianceSize.y);
+                }
+            }
+            void OnPrepare(CommandContext& Resources, const ICommand& Caller, double DeltaTime) override {}
+            void OnExecute(const CommandContext& Resources, const ICommand& Caller) override
+            {
+                // Resolve multi sampled motion
+                if (Resources.GetValue<Bool>(VUseMSAA))
+                {
+                    Size2D SceneRadianceSize = Resources.GetValue<Size2D>(VSceneRadianceSize);
+
+                    Bind(ResolveMSAAFrameBuffer, MSAAFrameBuffer);
+                    
+                    glBlitFramebuffer(
+                        0, 0, SceneRadianceSize.x, SceneRadianceSize.y,
+                        0, 0, SceneRadianceSize.x, SceneRadianceSize.y,
+                        GL_COLOR_BUFFER_BIT, GL_NEAREST );
+                }
+                
+                Bind(FrameBuffer);
+                
+                Bind(DrawMotionVectors);
+                
+                SetUniform(DrawMotionVectors, "MotionVectors", 0, Resources.Get<Texture2D>(MotionVectors));
+                
+                SetUniform(DrawMotionVectors, "RangeRed", Vector2f(-0.002, 0.002));
+                SetUniform(DrawMotionVectors, "RangeGreen", Vector2f(-0.002, 0.002));
+                SetUniform(DrawMotionVectors, "RangeBlue", Vector2f(-0.002, 0.002));
+                SetUniform(DrawMotionVectors, "UseOETF", UseOETF);
+                
+                // Draw screen quad
+                glDrawArrays(GL_TRIANGLES, 0, 3);
+                
+                UnBind(DrawMotionVectors);
+                
+                if (ShowArrows)
+                {
+                    Bind(DrawMotionArrows);
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    glBlendEquation(GL_FUNC_ADD);
+                    
+                    SetUniform(DrawMotionArrows, "MotionVectors", 0, Resources.Get<Texture2D>(MotionVectors));
+                    
+                    SetUniform(DrawMotionArrows, "viewportSize", Resources.GetValue<Size2D>(VSceneRadianceSize));
+                    SetUniform(DrawMotionArrows, "gridSize", ArrowGridSize);
+                    SetUniform(DrawMotionArrows, "motionScale", ArrowScale);
+                    
+                    SetUniform(DrawMotionArrows, "UseOETF", UseOETF);
+                    glDrawArrays(GL_TRIANGLES, 0, 3);
+                    
+                    
+                    glDisable(GL_BLEND);
+                    UnBind(DrawMotionArrows);
+                }
+                
+                UnBind(FrameBuffer);
+            }
+            
+            void EditorUI() override
+            {
+                ImGui::Checkbox("Show Motion Vector Arrows", &ShowArrows);
+                ImGui::DragFloat("Arrow Scale", &ArrowScale, 0.25f, 1, 128.f);
+                ImGui::Checkbox("Use OETF", &UseOETF);
+            }
+            
+        private:
+            Size2D SceneRadianceSize;
+            Location VSceneRadianceSize;
+            Location MotionVectors;
+            Location MotionVectorsMSAA;
+            Location VUseMSAA;
+            FrameBuffer ResolveMSAAFrameBuffer;
+            FrameBuffer MSAAFrameBuffer;
+            Shader::DefineArray<1> DrawMotionVectorsDefines = {Shader::Define("DISPLAY_PASS", "")};
+            Pipeline DrawMotionVectors;
+            Shader::DefineArray<1> DrawMotionArrowsDefines = {Shader::Define("MOTION_VECTORS_ARROWS_PASS", "")};
+            Pipeline DrawMotionArrows;
+            FrameBuffer FrameBuffer;
+            
+            float ArrowScale = 1.0f;
+            bool ShowArrows = false;
+            uint32_t ArrowGridSize = 8;
+            bool UseOETF = true;
+        };
+        
+        
         Size2D SceneRadianceSize;
         Location VSceneRadianceSize;
         Location VUseMSAA;

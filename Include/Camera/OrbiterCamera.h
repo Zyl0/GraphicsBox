@@ -20,7 +20,36 @@ public:
 
     void Translate(float x, float y,  float z); 
     inline void Translate(Math::Vector3f translation) {Translate(translation.x, translation.y, translation.z);}
-    
+
+    OrbiterCamera(const OrbiterCamera& Other)
+        : Camera(Other),
+          Rotator(Other.Rotator),
+          m_center(Other.m_center),
+          m_rotation(Other.m_rotation),
+          m_size(Other.m_size),
+          m_radius(Other.m_radius),
+          m_width(Other.m_width),
+          m_height(Other.m_height),
+          m_fov(Other.m_fov)
+    {
+    }
+
+    OrbiterCamera& operator=(const OrbiterCamera& Other)
+    {
+        if (this == &Other)
+            return *this;
+        Camera::operator =(Other);
+        Rotator = Other.Rotator;
+        m_center = Other.m_center;
+        m_rotation = Other.m_rotation;
+        m_size = Other.m_size;
+        m_radius = Other.m_radius;
+        m_width = Other.m_width;
+        m_height = Other.m_height;
+        m_fov = Other.m_fov;
+        return *this;
+    }
+
 private:
     Math::Transform4f ComputeView();
     inline void UpdateView() {SetViewTransform(ComputeView());}

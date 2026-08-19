@@ -19,6 +19,39 @@ public:
     Math::QuaternionF GetWorldRotation() const {return m_Rotation;}
 
     float GetAspectRatio() const {return m_AspectRatio;}
+    
+    Camera() = default;
+    
+    Camera(const Camera& Other)
+        : m_view(Other.m_view),
+          m_projection(Other.m_projection),
+          m_inverse_view(Other.m_inverse_view),
+          m_inverse_projection(Other.m_inverse_projection),
+          m_Position(Other.m_Position),
+          m_Direction(Other.m_Direction),
+          m_Rotation(Other.m_Rotation),
+          m_Up(Other.m_Up),
+          m_Right(Other.m_Right),
+          m_AspectRatio(Other.m_AspectRatio)
+    {
+    }
+
+    Camera& operator=(const Camera& Other)
+    {
+        if (this == &Other)
+            return *this;
+        m_view = Other.m_view;
+        m_projection = Other.m_projection;
+        m_inverse_view = Other.m_inverse_view;
+        m_inverse_projection = Other.m_inverse_projection;
+        m_Position = Other.m_Position;
+        m_Direction = Other.m_Direction;
+        m_Rotation = Other.m_Rotation;
+        m_Up = Other.m_Up;
+        m_Right = Other.m_Right;
+        m_AspectRatio = Other.m_AspectRatio;
+        return *this;
+    }
 
 protected:
     inline void SetViewTransform(const Math::Transform4f &inView)

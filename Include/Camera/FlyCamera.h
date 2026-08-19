@@ -40,6 +40,31 @@ public:
     INLINE float FarDistance() const {return m_FarDistance;}
     INLINE float FieldOfView() const {return m_FieldOfView;}
 
+    FlyCamera(const FlyCamera& Other)
+        : Camera(Other),
+          m_Rotator(Other.m_Rotator),
+          m_NearDistance(Other.m_NearDistance),
+          m_FarDistance(Other.m_FarDistance),
+          m_FieldOfView(Other.m_FieldOfView),
+          m_Pitch(Other.m_Pitch),
+          m_Yaw(Other.m_Yaw)
+    {
+    }
+
+    FlyCamera& operator=(const FlyCamera& Other)
+    {
+        if (this == &Other)
+            return *this;
+        Camera::operator =(Other);
+        m_Rotator = Other.m_Rotator;
+        m_NearDistance = Other.m_NearDistance;
+        m_FarDistance = Other.m_FarDistance;
+        m_FieldOfView = Other.m_FieldOfView;
+        m_Pitch = Other.m_Pitch;
+        m_Yaw = Other.m_Yaw;
+        return *this;
+    }
+
 private:
     Math::Transform4f ComputeView();
     inline void UpdateView() {SetViewTransform(ComputeView());}
