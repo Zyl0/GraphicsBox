@@ -50,20 +50,16 @@ uniform vec3 ambientColor;
 
 uniform vec3 baseColor;
 uniform vec3 emissive;
-uniform float roughness;
 uniform float metallic;
-
+uniform float roughness;
 
 out vec4 OutColor;
 
 void main( )
 {    
-    vec3 Normal = normalize(FragWorldNormal);
     vec3 BaseColor = baseColor;
-
-    OutColor.xyz = vec3(0);
-    OutColor.xyz += max(dot(Normal, lightDirection), 0.0) * lightColor * BaseColor;
-    OutColor.xyz += ambientColor * BaseColor;
+    
+    OutColor.xyz = BaseColor * dot(normalize(FragWorldNormal), lightDirection) * lightColor + ambientColor * BaseColor + emissive;
 
     // sRGB OETF encoding
     OutColor.xyz = clamp(OutColor.xyz, 0, 1);

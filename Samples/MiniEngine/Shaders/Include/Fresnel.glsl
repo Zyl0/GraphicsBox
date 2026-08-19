@@ -25,17 +25,13 @@ vec4 FresnelG(float NdotL, vec4 Refraction)
     return sqrt(Refraction * Refraction + NdotL * NdotL - 1);
 }
 
-
-#define FresnelC(n, l) dot(n, l)
-
-
 float Fresnel(float NdotL, float F0)
 {
     float sqrtF0 = sqrt(F0);
     float Refraction = (1 + sqrtF0) / (1 - sqrtF0);
 
     float G = FresnelG(NdotL, Refraction);
-    float C = FresnelC(NdotL, G);
+    float C = NdotL;
 
     float PartA = (G - C) / (G + C);
     float PartB = (C * (G + C) - 1) / (C * (G + C) + 1);
@@ -49,7 +45,7 @@ vec2 Fresnel(float NdotL, vec2 F0)
     vec2 Refraction = (1 + sqrtF0) / (1 - sqrtF0);
 
     vec2 G = FresnelG(NdotL, Refraction);
-    float C = FresnelC(NdotL, G);
+    float C = NdotL;
 
     vec2 PartA = (G - C) / (G + C);
     vec2 PartB = (C * (G + C) - 1) / (C * (G + C) + 1);
@@ -63,7 +59,7 @@ vec3 Fresnel(float NdotL, vec3 F0)
     vec3 Refraction = (1 + sqrtF0) / (1 - sqrtF0);
 
     vec3 G = FresnelG(NdotL, Refraction);
-    float C = FresnelC(NdotL, G);
+    float C = NdotL;
 
     vec3 PartA = (G - C) / (G + C);
     vec3 PartB = (C * (G + C) - 1) / (C * (G + C) + 1);
@@ -77,7 +73,7 @@ vec4 Fresnel(float NdotL, vec4 F0)
     vec4 Refraction = (1 + sqrtF0) / (1 - sqrtF0);
 
     vec4 G = FresnelG(NdotL, Refraction);
-    float C = FresnelC(NdotL, G);
+    float C = NdotL;
 
     vec4 PartA = (G - C) / (G + C);
     vec4 PartB = (C * (G + C) - 1) / (C * (G + C) + 1);

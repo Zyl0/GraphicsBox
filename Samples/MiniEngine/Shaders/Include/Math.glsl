@@ -13,6 +13,21 @@ vec2 SampleSphericalMap(vec3 v)
     return uv;
 }
 
+vec2 PolarToCartesian(vec2 Polar)
+{
+    return Polar.y * vec2( cos(Polar.x * M_PI * 2.), sin(Polar.x * M_PI * 2.));
+}
+
+vec2 CartesianToPolar(vec2 Cartesian)
+{
+    float radius = length(Cartesian);
+
+    float angle = atan(Cartesian.y, Cartesian.x);
+    angle = fract(angle / (2.0 * M_PI) + 1.0);
+
+    return vec2(angle, radius);
+}
+
 float RGBToLuminance(vec3 color)
 {
     return color.x * 0.3086 + color.y * 0.6094 + color.z * 0.0820;
