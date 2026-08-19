@@ -160,17 +160,12 @@ namespace FrameGraph
             {
                 Bind(DisplayTexturePipeline);
 
-                SetUniform(DisplayTexturePipeline, "Input", 0, Resources.Get<Texture2D>(TargetTexture), Sampler);
+                SetUniform(DisplayTexturePipeline, "Input", 0, Resources.Get<Texture2D>(SampledTextureBuffer), Sampler);
                 SetUniform(DisplayTexturePipeline, "ConvertToGreyscale", ConvertToGreyscale);
                 SetUniform(DisplayTexturePipeline, "ShowRed", ShowRed);
                 SetUniform(DisplayTexturePipeline, "ShowGreen", ShowGreen);
                 SetUniform(DisplayTexturePipeline, "ShowBlue", ShowBlue);
                 SetUniform(DisplayTexturePipeline, "ShowAlpha", ShowAlpha);
-
-                SetUniform(DisplayTexturePipeline, "RedRange", RangeRed);
-                SetUniform(DisplayTexturePipeline, "GreenRange", RangeGreen);
-                SetUniform(DisplayTexturePipeline, "BlueRange", RangeBlue);
-                SetUniform(DisplayTexturePipeline, "AlphaRange", RangeAlpha);
                 
                 SetUniform(DisplayTexturePipeline, "UseOETF", UseOETF);
                 
