@@ -83,6 +83,14 @@ namespace Math
             return *this;
         }
     };
+    
+    template<typename type>
+    inline Vector2t<type> operator +(const Vector2t<type>& v, float s)
+        {return Vector2t(v.x + s, v.y + s);}
+
+    template<typename type>
+    inline Vector2t<type> operator -(const Vector2t<type>& v, float s)
+        {return Vector2t(v.x - s, v.y - s);}
 
     template<typename type>
     inline Vector2t<type> operator *(const Vector2t<type>& v, float s)
@@ -91,6 +99,22 @@ namespace Math
     template<typename type>
     inline Vector2t<type> operator /(const Vector2t<type>& v, float s)
         {return Vector2t(v.x / s, v.y / s);}
+    
+    template<typename type>
+    inline Vector2t<type> operator +(type s, const Vector2t<type>& a)
+        {return Vector2t(s + a.x, s + a.y);}
+    
+    template<typename type>
+    inline Vector2t<type> operator -(type s, const Vector2t<type>& a)
+        {return Vector2t(s - a.x, s - a.y);}
+    
+    template<typename type>
+    inline Vector2t<type> operator *(type s, const Vector2t<type>& a)
+        {return Vector2t(s * a.x, s * a.y);}
+    
+    template<typename type>
+    inline Vector2t<type> operator /(type s, const Vector2t<type>& a)
+        {return Vector2t(s / a.x, s / a.y);}
 
     template<typename type>
     inline Vector2t<type> operator -(const Vector2t<type>& v)
@@ -257,6 +281,10 @@ namespace Math
         {return Vector3t(v.x / s, v.y / s, v.z / s);}
     
     template<typename type>
+    inline Vector3t<type> operator /(type s, const Vector3t<type>& a)
+        {return Vector3t(s / a.x, s / a.y, s / a.z);}
+    
+    template<typename type>
     inline Vector3t<type> operator -(const Vector3t<type>& v)
         {return Vector3t(-v.x, -v.y, -v.z);}
 
@@ -287,6 +315,10 @@ namespace Math
     template<typename type>
     inline Vector3t<type> operator -(type s, const Vector3t<type>& a)
         {return Vector3t(s - a.x, s - a.y, s - a.z);}
+    
+    template<typename type>
+    inline Vector3t<type> operator +(type s, const Vector3t<type>& a)
+        {return Vector3t(s + a.x, s + a.y, s + a.z);}
 
     template<typename type>
     inline Vector3t<type> operator +(const Vector3t<type>& a, const Vector3t<type>& b)
@@ -562,6 +594,22 @@ namespace Math
         INLINE Vector3t<type> YZZ() const {return Vector3t<type>(y, z, z);}
         INLINE Vector3t<type> ZZZ() const {return Vector3t<type>(z, z, z);}
     };
+    
+    template<typename type>
+    inline Vector4t<type> operator +(const Vector4t<type>& v, type s)
+        {return Vector4t(v.x + s, v.y + s, v.z + s, v.w + s);}
+
+    template<typename type>
+    inline Vector4t<type> operator +(type s, const Vector4t<type>& v)
+        {return Vector4t(v.x + s, v.y + s, v.z + s, v.w + s);}
+    
+    template<typename type>
+    inline Vector4t<type> operator -(const Vector4t<type>& v, type s)
+        {return Vector4t(v.x - s, v.y - s, v.z - s, v.w - s);}
+
+    template<typename type>
+    inline Vector4t<type> operator -(type s, const Vector4t<type>& v)
+        {return Vector4t(s - v.x,  s - v.y,   s - v.z, s - v.w);}
 
     template<typename type>
     inline Vector4t<type> operator *(const Vector4t<type>& v, type s)
@@ -569,11 +617,15 @@ namespace Math
 
     template<typename type>
     inline Vector4t<type> operator *(type s, const Vector4t<type>& v)
-    {return Vector4t(v.x * s, v.y * s, v.z * s, v.w * s);}
+        {return Vector4t(v.x * s, v.y * s, v.z * s, v.w * s);}
 
     template<typename type>
     inline Vector4t<type> operator /(const Vector4t<type>& v, float s)
         {return Vector4t(v.x / s, v.y / s, v.z / s, v.w / s);}
+    
+    template<typename type>
+    inline Vector4t<type> operator /(type s, const Vector4t<type>& v)
+        {return Vector4t( s / v.x,  s / v.y,   s / v.z, s / v.w);}
 
     template<typename type>
     inline Vector4t<type> operator -(const Vector4t<type>& v)
