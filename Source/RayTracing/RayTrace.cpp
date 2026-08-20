@@ -199,107 +199,49 @@ static Box3f FaceBounds(Mesh::ConstFaces Mesh, uint32_t FaceIndex)
     return {min, max};
 }
 
-static Box3f FaceGroupBounds(Mesh::ConstFaces Mesh, std::span<const BLASElement> Elements, const uint32_t begin, const uint32_t end)
+Box3f BLASElementGetBounds(const BLASElement& Element, const BLASDesc& Tree)
 {
-    Box3f box = FaceBounds(Mesh, Elements[begin]);
+    Mesh::ConstFaces Faces(*(Tree.MeshRef));
+    Mesh::ConstFace face = Faces[Element];
+    Vector3f min = face.begin().operator*().Position();
+    Vector3f max = min;
     
-    for(uint32_t i= begin +1; i < end; i++)
+    for (const auto& vertex : face)
     {
-        box.Insert(FaceBounds(Mesh, Elements[i]));
+        Point3f p = vertex.Position();
+        min.x = std::min(min.x, p.x);
+        min.y = std::min(min.y, p.y);
+        min.z = std::min(min.z, p.z);
+
+        max.x = std::max(max.x, p.x);
+        max.y = std::max(max.y, p.y);
+        max.z = std::max(max.z, p.z);
     }
-        
-    return box;
+    
+    return {min, max};
 }
 
-static Box3f FaceGroupCentroidBounds(Mesh::ConstFaces Mesh, std::span<const BLASElement> Elements, const uint32_t begin, const uint32_t end)
-{    
-    Box3f box = FaceBounds(Mesh, Elements[begin]), centroidBox(box.Center(), box.Center());
-    
-    for(uint32_t i= begin +1; i < end; i++)
-    {
-        box = FaceBounds(Mesh, Elements[i]);
-        centroidBox.Insert(box.Center());
-    }
-        
-    return centroidBox;
-}
-
-static BLAS::Node MakeBLASNode( const Box3f& bounds, const uint32_t left, const uint32_t right )
+Vector3f BLASElementGetCenter(const BLASElement& Element, const BLASDesc& Tree)
 {
-    BLAS::Node node;
-    node.Bounds = bounds;
-    node.SetLeftNode(left);
-    node.SetRightNode(right);
+    Mesh::ConstFaces Faces(*(Tree.MeshRef));
+    Mesh::ConstFace face = Faces[Element];
     
-    AssertOrError(node.IsNode(), "BLAS Node is not node")
+    Vector3f min = face.begin().operator*().Position();
+    Vector3f max = min;
     
-    return node;
-}
+    for (const auto& vertex : face)
+    {
+        Point3f p = vertex.Position();
+        min.x = std::min(min.x, p.x);
+        min.y = std::min(min.y, p.y);
+        min.z = std::min(min.z, p.z);
 
-static BLAS::Node MakeBLASLeaf( const Box3f& bounds, const uint32_t begin, const uint32_t end )
-{
-    BLAS::Node leaf;
-    leaf.Bounds = bounds;
-    leaf.SetLeafBegin(begin);
-    leaf.SetLeafEnd(end);
-    
-    AssertOrError(leaf.IsLeaf(), "BLAS Node is not leaf")
-    
-    return leaf;
-}
-
-static uint32_t BuildBLASNode(BLAS& BVH, Mesh::ConstFaces Mesh, const uint32_t begin, const uint32_t end)
-{
-    if(end - begin < (BVH.Meta.LeafSize + 1))
-    {
-        uint32_t index = BVH.Tree.size();
-        BVH.Tree.push_back( MakeBLASLeaf( FaceGroupBounds(Mesh, BVH.Elements, begin, end), begin, end ) );
-        return index;
+        max.x = std::max(max.x, p.x);
+        max.y = std::max(max.y, p.y);
+        max.z = std::max(max.z, p.z);
     }
     
-    Box3f cbounds = FaceGroupCentroidBounds(Mesh, BVH.Elements, begin, end);
-    Vector3f d = Vector3f(cbounds.a, cbounds.b);
-    
-    // Pick the widest centroid axis
-    uint32_t axis;
-    if(d.x > d.y && d.x > d.z)
-    {
-        axis = 0;
-    }
-    else if(d.y > d.z)
-    {
-        axis = 1;
-    }
-    else
-    {
-        axis = 2;
-    }
-
-    float cut = cbounds.Center(axis);
-    
-    uint32_t* pm= std::partition(BVH.Elements.data() + begin, BVH.Elements.data() + end, 
-        [axis, cut, Mesh]( uint32_t faceIndex ) 
-        {
-            Box3f bounds = FaceBounds(Mesh, faceIndex);
-            return bounds.Center(axis) < cut; 
-        }
-    );
-    uint32_t m = std::distance(BVH.Elements.data(), pm);
-    
-    // Ensure partition separated the faces in two groups
-    if(m == begin || m == end)
-    {
-        m = (begin + end) / 2;
-    }
-    AssertOrError(m != begin && m != end, "Failed to sperate a group of primitive faces into two sub groups")
-    
-    uint32_t LeftSubGroup = BuildBLASNode(BVH, Mesh, begin, m);
-    
-    uint32_t RightSubGroup = BuildBLASNode(BVH, Mesh, m, end);
-    
-    uint32_t index = BVH.Tree.size();
-    BVH.Tree.push_back( MakeBLASNode( Box3f(BVH.Tree[LeftSubGroup].Bounds, BVH.Tree[RightSubGroup].Bounds), LeftSubGroup, RightSubGroup ) );
-    return index;
+    return Math::Box3f(min, max).Center();
 }
 
 BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize)
@@ -308,13 +250,14 @@ BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize)
     Mesh::VertexType Type = Mesh.GetMeshType();
     
     BLAS blas{};
-    blas.Meta = {.VertexGroup = Group, .VertexType = Type, .MeshRef = &Mesh, .LeafSize = LeafSize};
+    blas.Meta = {.VertexGroup = Group, .VertexType = Type, .MeshRef = &Mesh};
     for (uint32_t i = Group.FirstVertex, iend = i + Group.VertexCount, increment = Mesh::FaceVertexIncrement(Type); i < iend; i+=increment)
     {
         blas.Elements.push_back(Mesh::FaceIndex(Type, i));
     }
-    
-    blas.Head = BuildBLASNode(blas, Mesh, 0, blas.Elements.size());
+
+    blas.LeafSize = LeafSize;
+    blas.Rebuild();
 
     return blas;
 }
@@ -460,39 +403,6 @@ float TLASElement::Center(size_t Index) const
     return c[Index];
 }
 
-void TLASAddInstance(TLAS& BVH, const BLAS& BLAS, size_t Material, const Transform4f& Transform)
-{
-    BVH.Elements.emplace_back(&BLAS, Transform, Inverse(Transform), Material);
-    
-    // Invalidate
-    BVH.Tree.clear();
-    BVH.Head = std::numeric_limits<uint32_t>::max();
-}
-
-static TLAS::Node MakeTLASNode( const Box3f& bounds, const uint32_t left, const uint32_t right )
-{
-    TLAS::Node node;
-    node.Bounds = bounds;
-    node.SetLeftNode(left);
-    node.SetRightNode(right);
-    
-    AssertOrError(node.IsNode(), "BLAS Node is not node")
-    
-    return node;
-}
-
-static TLAS::Node MakeTLASLeaf( const Box3f& bounds, const uint32_t element )
-{
-    TLAS::Node leaf;
-    leaf.Bounds = bounds;
-    leaf.SetLeafBegin(element);
-    leaf.SetLeafEnd(element);
-    
-    AssertOrError(leaf.IsLeaf(), "BLAS Node is not leaf")
-    
-    return leaf;
-}
-
 static Box3f SafeTransformBounds(Box3f In, const Transform4f& Transform)
 {
     Point3f AAA = Transform * In.a;
@@ -516,67 +426,21 @@ static Box3f SafeTransformBounds(Box3f In, const Transform4f& Transform)
     return out;
 }
 
-static uint32_t BuildTLASNode(TLAS& BVH, const uint32_t begin, const uint32_t end)
+Math::Box3f TLASElementGetBounds(const TLASElement& Element, const TLASDesc& Tree)
 {
-    if(end - begin < 2)
-    {
-        uint32_t index = BVH.Tree.size();
-        BVH.Tree.push_back( MakeTLASLeaf( SafeTransformBounds(BVH.Elements[begin].BLAS->Bounds(), BVH.Elements[begin].ModelToWorld), begin ) );
-        return index;
-    }
-    
-    Box3f cbounds(BVH.Elements[begin].Center(), BVH.Elements[begin].Center());
-    for (uint32_t i = begin + 1; i < end; i++)
-    {
-        cbounds.Insert(BVH.Elements[i].Center());
-    }
-    Vector3f d = Vector3f(cbounds.a, cbounds.b);
-    
-    // Pick the widest centroid axis
-    uint32_t axis;
-    if(d.x > d.y && d.x > d.z)
-    {
-        axis = 0;
-    }
-    else if(d.y > d.z)
-    {
-        axis = 1;
-    }
-    else
-    {
-        axis = 2;
-    }
-
-    float cut = cbounds.Center(axis);
-    
-    TLASElement* pm= std::partition(BVH.Elements.data() + begin, BVH.Elements.data() + end, 
-        [axis, cut]( const TLASElement& Instance ) 
-        {
-            return Instance.Center(axis) < cut; 
-        }
-    );
-    uint32_t m = std::distance(BVH.Elements.data(), pm);
-    
-    // Ensure partition separated the faces in two groups
-    if(m == begin || m == end)
-    {
-        m = (begin + end) / 2;
-    }
-    AssertOrError(m != begin && m != end, "Failed to sperate a group of primitive faces into two sub groups")
-    
-    uint32_t LeftSubGroup = BuildTLASNode(BVH, begin, m);
-    
-    uint32_t RightSubGroup = BuildTLASNode(BVH, m, end);
-    
-    uint32_t index = BVH.Tree.size();
-    BVH.Tree.push_back( MakeTLASNode( Box3f(BVH.Tree[LeftSubGroup].Bounds, BVH.Tree[RightSubGroup].Bounds), LeftSubGroup, RightSubGroup ) );
-    return index;
+    return SafeTransformBounds(Element.BLAS->Bounds(), Element.ModelToWorld);
 }
 
-void TLASRebuild(TLAS& BVH)
+Math::Vector3f TLASElementGetCenter(const TLASElement& Element, const TLASDesc& Tree)
 {
-    BVH.Tree.clear();
-    BVH.Head = BuildTLASNode(BVH, 0, BVH.Elements.size());
+    return Element.Center();
+}
+
+void TLASAddInstance(TLAS& BVH, const BLAS& BLAS, size_t Material, const Transform4f& Transform)
+{
+    BVH.Elements.emplace_back(&BLAS, Transform, Inverse(Transform), Material);
+    
+    BVH.Invalidate();
 }
 
 BVHHit TraceRayTLAS::Next()
