@@ -813,6 +813,7 @@ group "Samples"
         "GLTFViewer",
         "MathSimtTests",
         "MiniEngineCooker",
+        "MathSimtTests",
         "MiniEngineSample",
         "PBR",
         "RayTracingBase",
