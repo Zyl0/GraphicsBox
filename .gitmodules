@@ -20,3 +20,6 @@
 [submodule "BCDec"]
 	path = Dependencies/LibSources/BCDec
 	url = https://github.com/iOrange/bcdec.git
+[submodule "Catch2"]
+	path = Dependencies/LibSources/Catch2
+	url = https://github.com/catchorg/Catch2.git

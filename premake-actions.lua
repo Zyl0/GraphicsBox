@@ -23,6 +23,12 @@ newoption {
    description = "Download sample scene and content for demonstration"
 }
 
+-- Unit tests projects
+newoption {
+   trigger = "unit-tests",
+   description = "Generate Unit tests projects"
+}
+
 newoption {
     trigger = "shaderc",
     description = "Use shaderc to compile glsl shaders to Spir-V shaders. Compiling shaders from source code will require the shaderc compiler that would be downloaded in setup phase"    
@@ -375,6 +381,46 @@ function UpdateShaderCompiler()
     gbUseShaderc = true
 end
 
+local function GenerateCatch2Config()
+    local in_file = path.join(gb_SourceDependencyDir, "Catch2", "src", "catch2", "catch_user_config.hpp.in")
+    local out_file = path.join(gb_IntermediatesDir, "generated", "Catch2", "catch2", "catch_user_config.hpp")
+    
+    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Catch2", "catch2")) then
+        os.mkdir(path.join(gb_IntermediatesDir, "generated", "Catch2", "catch2"))
+    end
+    
+    -- Check if it already exists so we don't regenerate it unnecessarily
+    if os.isfile(out_file) then
+        return
+    end
+    print("Generating catch_user_config.hpp...")
+    
+    local f = io.open(in_file, "r")
+    if not f then
+        print("Warning: Could not open " .. in_file)
+        return
+    end
+    local content = f:read("*a")
+    f:close()
+    
+    -- 1. Replace all `#cmakedefine VAR` with `/* #undef VAR */` 
+    -- This handles the feature toggles by turning them off (Catch2's default behavior)
+    content = content:gsub("#cmakedefine%s+([%w_]+)[^\r\n]*", "/* #undef %1 */")
+    
+    -- 2. Replace the specific mandatory variables with Catch2's default values
+    content = content:gsub("@CATCH_CONFIG_DEFAULT_REPORTER@", "console")
+    content = content:gsub("@CATCH_CONFIG_CONSOLE_WIDTH@", "80")
+    
+    local out = io.open(out_file, "w")
+    if not out then
+        print("Error: Could not write to " .. out_file)
+        return
+    end
+    
+    out:write(content)
+    out:close()
+end
+
 function UpdateConfig()
     local f = io.open("premake-config.lua", "w")
     
@@ -382,6 +428,7 @@ function UpdateConfig()
     f:write("gbUseSampleScenes = " .. tostring(gbUseSampleScenes) .. "\n")
     f:write("gbUseShaderc = " .. tostring(gbUseShaderc) .. "\n")
     f:write("gbUseBreakpoints = " .. tostring(gbUseBreakpoints) .. "\n")
+    f:write("gbUseUnitTests = " .. tostring(gbUseUnitTests) .. "\n")
     f:write("gbWindowAPI = \"" .. gbWindowAPI .. "\"\n")
     
     f:close();
@@ -419,6 +466,7 @@ newaction {
         gbUseSampleScenes = _OPTIONS["sample-scenes"] ~= nil;
         gbUseShaderc = _OPTIONS["shaderc"] ~= nil;
         gbUseBreakpoints = _OPTIONS["breakpoints"] ~= nil;
+        gbUseUnitTests = _OPTIONS["unit-tests"] ~= nil;
         gbWindowAPI = _OPTIONS["window"]
         
         if gbUseSampleScenes == true then
@@ -426,6 +474,10 @@ newaction {
         end
         if gbUseShaderc == true then
             UpdateShaderCompiler()
+        end
+    
+        if gbUseUnitTests == true then
+            GenerateCatch2Config()
         end
         
         UpdateConfig()

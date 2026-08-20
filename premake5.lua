@@ -20,6 +20,7 @@ gb_OutputDir =                 path.join(gb_SolutionDir, "Binaries")
 gb_IncludeDir =                path.join(gb_SolutionDir, "Include")
 gb_SrcDir =                    path.join(gb_SolutionDir, "Source")
     gb_LibsImplementDir =      path.join(gb_SrcDir, "Libs")
+gb_UnitTestsDir =              path.join(gb_SolutionDir, "UnitTests")
 gb_SamplesDir =                path.join(gb_SolutionDir, "Samples")
 gb_TempDir =                   path.join(gb_SolutionDir, "Temp")
 gb_SolutionProjectDir =        path.join(gb_SolutionDir, "Solution")
@@ -34,6 +35,29 @@ SampleScencesRepos = {
         name = "RTXDI-Assets",
         url = "https://github.com/NVIDIA-RTX/RTXDI-Assets.git"
     },
+}
+
+-- Sample projects
+SampleProjects = {
+    "AntiAliasing",
+    "GLTFViewer",
+    "MathSimtTests",
+    "MiniEngineCooker",
+    "MathSimtTests",
+    "MiniEngineSample",
+    "PBR",
+    "RayTracingBase",
+    "RayTracingBVH",
+    "RayTracingCompute",
+    "RayTracingComputeBVH",
+    "SpectralRendering",
+    "SignedDistanceField",
+    "ShadowMapping"
+}
+
+-- Unit test projects
+UnitTestProjects = {
+    "TestMathSIMT"
 }
 
 if os.isfile("premake-config.lua") then
@@ -193,6 +217,31 @@ group "Dependencies"
             path.join(gb_SourceDependencyDir, "BCDec", "bcdec.h"),
             path.join(gb_LibsImplementDir, "bcdec.cpp")
         }
+
+if gbUseUnitTests then
+    project "Catch2"
+        language "C++"
+        kind "StaticLib"
+
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+
+        -- Project includes
+        includedirs {
+            path.join(gb_SourceDependencyDir, "Catch2", "src"),
+            path.join(gb_IntermediatesDir, "generated", "Catch2")
+        }
+
+        -- Project files
+        files {
+            path.join(gb_SourceDependencyDir, "Catch2", "src", "**.hpp"),
+            path.join(gb_SourceDependencyDir, "Catch2", "src", "**.cpp"),
+        }
+    
+        removefiles {
+            path.join(gb_SourceDependencyDir, "Catch2", "src", "catch2", "internal", "catch_main.cpp")
+        }
+end
 
 if _ACTION ~= "cmake" then
     project "CTTI"
@@ -675,6 +724,10 @@ group "Utilites"
             -- Linking GLFW and GLEW libraries
             links { "opengl32", "glew32" }
 
+if gbUseUnitTests then
+include("premake-unit-tests.lua")
+end
+
 if gbUseSamples then
 group "Samples"    
     project "MiniEngine"
@@ -807,23 +860,6 @@ group "Samples"
                 links { "SDL3" }
         end
     filter { "" }
-
-    SampleProjects = {
-        "AntiAliasing",
-        "GLTFViewer",
-        "MathSimtTests",
-        "MiniEngineCooker",
-        "MathSimtTests",
-        "MiniEngineSample",
-        "PBR",
-        "RayTracingBase",
-        "RayTracingBVH",
-        "RayTracingCompute",
-        "RayTracingComputeBVH",
-        "SpectralRendering",
-        "SignedDistanceField",
-        "ShadowMapping"
-    }
 
     if not os.isdir(gb_TempDir) then
         os.mkdir(gb_TempDir)
