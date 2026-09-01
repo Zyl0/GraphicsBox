@@ -521,7 +521,7 @@ local function GenerateCatch2Config()
     out:close()
 end
 
-local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
+local function WriteMathSIMTx86Specialization(f, x86_ISA, x86_ISA_Limit, PrimitiveType, RegisterCount)
     local ISA;
     if PrimitiveType == PrimitiveTypes.Float then
         ISA = x86_ISA.Float
@@ -566,6 +566,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     else
         error("Unsupported ISA for x86")
     end
+
     local intrinMulName;
     if not ISA.IsFloatingPoint then intrinMulName = "mullo" else intrinMulName = "mul"end
     local intrinDivAvailable = ISA.IsFloatingPoint
@@ -583,12 +584,12 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     local intrinIsScatterAvailable = false
     local intrinIsPermuteAvailagle = true
     local intrinIsCompressAvailable = false
-    if x86_ISA == ISAs.x86_AVX_512 then
+    if x86_ISA_Limit == ISAs.x86_AVX_512 then
         intrinDivAvailable = true
         intrinIsScatterAvailable = true
         intrinIsCompressAvailable = true
     end
-        if x86_ISA == ISAs.x86_SSE then
+    if x86_ISA_Limit == ISAs.x86_SSE then
         intrinIsPermuteAvailagle = false
     end
     if PrimitiveType == PrimitiveTypes.Int8 then
@@ -611,15 +612,27 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         intrinIsScatterAvailable = false
     elseif PrimitiveType == PrimitiveTypes.Float then
         intrinIs32bit = true
+        if x86_ISA == ISAs.x86_SSE then
+            intrinIsPermuteAvailagle = false
+        end
     elseif PrimitiveType == PrimitiveTypes.Double then
         intrinIs64bit = true
+        if x86_ISA == ISAs.x86_SSE then
+            intrinIsPermuteAvailagle = false
+        end
     elseif PrimitiveType == PrimitiveTypes.Int32 then
         intrinIs32bit = true
         intrinIs32bitInteger = true
+        if x86_ISA == ISAs.x86_SSE then
+            intrinIsPermuteAvailagle = false
+        end
     elseif PrimitiveType == PrimitiveTypes.UInt32 then
         intrinIs32bit = true
         intrinIs32bitInteger = true
         intrinLoadStoreRequireInt32Cast = true
+        if x86_ISA == ISAs.x86_SSE then
+            intrinIsPermuteAvailagle = false
+        end
     end
     local intrinArithmeticAvailable = {
         ["+"] = true, 
@@ -639,7 +652,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     local intrinFuncMaskedLoadAligned = intrinFuncMaskedLoadUnaligned
     local intrinFuncMaskedStoreUnaligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "maskstore")
     local intrinFuncMaskedStoreAligned = intrinFuncMaskedStoreUnaligned
-    if x86_ISA == ISAs.x86_AVX_512 then
+    if x86_ISA_Limit == ISAs.x86_AVX_512 then
         intrinFuncMaskedLoadUnaligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "mask_loadu")
         intrinFuncMaskedLoadAligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "mask_load")
         intrinFuncMaskedStoreUnaligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "mask_storeu")
@@ -650,7 +663,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     local intrinFuncMul = "_" .. intrinCat .. "_" .. intrinMulName .. "_" .. ISA.Suffix
     local intrinFuncDiv = "_" .. intrinCat .. "_div_" .. ISA.Suffix
     local intrinFuncRound = "_" .. intrinCat .. "_floor_" .. ISA.Suffix
-    if x86_ISA == ISAs.x86_AVX_512 then
+    if x86_ISA_Limit == ISAs.x86_AVX_512 then
         intrinFuncRound = "_" .. intrinCat .. "_roundscale_" .. ISA.Suffix
     end
     local intrinFuncBitwiseAnd = "_" .. intrinCat .. "_and_" .. intrinZeroSuffix
@@ -672,7 +685,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         intrinFuncCmpLessOrEqual = string.gsub(intrinFuncCmpLessOrEqual, "cmple", "cmp")
         intrinFuncCmpLess = string.gsub(intrinFuncCmpLess, "cmplt", "cmp")
     end
-    if x86_ISA == ISAs.x86_AVX_512 then 
+    if x86_ISA_Limit == ISAs.x86_AVX_512 then 
         intrinFuncCmpEqual = intrinFuncCmpEqual .. "_mask"
         intrinFuncCmpGreaterOrEqual = intrinFuncCmpGreaterOrEqual .. "_mask"
         intrinFuncCmpGreater = intrinFuncCmpGreater .. "_mask"
@@ -686,7 +699,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         end
     end
     local intrinFuncBlend = "_" .. intrinCat .. "_blendv_" .. ISA.Suffix
-    if x86_ISA == ISAs.x86_AVX_512 then 
+    if x86_ISA_Limit == ISAs.x86_AVX_512 then 
         intrinFuncBlend = "_" .. intrinCat .. "_mask_blend_" .. ISA.Suffix
     elseif intrinIs32bitInteger == true then
         intrinFuncBlend = "_" .. intrinCat .. "_blend_" .. ISA.Suffix
@@ -697,9 +710,9 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     local intrinFuncI32Gather = "_" .. intrinCat .. "_i32gather_" .. ISA.Suffix
     local intrinFuncI32Scatter = "_" .. intrinCat .. "_i32scatter_" .. ISA.Suffix
     local intrinFuncPermute = "_" .. intrinCat .. "_permutevar8x32_" .. ISA.Suffix
-    if x86_ISA == ISAs.x86_AVX_512 then
+    if x86_ISA_Limit == ISAs.x86_AVX_512 then
         intrinFuncPermute = "_" .. intrinCat .. "_permutexvar_" .. ISA.Suffix
-    elseif x86_ISA == ISAs.x86_AVX then
+    elseif x86_ISA_Limit == ISAs.x86_AVX then
         if intrinIs32bit == true then
             intrinFuncPermute = "_" .. intrinCat .. "_permutevar8x32_" .. ISA.Suffix
         elseif intrinIs64bit == true then
@@ -729,14 +742,14 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     }
 
     -- AVX only defines equals and greater than operators for ints
-    if x86_ISA == ISAs.x86_AVX then
+    if x86_ISA_Limit == ISAs.x86_AVX then
         opsLogicalTests[1][5] = "" -- ==
         opsLogicalTests[2][5] = "!(this->operator==(other))" -- !=
         opsLogicalTests[3][5] = "" -- >
         opsLogicalTests[4][5] = "(this->operator>(other) | this->operator==(other))" -- >=
         opsLogicalTests[5][5] = "other.operator>(*this)" -- <
         opsLogicalTests[6][5] = "(this->operator>(other) | this->operator==(other))" -- <=
-    elseif x86_ISA == ISAs.x86_SSE then
+    elseif x86_ISA_Limit == ISAs.x86_SSE then
         opsLogicalTests[1][5] = "" -- ==
         opsLogicalTests[2][5] = "!(this->operator==(other))" -- !=
         opsLogicalTests[3][5] = "" -- >
@@ -750,7 +763,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     local snipetsScalarType = "Scalar".. snipetTemplateSpecialisation
     local snipetsPrepareMaskBypass = "        const ".. snipetsScalarType .. "::MaskType::Type& intrin_mask = mask.bits;\n"
     local snipetsPrepareMask = ""
-    if x86_ISA == ISAs.x86_SSE then 
+    if x86_ISA_Limit == ISAs.x86_SSE then 
         if intrinIs8bit then
             snipetsPrepareMask = snipetsPrepareMask .. "        __m128i intrin_mask = _mm_set1_epi32(mask.bits);\n"
             snipetsPrepareMask = snipetsPrepareMask .. "        const __m128i shuffle_mask = _mm_setr_epi8(\n"
@@ -770,7 +783,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
             snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm_and_si128(intrin_mask, bit_isolate);\n"
             snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm_cmpeq_epi32(intrin_mask, bit_isolate);\n"
         end
-    elseif x86_ISA == ISAs.x86_AVX then 
+    elseif x86_ISA_Limit == ISAs.x86_AVX then 
         if intrinIs8bit then
             snipetsPrepareMask = snipetsPrepareMask .. "        __m256i intrin_mask = _mm256_set1_epi32(mask.bits);\n"
             snipetsPrepareMask = snipetsPrepareMask .. "        const __m256i shuffle_mask = _mm256_setr_epi8(\n"
@@ -794,13 +807,13 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
             snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm256_and_si256(intrin_mask, bit_isolate);\n"
             snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm256_cmpeq_epi32(intrin_mask, bit_isolate);\n"
         end
-    elseif x86_ISA == ISAs.x86_AVX_512 then
+    elseif x86_ISA_Limit == ISAs.x86_AVX_512 then
         snipetsPrepareMask = snipetsPrepareMask .. "        const ".. snipetsScalarType .. "::MaskType::Type& intrin_mask = mask.bits;\n"
     else
         error("Unsupported ISA for x86")
     end
     local snipetsPackMask = ""
-    if x86_ISA == ISAs.x86_AVX_512 then
+    if x86_ISA_Limit == ISAs.x86_AVX_512 then
         snipetsPackMask = snipetsPackMask .. "res"
     elseif PrimitiveType == PrimitiveTypes.Double then
         snipetsPackMask = snipetsPackMask .. "_" .. intrinCat .. "_movemask_pd(res)"
@@ -840,7 +853,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("#if defined(__GNUC__) || defined(__clang__)\n")
     f:write("   Type ALIGNED_VECTOR(kAlignment, kAlignment) m;\n")
     f:write("#else\n")
-    f:write("   union { " .. ISA.Register .. " reg; Type data[kThreadCount]; };\n")
+    f:write("   union { " .. ISA.Register .. " reg; Type m[kThreadCount]; };\n")
     f:write("#endif\n")
     f:write("\n")
     f:write("    INLINE Scalar() : reg(" .. intrinFuncZero .. "()) {}\n")
@@ -867,8 +880,8 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("        return *this;\n")
     f:write("    }\n")
     f:write("    \n")
-    f:write("    INLINE Type& operator [] (size_t index) {return data[index];}\n")
-    f:write("    INLINE const Type& operator [] (size_t index) const {return data[index];}\n")
+    f:write("    INLINE Type& operator [] (size_t index) {return m[index];}\n")
+    f:write("    INLINE const Type& operator [] (size_t index) const {return m[index];}\n")
     f:write("    \n")
 
     -- Arithmetical operators
@@ -878,10 +891,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         f:write("    INLINE Scalar& operator " .. op .. "= (const Scalar& V)\n")
         f:write("    {\n")
         if not intrinArithmeticAvailable[op] then
-            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment)\n")
+            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment)\n")
             f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
             f:write("        {\n")
-            f:write("            data[i] = data[i] " .. op .. " V.data[i];\n")
+            f:write("            m[i] = m[i] " .. op .. " V.m[i];\n")
             f:write("        }\n")
         else
             f:write("        reg = " .. func .. "(reg, V.reg);\n")
@@ -895,10 +908,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         f:write("    {\n")
         f:write("        Scalar r;\n")
         if not intrinArithmeticAvailable[op] then
-            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
             f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
             f:write("        {\n")
-            f:write("            r.data[i] = data[i] " .. op .. " V.data[i];\n")
+            f:write("            r.m[i] = m[i] " .. op .. " V.m[i];\n")
             f:write("        }\n")
         else
             f:write("        r.reg = " .. func .. "(reg, V.reg);\n")
@@ -913,7 +926,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("    {\n")
     f:write("        Scalar div = *this / V, truncated;\n")
     if ISA.IsFloatingPoint then
-        if x86_ISA == ISAs.x86_AVX_512 then
+        if x86_ISA_Limit == ISAs.x86_AVX_512 then
             f:write("        truncated.reg = " .. intrinFuncRound .. "(div.reg, _MM_FROUND_TO_NEG_INF);\n")
         else
             f:write("        truncated.reg = " .. intrinFuncRound .. "(div.reg);\n")
@@ -944,10 +957,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     if intrinLoadStoreAvailable then
         f:write("        r.reg = " .. intrinFuncLoadUnaligned .. "(ptr);\n")
     else
-        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment)\n")
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
         f:write("        {\n")
-        f:write("            r.data[i] = ptr[i];\n")
+        f:write("            r.m[i] = ptr[i];\n")
         f:write("        }\n")
     end
     f:write("        return r;\n")
@@ -957,7 +970,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("        Scalar r;\n")
     if intrinMaskedLoadStoreAvailable then
         f:write(         snipetsPrepareMask)
-        if x86_ISA == ISAs.x86_AVX_512 then
+        if x86_ISA_Limit == ISAs.x86_AVX_512 then
             f:write("        r.reg = " .. intrinFuncMaskedLoadUnaligned .. "(r.reg, intrin_mask, ptr);\n")
         elseif intrinLoadStoreRequireInt32Cast == true then
             f:write("        r.reg = " .. intrinFuncMaskedLoadUnaligned .. "((const int*)(ptr), intrin_mask);\n")
@@ -965,10 +978,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
             f:write("        r.reg = " .. intrinFuncMaskedLoadUnaligned .. "(ptr, intrin_mask);\n")
         end
     else
-        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
         f:write("        {\n")
-        f:write("            r.data[i] = mask[i] ? ptr[i] : Type(0);\n")
+        f:write("            r.m[i] = mask[i] ? ptr[i] : Type(0);\n")
         f:write("        }\n")
     end
     f:write("        return r;\n")
@@ -979,10 +992,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     if intrinLoadStoreAvailable then
         f:write("        r.reg = " .. intrinFuncLoadAligned .. "(ptr);\n")
     else
-        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
         f:write("        {\n")
-        f:write("            r.data[i] = ptr[i];\n")
+        f:write("            r.m[i] = ptr[i];\n")
         f:write("        }\n")
     end
     f:write("        return r;\n")
@@ -992,7 +1005,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("        Scalar r;\n")
     if intrinMaskedLoadStoreAvailable then
         f:write(         snipetsPrepareMask)
-        if x86_ISA == ISAs.x86_AVX_512 then
+        if x86_ISA_Limit == ISAs.x86_AVX_512 then
             f:write("        r.reg = " .. intrinFuncMaskedLoadAligned .. "(r.reg, intrin_mask, ptr);\n")
         elseif intrinLoadStoreRequireInt32Cast == true then
             f:write("        r.reg = " .. intrinFuncMaskedLoadAligned .. "((const int*)(ptr), intrin_mask);\n")
@@ -1000,10 +1013,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
             f:write("        r.reg = " .. intrinFuncMaskedLoadAligned .. "(ptr, intrin_mask);\n")
         end
     else
-        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
         f:write("        {\n")
-        f:write("            r.data[i] = mask[i] ? ptr[i] : Type(0);\n")
+        f:write("            r.m[i] = mask[i] ? ptr[i] : Type(0);\n")
         f:write("        }\n")
     end
     f:write("        return r;\n")
@@ -1014,10 +1027,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     if intrinLoadStoreAvailable then
         f:write("        " .. intrinFuncStoreUnaligned .. "(ptr, reg);\n")
     else
-        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment)\n")
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
         f:write("        {\n")
-        f:write("            ptr[i] = data[i];\n")
+        f:write("            ptr[i] = m[i];\n")
         f:write("        }\n")
     end
     f:write("    }\n")
@@ -1025,7 +1038,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("    {\n")
     if intrinMaskedLoadStoreAvailable then
         f:write(         snipetsPrepareMask)
-        if x86_ISA == ISAs.x86_AVX_512 then
+        if x86_ISA_Limit == ISAs.x86_AVX_512 then
             f:write("        " .. intrinFuncMaskedStoreUnaligned .. "(ptr, intrin_mask, reg);\n")
         elseif intrinLoadStoreRequireInt32Cast == true then
             f:write("        " .. intrinFuncMaskedStoreUnaligned .. "((int*)(ptr), intrin_mask, reg);\n")
@@ -1033,10 +1046,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
             f:write("        " .. intrinFuncMaskedStoreUnaligned .. "(ptr, intrin_mask, reg);\n")
         end
     else
-        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
         f:write("        {\n")
-        f:write("            ptr[i] = mask[i] ? data[i] : ptr[i];\n")
+        f:write("            ptr[i] = mask[i] ? m[i] : ptr[i];\n")
         f:write("        }\n")
     end
     f:write("    }\n")
@@ -1045,10 +1058,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     if intrinLoadStoreAvailable then
         f:write("        " .. intrinFuncStoreAligned .. "(ptr, reg);\n")
     else
-        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
         f:write("        {\n")
-        f:write("            ptr[i] = data[i];\n")
+        f:write("            ptr[i] = m[i];\n")
         f:write("        }\n")
     end
     f:write("    }\n")
@@ -1056,7 +1069,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("    {\n")
     if intrinMaskedLoadStoreAvailable then
         f:write(         snipetsPrepareMask)
-        if x86_ISA == ISAs.x86_AVX_512 then
+        if x86_ISA_Limit == ISAs.x86_AVX_512 then
             f:write("        " .. intrinFuncMaskedStoreAligned .. "(ptr, intrin_mask, reg);\n")
         elseif intrinLoadStoreRequireInt32Cast == true then
             f:write("        " .. intrinFuncMaskedStoreAligned .. "((int*)(ptr), intrin_mask, reg);\n")
@@ -1064,10 +1077,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
             f:write("        " .. intrinFuncMaskedStoreAligned .. "(ptr, intrin_mask, reg);\n")
         end
     else
-        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
         f:write("        {\n")
-        f:write("            ptr[i] = mask[i] ? data[i] : ptr[i];\n")
+        f:write("            ptr[i] = mask[i] ? m[i] : ptr[i];\n")
         f:write("        }\n")
     end
     f:write("    }\n")
@@ -1100,10 +1113,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
             f:write("        return " .. intrinFuncShiftLeft .. "(reg, s);\n")
         else
             f:write("        Scalar r;\n")
-            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
             f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
             f:write("        {\n")
-            f:write("            r.data[i] = data[i] << s;\n")
+            f:write("            r.m[i] = m[i] << s;\n")
             f:write("        }\n")
             f:write("        return r;\n")
         end
@@ -1114,10 +1127,10 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
             f:write("        return " .. intrinFuncShiftRight .. "(reg, s);\n")
         else
             f:write("        Scalar r;\n")
-            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
             f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
             f:write("        {\n")
-            f:write("            r.data[i] = data[i] >> s;\n")
+            f:write("            r.m[i] = m[i] >> s;\n")
             f:write("        }\n")
             f:write("        return r;\n")
         end
@@ -1131,7 +1144,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         f:write("    INLINE MaskType operator" .. op .. "(const Scalar& other) const\n")
         f:write("    {\n")
         if op_fallback == "" then
-            if x86_ISA == ISAs.x86_AVX_512 then
+            if x86_ISA_Limit == ISAs.x86_AVX_512 then
                 f:write("        MaskType res = ");
             else
                 f:write("        " .. ISA.Register .. " res = ");
@@ -1155,7 +1168,7 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("    const " .. snipetsScalarType .. "::MaskType& /*Is A*/ mask\n")
     f:write("    )\n")
     f:write("{\n")
-    if x86_ISA == ISAs.x86_AVX_512 then 
+    if x86_ISA_Limit == ISAs.x86_AVX_512 then 
         f:write(     snipetsPrepareMask)
         f:write("    return " .. intrinFuncBlend .. "(intrin_mask, B.reg, A.reg);\n")
     else
@@ -1179,18 +1192,27 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("{\n")
     if intrinMaskedLoadStoreAvailable == false then
         f:write("    " .. snipetsScalarType .. " r;\n")
-        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
         f:write("    {\n")
-        f:write("        r.data[i] = ptr[indices[i]];\n")
+        f:write("        r.m[i] = ptr[indices[i]];\n")
         f:write("    }\n")
         f:write("    return r;\n")
-    elseif x86_ISA == ISAs.x86_AVX_512 then
-        f:write("    return " .. intrinFuncI32Gather .. "(indices.reg, ptr, sizeof(" .. ISA.Type .. "));\n")
-    elseif intrinLoadStoreRequireInt32Cast == true then
-        f:write("    return " .. intrinFuncI32Gather .. "((int*)(ptr), indices.reg, sizeof(" .. ISA.Type .. "));\n")
     else
-        f:write("    return " .. intrinFuncI32Gather .. "(ptr, indices.reg, sizeof(" .. ISA.Type .. "));\n")
+        if x86_ISA == ISAs.x86_SSE and intrinIs64bit == true then
+            f:write("    Scalar<int32_t , " .. tostring(ISA.ElementCount * 2) .. "> intrin_indices;\n")
+            f:write("    intrin_indices.Load(indices.m);\n")
+        else
+            f:write("    const " .. snipetsScalarType .. "::IndexerType& intrin_indices = indices;\n")
+        end
+
+        if x86_ISA == ISAs.x86_AVX_512 then
+            f:write("    return " .. intrinFuncI32Gather .. "(intrin_indices.reg, ptr, sizeof(" .. ISA.Type .. "));\n")
+        elseif intrinLoadStoreRequireInt32Cast == true then
+            f:write("    return " .. intrinFuncI32Gather .. "((int*)(ptr), intrin_indices.reg, sizeof(" .. ISA.Type .. "));\n")
+        else
+            f:write("    return " .. intrinFuncI32Gather .. "(ptr, intrin_indices.reg, sizeof(" .. ISA.Type .. "));\n")
+        end
     end
     f:write("}\n")
     f:write("\n")
@@ -1202,12 +1224,19 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("    )\n")
     f:write("{\n")
     if intrinIsScatterAvailable == true then
-        f:write("    " .. intrinFuncI32Scatter .. "(ptr, indices.reg, values.reg, sizeof(" .. ISA.Type .. "));\n")
+        if x86_ISA == ISAs.x86_SSE and intrinIs64bit == true then
+            f:write("    Scalar<int32_t , " .. tostring(ISA.ElementCount * 2) .. "> intrin_indices;\n")
+            f:write("    intrin_indices.Load(indices.m);\n")
+        else
+            f:write("    const " .. snipetsScalarType .. "::IndexerType& intrin_indices = indices;\n")
+        end
+
+        f:write("    " .. intrinFuncI32Scatter .. "(ptr, intrin_indices.reg, values.reg, sizeof(" .. ISA.Type .. "));\n")
     else
-        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(indices.data, kAlignment)\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(indices.m, kAlignment)\n")
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
         f:write("    {\n")
-        f:write("        ptr[indices[i]] = values.data[i];\n")
+        f:write("        ptr[indices[i]] = values.m[i];\n")
         f:write("    }\n")
     end
     f:write("}\n")
@@ -1219,9 +1248,18 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("    )\n")
     f:write("{\n")
     if intrinIsPermuteAvailagle == true then
-        if x86_ISA == ISAs.x86_AVX_512 then 
-            f:write("    return " .. intrinFuncPermute .. "(indices.reg, V.reg);\n")
-        elseif x86_ISA == ISAs.x86_AVX then
+        if x86_ISA_Limit == ISAs.x86_AVX_512 then 
+            if intrinIs64bit == true then
+                if x86_ISA == ISAs.x86_AVX_512 then
+                    f:write("    Scalar<int32_t , " .. tostring(ISA.ElementCount * 2) .. "> intrin_indices = _mm512_cvtepi32_epi64(indices.reg);\n")
+                elseif x86_ISA == ISAs.x86_AVX then
+                    f:write("    Scalar<int32_t , " .. tostring(ISA.ElementCount * 2) .. "> intrin_indices = _mm256_cvtepi32_epi64(indices.reg);\n")
+                end
+            else
+                f:write("    const " .. snipetsScalarType .. "::IndexerType& intrin_indices = indices;\n")
+            end
+            f:write("    return " .. intrinFuncPermute .. "(intrin_indices.reg, V.reg);\n")
+        elseif x86_ISA_Limit == ISAs.x86_AVX then
             if intrinIs32bit == true then
                 f:write("    return " .. intrinFuncPermute .. "(V.reg, indices.reg);\n")
             elseif intrinIs64bit == true then
@@ -1231,13 +1269,45 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         end
     else
         f:write("    " .. snipetsScalarType .." r;\n")
-        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(indices.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(indices.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
         f:write("    {\n")
-        f:write("        r.data[indices[i]] = V.data[i];\n")
+        f:write("        r.m[indices[i]] = V.m[i];\n")
         f:write("    }\n")
         f:write("    return r;\n")
     end
+    f:write("}\n")
+    f:write("\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Shift".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    int Amount\n")
+    f:write("    )\n")
+    f:write("{\n")
+    f:write("    " .. snipetsScalarType .. "::IndexerType indices;\n")
+    -- TODO introduce a hardware accelerated version when possible
+    f:write("    for (int i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i)\n")
+    f:write("    {\n")
+    f:write("        indices[i] = std::clamp(i + Amount, 0, static_cast<int>(" .. snipetsScalarType .. "::kThreadCount));\n")
+    f:write("    }\n")
+    f:write("    \n")
+    f:write("    return Permute" .. snipetTemplateSpecialisation .. "(V, indices);\n")
+    f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Rotate".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    int Amount\n")
+    f:write("    )\n")
+    f:write("{\n")
+    f:write("    " .. snipetsScalarType .. "::IndexerType indices;\n")
+    f:write("    const int base_offset = " .. snipetsScalarType .. "::kThreadCount + (Amount % " .. snipetsScalarType .. "::kThreadCount);\n")
+    -- TODO introduce a hardware accelerated version when possible
+    f:write("    for (int i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i)\n")
+    f:write("    {\n")
+    f:write("        indices[i] = (i + base_offset) % " .. snipetsScalarType .. "::kThreadCount;\n")
+    f:write("    }\n")
+    f:write("    \n")
+    f:write("    return Permute" .. snipetTemplateSpecialisation .. "(V, indices);\n")
     f:write("}\n")
     f:write("\n")
     -- f:write("template<>\n")
@@ -1272,11 +1342,11 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         f:write("    " .. snipetsScalarType .. " r(0);\n")
         f:write("    size_t idx = 0;\n")
         -- cannot really auto simdify this sequencial operation
-        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
         f:write("    {\n")
         f:write("        if (mask[i])\n")
-        f:write("            r.data[idx++] = V.data[i];\n")
+        f:write("            r.m[idx++] = V.m[i];\n")
         f:write("    }\n")
         f:write("    return r;\n")
     end
@@ -1293,11 +1363,11 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     --     f:write("    " .. snipetsScalarType .. " r(0);\n")
     --     f:write("    size_t idx = 0;\n")
     --     -- cannot really auto simdify this sequencial operation
-    --     f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+    --     f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
     --     f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
     --     f:write("    {\n")
     --     f:write("        if (mask[i])\n")
-    --     f:write("            r.data[idx++] = V.data[i];\n")
+    --     f:write("            r.m[idx++] = V.m[i];\n")
     --     f:write("    }\n")
     --     f:write("    return r;\n")
     -- end
@@ -1314,11 +1384,11 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         f:write("    " .. snipetsScalarType .. " r(0);\n")
         f:write("    size_t idx = 0;\n")
         -- cannot really auto simdify this sequencial operation
-        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
         f:write("    {\n")
         f:write("        if (mask[i])\n")
-        f:write("            r.data[i] = V.data[idx++];\n")
+        f:write("            r.m[i] = V.m[idx++];\n")
         f:write("    }\n")
         f:write("    return r;\n")
     end
@@ -1344,13 +1414,13 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i) if (mask[i]) count1++;\n")
         f:write("    \n")
         f:write("    size_t idx1 = count1, idx0 = 0;\n")
-        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
         f:write("    {\n")
         f:write("        if (mask[i])\n")
-        f:write("            r[idx1++] = V[i];\n")
+        f:write("            r.m[idx1++] = V.m[i];\n")
         f:write("        else\n")
-        f:write("            r[idx0++] = V[i];\n")
+        f:write("            r.m[idx0++] = V.m[i];\n")
         f:write("    }\n")
         f:write("    return r;\n")
     end
@@ -1375,13 +1445,13 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i) if (mask[i]) count1++;\n")
         f:write("    \n")
         f:write("    size_t idx1 = count1, idx0 = 0;\n")
-        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
         f:write("    {\n")
         f:write("        if (mask[i])\n")
-        f:write("            r[idx1++] = V[i];\n")
+        f:write("            r.m[i] = V.m[idx1++];\n")
         f:write("        else\n")
-        f:write("            r[idx0++] = V[i];\n")
+        f:write("            r.m[i] = V.m[idx0++];\n")
         f:write("    }\n")
         f:write("    return r;\n")
     end
@@ -1424,49 +1494,36 @@ local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
     f:write("    }\n")
     f:write("    return r;\n")
     f:write("}\n")
-    f:write("template<>\n")
-    f:write("INLINE " .. snipetsScalarType .." Shift".. snipetTemplateSpecialisation .. "(\n")
-    f:write("    const " .. snipetsScalarType .. "& V,\n")
-    f:write("    int Amount\n")
-    f:write("    )\n")
-    f:write("{\n")
-    f:write("    " .. snipetsScalarType .. "::IndexerType indices;\n")
-    -- TODO introduce a hardware accelerated version when possible
-    f:write("    for (int i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i)\n")
-    f:write("    {\n")
-    f:write("        indices[i] = std::clamp(i + Amount, 0, static_cast<int>(" .. snipetsScalarType .. "::kThreadCount));\n")
-    f:write("    }\n")
-    f:write("    \n")
-    f:write("    return Permute" .. snipetTemplateSpecialisation .. "(V, indices);\n")
-    f:write("}\n")
-    f:write("template<>\n")
-    f:write("INLINE " .. snipetsScalarType .." Rotate".. snipetTemplateSpecialisation .. "(\n")
-    f:write("    const " .. snipetsScalarType .. "& V,\n")
-    f:write("    int Amount\n")
-    f:write("    )\n")
-    f:write("{\n")
-    f:write("    " .. snipetsScalarType .. "::IndexerType indices;\n")
-    f:write("    const int base_offset = " .. snipetsScalarType .. "::kThreadCount + (Amount % " .. snipetsScalarType .. "::kThreadCount);\n")
-    -- TODO introduce a hardware accelerated version when possible
-    f:write("    for (int i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i)\n")
-    f:write("    {\n")
-    f:write("        indices[i] = (i + base_offset) % " .. snipetsScalarType .. "::kThreadCount;\n")
-    f:write("    }\n")
-    f:write("    \n")
-    f:write("    return Permute" .. snipetTemplateSpecialisation .. "(V, indices);\n")
-    f:write("}\n")
-    f:write("\n")
+end
 
+local function GetHighestSIMD_x86_ISA()
+    if gbUseSIMD_X86_AVX512 == true then
+        print("x86 Max is x86_AVX_512")
+        return ISAs.x86_AVX_512
+    elseif gbUseSIMD_X86_AVX == true then
+        print("x86 Max is x86_AVX")
+        return ISAs.x86_AVX
+    elseif gbUseSIMD_X86_SSE == true then
+        print("x86 Max is x86_SSE")
+        return ISAs.x86_SSE 
+    else
+        error("Unsupported ISA for x86")
+    end
+
+    return nil
 end
 
 local function UpdateMathSIMTHeadersX86(ISA, HeaderName)
-    local out_file = path.join(gb_IntermediatesDir, "generated", "MathSimt", HeaderName)
+    local out_file = path.join(gb_IntermediatesDir, "generated", "MathSimt", HeaderName .. ".h")
+    local out_functions_file = path.join(gb_IntermediatesDir, "generated", "MathSimt", HeaderName .. "_Functions.h")
     
     if not os.isdir(path.join(gb_IntermediatesDir, "generated", "MathSimt")) then
         os.mkdir(path.join(gb_IntermediatesDir, "generated", "MathSimt"))
     end
 
+    local ISA_Limit = GetHighestSIMD_x86_ISA()
     local f = io.open(out_file, "w")
+    local f2 = io.open(out_functions_file, "w")
 
     f:write("#pragma once\n\n")
     f:write("#include <immintrin.h>\n")
@@ -1477,16 +1534,61 @@ local function UpdateMathSIMTHeadersX86(ISA, HeaderName)
     f:write("namespace Math::Simt\n")
     f:write("{\n")
 
-    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.Int32)
-    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.UInt32)
-    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.Float)
-    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.Double)
-    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.Int8)
-    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.UInt8)
+    f2:write("#pragma once\n\n")
+    f2:write("#include <immintrin.h>\n")
+    f2:write("#include \"_Types.h\"\n")
+    f2:write("#include \"_TypesMSVCInterop.h\"\n")
+    f2:write("\n")
+
+    f2:write("namespace Math::Simt\n")
+    f2:write("{\n")
+
+    WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Int32, 1)
+    WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.UInt32, 1)
+    WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Float, 1)
+    WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Double, 1)
+    WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Int8, 1)
+    WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.UInt8, 1)
+
+    -- ISA specific fallbacks
+    if ISA == ISAs.x86_SSE then     
+        f:write("#ifndef USE_AVX\n")
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Int32, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.UInt32, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Float, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Double, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Int8, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.UInt8, 2)
+        f:write("#endif // !USE_AVX\n")
+
+        f:write("#ifndef USE_AVX512\n")
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Int32, 4)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.UInt32, 4)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Float, 4)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Double, 4)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Int8, 4)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.UInt8, 4)
+        f:write("#endif // !USE_AVX512\n")
+    elseif ISA == ISAs.x86_AVX then 
+
+        f:write("#ifndef USE_AVX512\n")
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Int32, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.UInt32, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Float, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Double, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.Int8, 2)
+        WriteMathSIMTx86Specialization(f, ISA, ISA_Limit, PrimitiveTypes.UInt8, 2)
+        f:write("#endif // !USE_AVX512\n")
+    elseif ISA == ISAs.x86_AVX_512 then
+    else
+        error("Unsupported ISA for x86")
+    end
 
     f:write("}\n")
+    f2:write("}\n")
 
     f:close()
+    f2:close()
 end
 
 local function UpdateConfig()
@@ -1532,17 +1634,17 @@ newaction {
 newaction {
     trigger = "update-simd",
     description = "update generated simd headers",
-    execute = function ()        
+    execute = function ()
         if gbUseSIMD_X86_SSE == true then
-            UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "_Types_SSE.h")
+            UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "_Types_SSE")
         end
 
         if gbUseSIMD_X86_AVX == true then
-            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "_Types_AVX.h")
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "_Types_AVX")
         end
 
         if gbUseSIMD_X86_AVX512 == true then
-            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "_Types_AVX512.h")
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "_Types_AVX512")
         end
     end
 }
