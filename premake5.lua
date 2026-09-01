@@ -563,14 +563,17 @@ group "Utilites"
 
         if gbUseSIMD_X86_SSE == true then
             files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_SSE.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_SSE_Functions.h"))
         end
 
         if gbUseSIMD_X86_AVX == true then
             files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX_Functions.h"))
         end
 
         if gbUseSIMD_X86_AVX512 == true then
             files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX512.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX512_Functions.h"))
         end
 
     project "Modeling"

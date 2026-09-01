@@ -214,7 +214,7 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
         ScalarType s = ScalarType::Load(buffer);
         for (size_t i = 0; i < N; ++i) REQUIRE(s[i] == T(i + 1));
 
-        ScalarType s_aligned = ScalarType::AlignedLoad(buffer + N);
+        ScalarType s_aligned = ScalarType::LoadAligned(buffer + N);
         for (size_t i = 0; i < N; ++i) REQUIRE(s_aligned[i] == T(i + N + 1));
 
         Mask<N> m;
@@ -233,7 +233,7 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
         for (size_t i = 0; i < N; ++i) REQUIRE(out_buffer[i] == T(i + 1));
 
         for (size_t i = 0; i < N; ++i) out_buffer[i] = T(0);
-        s.AlignedStore(out_buffer, m);
+        s.StoreAligned(out_buffer, m);
         for (size_t i = 0; i < N; ++i) {
             if (i % 2 == 0) REQUIRE(out_buffer[i] == T(i + 1));
             else REQUIRE(out_buffer[i] == T(0));
@@ -312,7 +312,7 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
             // first packed with mask, then packed with !mask
             size_t valid_cnt = 0;
             for (size_t i = 0; i < N; ++i) if (mask[i]) valid_cnt++;
-            size_t v_idx = 0, nv_idx = valid_cnt;
+            size_t v_idx = valid_cnt, nv_idx = 0;
             for (size_t i = 0; i < N; ++i) {
                 if (mask[i]) {
                     REQUIRE(splt[v_idx++] == T(i));

@@ -132,12 +132,12 @@ namespace Math::Simt
 
         static Scalar Load(const DataType* ptr);
         static Scalar Load(const DataType* ptr, const MaskType& mask);
-        static Scalar AlignedLoad(const DataType* ALIGNED(kAlignment) ptr);
-        static Scalar AlignedLoad(const DataType* ALIGNED(kAlignment) ptr, const MaskType& mask);
+        static Scalar LoadAligned(const DataType* ALIGNED(kAlignment) ptr);
+        static Scalar LoadAligned(const DataType* ALIGNED(kAlignment) ptr, const MaskType& mask);
         void Store(DataType* ptr) const;
         void Store(DataType* ptr, const Mask<ThreadCount>& mask) const;
-        void AlignedStore(DataType* ALIGNED(kAlignment) ptr) const;
-        void AlignedStore(DataType* ALIGNED(kAlignment) ptr, const MaskType& mask) const;
+        void StoreAligned(DataType* ALIGNED(kAlignment) ptr) const;
+        void StoreAligned(DataType* ALIGNED(kAlignment) ptr, const MaskType& mask) const;
         
         Scalar operator%(const Scalar& o) const requires std::is_integral_v<DataType> { Scalar r; for (size_t i=0; i<ThreadCount; ++i) r.m[i] = m[i] % o.m[i]; return r; }
         Scalar operator&(const Scalar& o) const requires std::is_integral_v<DataType> { Scalar r; for (size_t i=0; i<ThreadCount; ++i) r.m[i] = m[i] & o.m[i]; return r; }
@@ -533,7 +533,7 @@ namespace Math::Simt
     }
 
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
-    INLINE Scalar<DataType, ThreadCount> Scalar<DataType, ThreadCount>::AlignedLoad(const DataType* ptr)
+    INLINE Scalar<DataType, ThreadCount> Scalar<DataType, ThreadCount>::LoadAligned(const DataType* ptr)
     {
         Scalar m;
         MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)
@@ -545,7 +545,7 @@ namespace Math::Simt
     }
 
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
-    INLINE Scalar<DataType, ThreadCount> Scalar<DataType, ThreadCount>::AlignedLoad(const DataType* ptr,
+    INLINE Scalar<DataType, ThreadCount> Scalar<DataType, ThreadCount>::LoadAligned(const DataType* ptr,
         const Mask<ThreadCount>& mask)
     {
         Scalar m;
@@ -578,7 +578,7 @@ namespace Math::Simt
     }
 
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
-    INLINE void Scalar<DataType, ThreadCount>::AlignedStore(DataType* ptr) const
+    INLINE void Scalar<DataType, ThreadCount>::StoreAligned(DataType* ptr) const
     {
         MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)
                 for (size_t i = 0; i < ThreadCount; ++i)
@@ -588,7 +588,7 @@ namespace Math::Simt
     }
 
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
-    INLINE void Scalar<DataType, ThreadCount>::AlignedStore(DataType* ptr, const Mask<ThreadCount>& mask) const
+    INLINE void Scalar<DataType, ThreadCount>::StoreAligned(DataType* ptr, const Mask<ThreadCount>& mask) const
     {
         MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)
                 for (size_t i = 0; i < ThreadCount; ++i)
