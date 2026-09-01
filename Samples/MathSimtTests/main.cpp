@@ -1,5 +1,4 @@
-#include "MathSimt/Types.h"
-#include "MathSimt/Functions.h"
+#include "MathSimt/RMath.h"
 
 #include <cstdio>
 

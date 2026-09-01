@@ -40,6 +40,21 @@ newoption {
 }
 
 newoption {
+   trigger = "simd-x86-sse",
+   description = "Enable SSE instruction generation for x86"
+}
+
+newoption {
+   trigger = "simd-x86-avx",
+   description = "Enable AVX instruction generation for x86"
+}
+
+newoption {
+   trigger = "simd-x86-avx512",
+   description = "Enable AVX-512 instruction generation for x86"
+}
+
+newoption {
    trigger = "dependencies-toolset",
    value = "compiler",
    description = "Toolset used to compile dependencies. \"unset\" by default",
@@ -69,6 +84,91 @@ local clang_matching_compilers = {
     },
 }
 
+local PrimitiveTypes =
+{
+    Float = {
+        Name = "float",
+        Size = 4,
+        IsFloatingPoint = true,
+        x86_SIMD_Suffix = "ps",
+        x86_SIMD_Reg_Suffix = "",
+    },
+    Double = {
+        Name = "double",
+        Size = 8,
+        IsFloatingPoint = true,
+        x86_SIMD_Suffix = "pd",
+        x86_SIMD_Reg_Suffix = "d",
+    },
+    Int32 = {
+        Name = "int32_t",
+        Size = 4,
+        IsFloatingPoint = false,
+        x86_SIMD_Suffix = "epi32",
+        x86_SIMD_Reg_Suffix = "i",
+    },
+    UInt32 = {
+        Name = "uint32_t",
+        Size = 4,
+        IsFloatingPoint = false,
+        x86_SIMD_Suffix = "epi32",
+        x86_SIMD_Reg_Suffix = "i",
+    },
+    Int8 = {
+        Name = "int8_t",
+        Size = 1,
+        IsFloatingPoint = false,
+        x86_SIMD_Suffix = "epi8",
+        x86_SIMD_Reg_Suffix = "i",
+    },
+    UInt8 = {
+        Name = "uint8_t",
+        Size = 1,
+        IsFloatingPoint = false,
+        x86_SIMD_Suffix = "epi8",
+        x86_SIMD_Reg_Suffix = "i"
+    },
+}
+
+local function MakeX86_SIMD_ISA(PrimitiveType, X86_Register, RegisterSize)
+    return {
+        Type = PrimitiveType.Name,
+        ElementCount = math.floor(RegisterSize / PrimitiveType.Size),
+        Register = X86_Register .. PrimitiveType.x86_SIMD_Reg_Suffix,
+        Suffix = PrimitiveType.x86_SIMD_Suffix,
+        Alignment = RegisterSize,
+        IsFloatingPoint = PrimitiveType.IsFloatingPoint,
+        ElementSize = PrimitiveType.Size,
+    }
+end
+
+local ISAs = {
+    x86_SSE = {
+        Float = MakeX86_SIMD_ISA(PrimitiveTypes.Float, "__m128", 16),
+        Double = MakeX86_SIMD_ISA(PrimitiveTypes.Double, "__m128", 16),
+        Int32 = MakeX86_SIMD_ISA(PrimitiveTypes.Int32, "__m128", 16),
+        UInt32 = MakeX86_SIMD_ISA(PrimitiveTypes.UInt32, "__m128", 16),
+        Int8 = MakeX86_SIMD_ISA(PrimitiveTypes.Int8, "__m128", 16),
+        UInt8 = MakeX86_SIMD_ISA(PrimitiveTypes.UInt8, "__m128", 16),
+    },
+    x86_AVX = {
+        Float = MakeX86_SIMD_ISA(PrimitiveTypes.Float, "__m256", 32),
+        Double = MakeX86_SIMD_ISA(PrimitiveTypes.Double, "__m256", 32),
+        Int32 = MakeX86_SIMD_ISA(PrimitiveTypes.Int32, "__m256", 32),
+        UInt32 = MakeX86_SIMD_ISA(PrimitiveTypes.UInt32, "__m256", 32),
+        Int8 = MakeX86_SIMD_ISA(PrimitiveTypes.Int8, "__m256", 32),
+        UInt8 = MakeX86_SIMD_ISA(PrimitiveTypes.UInt8, "__m256", 32),
+    }, 
+    x86_AVX_512 = {
+        Float = MakeX86_SIMD_ISA(PrimitiveTypes.Float, "__m512", 64),
+        Double = MakeX86_SIMD_ISA(PrimitiveTypes.Double, "__m512", 64),
+        Int32 = MakeX86_SIMD_ISA(PrimitiveTypes.Int32, "__m512", 64),
+        UInt32 = MakeX86_SIMD_ISA(PrimitiveTypes.UInt32, "__m512", 64),
+        Int8 = MakeX86_SIMD_ISA(PrimitiveTypes.Int8, "__m512", 64),
+        UInt8 = MakeX86_SIMD_ISA(PrimitiveTypes.UInt8, "__m512", 64),
+    }
+}
+
 function GetCoreCount()
     if os.host() == "windows" then
         return tonumber(os.getenv("NUMBER_OF_PROCESSORS")) or 1
@@ -82,7 +182,7 @@ function GetCoreCount()
     return 1
 end
 
-function GetDependenciesProjectPath()
+local function GetDependenciesProjectPath()
     depPath = nil
     
     if (_ACTION == "setup" or _ACTION:startswith("update")) then
@@ -126,7 +226,7 @@ function GetDependenciesProjectPath()
     return depPath
 end
 
-function UpdateSampleScenes()
+local function UpdateSampleScenes()
     local resourcesDir = path.join(gb_SamplesDir, "Scenes")
     
     print("[sample-assets] Checking Resources folder...")
@@ -169,7 +269,7 @@ function UpdateSampleScenes()
     print("\n[sample-assets] All repositories processed.")
 end
 
-function UpdateShaderCompiler()
+local function UpdateShaderCompiler()
     local shadercCompilerRepo = "https://github.com/google/shaderc.git"
     local shadercDir = path.join(gb_ToolsDependencyDir, "shaderc")
     
@@ -421,7 +521,975 @@ local function GenerateCatch2Config()
     out:close()
 end
 
-function UpdateConfig()
+local function WriteMathSIMTx86Specialization(f, x86_ISA, PrimitiveType)
+    local ISA;
+    if PrimitiveType == PrimitiveTypes.Float then
+        ISA = x86_ISA.Float
+    elseif PrimitiveType == PrimitiveTypes.Double then
+        ISA = x86_ISA.Double
+    elseif PrimitiveType == PrimitiveTypes.Int32 then
+        ISA = x86_ISA.Int32
+    elseif PrimitiveType == PrimitiveTypes.UInt32 then
+        ISA = x86_ISA.UInt32
+    elseif PrimitiveType == PrimitiveTypes.Int8 then
+        ISA = x86_ISA.Int8
+    elseif PrimitiveType == PrimitiveTypes.UInt8 then
+        ISA = x86_ISA.UInt8
+    else
+        error("Unsupported x86 ISA")
+    end
+
+    -- Intrinsics parts
+    local intrinCat;
+    local intrinZeroSuffix;
+    if x86_ISA == ISAs.x86_SSE then 
+        intrinCat = "mm"
+        if ISA.IsFloatingPoint == true then 
+            intrinZeroSuffix = ISA.Suffix 
+        else 
+            intrinZeroSuffix = "si128" 
+        end
+    elseif x86_ISA == ISAs.x86_AVX then 
+        intrinCat = "mm256"
+        if ISA.IsFloatingPoint == true then 
+            intrinZeroSuffix = ISA.Suffix 
+        else 
+            intrinZeroSuffix = "si256" 
+        end
+    elseif x86_ISA == ISAs.x86_AVX_512 then 
+        intrinCat = "mm512"
+        if ISA.IsFloatingPoint == true then 
+            intrinZeroSuffix = ISA.Suffix 
+        else 
+            intrinZeroSuffix = "si512" 
+        end
+    else
+        error("Unsupported ISA for x86")
+    end
+    local intrinMulName;
+    if not ISA.IsFloatingPoint then intrinMulName = "mullo" else intrinMulName = "mul"end
+    local intrinDivAvailable = ISA.IsFloatingPoint
+    local intrinMulAvailable = true
+    local intrinLoadStoreAvailable = true
+    local intrinLoadStoreAlignedAvailable = true
+    local intrinLoadStoreRequireInt32Cast = false
+    local intrinBitShiftingAvailable = true
+    local intrinMaskedLoadStoreAvailable = true
+    local intrinMovemask32bits = true
+    local intrinIs8bit = false
+    local intrinIs32bit = false
+    local intrinIs32bitInteger = false
+    local intrinIs64bit = false
+    local intrinIsScatterAvailable = false
+    local intrinIsPermuteAvailagle = true
+    local intrinIsCompressAvailable = false
+    if x86_ISA == ISAs.x86_AVX_512 then
+        intrinDivAvailable = true
+        intrinIsScatterAvailable = true
+        intrinIsCompressAvailable = true
+    end
+        if x86_ISA == ISAs.x86_SSE then
+        intrinIsPermuteAvailagle = false
+    end
+    if PrimitiveType == PrimitiveTypes.Int8 then
+        intrinMulAvailable = false
+        intrinLoadStoreAvailable = false
+        intrinBitShiftingAvailable = false
+        intrinMaskedLoadStoreAvailable = false
+        intrinMovemask32bits = false
+        intrinIs8bit = true
+        intrinIsPermuteAvailagle = false
+        intrinIsScatterAvailable = false
+    elseif PrimitiveType == PrimitiveTypes.UInt8 then
+        intrinMulAvailable = false
+        intrinLoadStoreAvailable = false
+        intrinBitShiftingAvailable = false
+        intrinMaskedLoadStoreAvailable = false
+        intrinMovemask32bits = false
+        intrinIs8bit = true
+        intrinIsPermuteAvailagle = false
+        intrinIsScatterAvailable = false
+    elseif PrimitiveType == PrimitiveTypes.Float then
+        intrinIs32bit = true
+    elseif PrimitiveType == PrimitiveTypes.Double then
+        intrinIs64bit = true
+    elseif PrimitiveType == PrimitiveTypes.Int32 then
+        intrinIs32bit = true
+        intrinIs32bitInteger = true
+    elseif PrimitiveType == PrimitiveTypes.UInt32 then
+        intrinIs32bit = true
+        intrinIs32bitInteger = true
+        intrinLoadStoreRequireInt32Cast = true
+    end
+    local intrinArithmeticAvailable = {
+        ["+"] = true, 
+        ["-"] = true, 
+        ["/"] = intrinDivAvailable, 
+        ["*"] = intrinMulAvailable
+    }
+
+    -- Generated intrinsics
+    local intrinFuncZero = "_" .. intrinCat .. "_setzero_" .. intrinZeroSuffix
+    local intrinFuncSet1 = "_" .. intrinCat .. "_set1_" .. ISA.Suffix
+    local intrinFuncLoadUnaligned = "_" .. intrinCat .. "_loadu_" .. ISA.Suffix
+    local intrinFuncLoadAligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "load")
+    local intrinFuncStoreUnaligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "storeu")
+    local intrinFuncStoreAligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "store")
+    local intrinFuncMaskedLoadUnaligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "maskload")
+    local intrinFuncMaskedLoadAligned = intrinFuncMaskedLoadUnaligned
+    local intrinFuncMaskedStoreUnaligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "maskstore")
+    local intrinFuncMaskedStoreAligned = intrinFuncMaskedStoreUnaligned
+    if x86_ISA == ISAs.x86_AVX_512 then
+        intrinFuncMaskedLoadUnaligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "mask_loadu")
+        intrinFuncMaskedLoadAligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "mask_load")
+        intrinFuncMaskedStoreUnaligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "mask_storeu")
+        intrinFuncMaskedStoreAligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "mask_store")
+    end
+    local intrinFuncAdd = "_" .. intrinCat .. "_add_" .. ISA.Suffix
+    local intrinFuncSub = "_" .. intrinCat .. "_sub_" .. ISA.Suffix
+    local intrinFuncMul = "_" .. intrinCat .. "_" .. intrinMulName .. "_" .. ISA.Suffix
+    local intrinFuncDiv = "_" .. intrinCat .. "_div_" .. ISA.Suffix
+    local intrinFuncRound = "_" .. intrinCat .. "_floor_" .. ISA.Suffix
+    if x86_ISA == ISAs.x86_AVX_512 then
+        intrinFuncRound = "_" .. intrinCat .. "_roundscale_" .. ISA.Suffix
+    end
+    local intrinFuncBitwiseAnd = "_" .. intrinCat .. "_and_" .. intrinZeroSuffix
+    local intrinFuncBitwiseOr = "_" .. intrinCat .. "_or_" .. intrinZeroSuffix
+    local intrinFuncBitwiseXOr = "_" .. intrinCat .. "_xor_" .. intrinZeroSuffix
+    local intrinFuncShiftLeft = "_" .. intrinCat .. "_slli_" .. ISA.Suffix
+    local intrinFuncShiftRight = "_" .. intrinCat .. "_srai_" .. ISA.Suffix
+    local intrinFuncCmpEqual = "_" .. intrinCat .. "_cmpeq_" .. ISA.Suffix
+    local intrinFuncCmpNotEqual = intrinFuncCmpEqual
+    local intrinFuncCmpGreaterOrEqual = "_" .. intrinCat .. "_cmpge_" .. ISA.Suffix
+    local intrinFuncCmpGreater = "_" .. intrinCat .. "_cmpgt_" .. ISA.Suffix
+    local intrinFuncCmpLessOrEqual = "_" .. intrinCat .. "_cmple_" .. ISA.Suffix
+    local intrinFuncCmpLess = "_" .. intrinCat .. "_cmplt_" .. ISA.Suffix
+    if ISA.IsFloatingPoint then
+        intrinFuncCmpEqual = string.gsub(intrinFuncCmpEqual, "cmpeq", "cmp")
+        intrinFuncCmpNotEqual = string.gsub(intrinFuncCmpNotEqual, "cmpeq", "cmp")
+        intrinFuncCmpGreaterOrEqual = string.gsub(intrinFuncCmpGreaterOrEqual, "cmpge", "cmp")
+        intrinFuncCmpGreater = string.gsub(intrinFuncCmpGreater, "cmpgt", "cmp")
+        intrinFuncCmpLessOrEqual = string.gsub(intrinFuncCmpLessOrEqual, "cmple", "cmp")
+        intrinFuncCmpLess = string.gsub(intrinFuncCmpLess, "cmplt", "cmp")
+    end
+    if x86_ISA == ISAs.x86_AVX_512 then 
+        intrinFuncCmpEqual = intrinFuncCmpEqual .. "_mask"
+        intrinFuncCmpGreaterOrEqual = intrinFuncCmpGreaterOrEqual .. "_mask"
+        intrinFuncCmpGreater = intrinFuncCmpGreater .. "_mask"
+        intrinFuncCmpLessOrEqual = intrinFuncCmpLessOrEqual .. "_mask"
+        intrinFuncCmpLess = intrinFuncCmpLess .. "_mask"
+
+        if not ISA.IsFloatingPoint then
+            intrinFuncCmpNotEqual = string.gsub(intrinFuncCmpEqual, "cmpeq", "cmpneq")
+        else
+            intrinFuncCmpNotEqual = intrinFuncCmpEqual
+        end
+    end
+    local intrinFuncBlend = "_" .. intrinCat .. "_blendv_" .. ISA.Suffix
+    if x86_ISA == ISAs.x86_AVX_512 then 
+        intrinFuncBlend = "_" .. intrinCat .. "_mask_blend_" .. ISA.Suffix
+    elseif intrinIs32bitInteger == true then
+        intrinFuncBlend = "_" .. intrinCat .. "_blend_" .. ISA.Suffix
+    elseif ISA.IsFloatingPoint == true then
+        intrinFuncBlend = "_" .. intrinCat .. "_blend_" .. ISA.Suffix
+    end
+    local intrinFuncShuffle = "_" .. intrinCat .. "_shuffle_" .. ISA.Suffix
+    local intrinFuncI32Gather = "_" .. intrinCat .. "_i32gather_" .. ISA.Suffix
+    local intrinFuncI32Scatter = "_" .. intrinCat .. "_i32scatter_" .. ISA.Suffix
+    local intrinFuncPermute = "_" .. intrinCat .. "_permutevar8x32_" .. ISA.Suffix
+    if x86_ISA == ISAs.x86_AVX_512 then
+        intrinFuncPermute = "_" .. intrinCat .. "_permutexvar_" .. ISA.Suffix
+    elseif x86_ISA == ISAs.x86_AVX then
+        if intrinIs32bit == true then
+            intrinFuncPermute = "_" .. intrinCat .. "_permutevar8x32_" .. ISA.Suffix
+        elseif intrinIs64bit == true then
+            intrinFuncPermute = "_" .. intrinCat .. "_permute4x64_" .. ISA.Suffix
+        end
+    end
+    local intrinFuncCompress = "_" .. intrinCat .. "_maskz_compress_" .. ISA.Suffix
+    local intrinFuncCompressPassTrough = "_" .. intrinCat .. "_mask_compress_" .. ISA.Suffix
+    local intrinFuncExpand = "_" .. intrinCat .. "_maskz_expand_" .. ISA.Suffix
+    local intrinFuncExpandPassTrough = "_" .. intrinCat .. "_mask_expand_" .. ISA.Suffix
+    local intrinFuncPopcountMask = "_mm_popcnt_u64"
+
+    -- operators
+    local opsArithmetical = { 
+        {"+", "add", intrinFuncAdd}, 
+        {"-", "sub", intrinFuncSub}, 
+        {"*", "mul", intrinFuncMul}, 
+        {"/", "div", intrinFuncDiv}
+    }
+    local opsLogicalTests = { 
+        {"==", intrinFuncCmpEqual, "", "_CMP_EQ_OQ", "" }, 
+        {"!=", intrinFuncCmpEqual, "~", "_CMP_NEQ_UQ", "" }, 
+        {">", intrinFuncCmpGreater, "", "_CMP_GT_OQ", "" }, 
+        {">=", intrinFuncCmpGreaterOrEqual, "", "_CMP_GE_OQ", "" }, 
+        {"<", intrinFuncCmpLess, "", "_CMP_LT_OQ", "" }, 
+        {"<=", intrinFuncCmpLessOrEqual, "", "_CMP_LE_OQ", "" }, 
+    }
+
+    -- AVX only defines equals and greater than operators for ints
+    if x86_ISA == ISAs.x86_AVX then
+        opsLogicalTests[1][5] = "" -- ==
+        opsLogicalTests[2][5] = "!(this->operator==(other))" -- !=
+        opsLogicalTests[3][5] = "" -- >
+        opsLogicalTests[4][5] = "(this->operator>(other) | this->operator==(other))" -- >=
+        opsLogicalTests[5][5] = "other.operator>(*this)" -- <
+        opsLogicalTests[6][5] = "(this->operator>(other) | this->operator==(other))" -- <=
+    elseif x86_ISA == ISAs.x86_SSE then
+        opsLogicalTests[1][5] = "" -- ==
+        opsLogicalTests[2][5] = "!(this->operator==(other))" -- !=
+        opsLogicalTests[3][5] = "" -- >
+        opsLogicalTests[4][5] = "(this->operator>(other) | this->operator==(other))" -- >=
+        opsLogicalTests[5][5] = "other.operator>(*this)" -- <
+        opsLogicalTests[6][5] = "(this->operator>(other) | this->operator==(other))" -- <=
+    end
+
+    -- Shared generated code
+    local snipetTemplateSpecialisation = "<".. ISA.Type .. ", " .. tostring(ISA.ElementCount) .. ">"
+    local snipetsScalarType = "Scalar".. snipetTemplateSpecialisation
+    local snipetsPrepareMaskBypass = "        const ".. snipetsScalarType .. "::MaskType::Type& intrin_mask = mask.bits;\n"
+    local snipetsPrepareMask = ""
+    if x86_ISA == ISAs.x86_SSE then 
+        if intrinIs8bit then
+            snipetsPrepareMask = snipetsPrepareMask .. "        __m128i intrin_mask = _mm_set1_epi32(mask.bits);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        const __m128i shuffle_mask = _mm_setr_epi8(\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            0,0,0,0,0,0,0,0,\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            1,1,1,1,1,1,1,1\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        );\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = " .. intrinFuncShuffle .. "(intrin_mask, shuffle_mask);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        __m128i bit_isolate = _mm_setr_epi8(\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            1u<<0u, 1u<<1u, 1u<<2u, 1u<<3u, 1u<<4u, 1u<<5u, 1u<<6u, 1u<<7u,\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            1u<<0u, 1u<<1u, 1u<<2u, 1u<<3u, 1u<<4u, 1u<<5u, 1u<<6u, 1u<<7u\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        );\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm_and_si128(intrin_mask, bit_isolate);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm_cmpeq_epi8(intrin_mask, bit_isolate);\n"
+        else
+            snipetsPrepareMask = snipetsPrepareMask .. "        __m128i intrin_mask = _mm_set1_epi32(mask.bits);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        __m128i bit_isolate = _mm_setr_epi32(1<<0, 1<<1, 1<<2, 1<<3);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm_and_si128(intrin_mask, bit_isolate);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm_cmpeq_epi32(intrin_mask, bit_isolate);\n"
+        end
+    elseif x86_ISA == ISAs.x86_AVX then 
+        if intrinIs8bit then
+            snipetsPrepareMask = snipetsPrepareMask .. "        __m256i intrin_mask = _mm256_set1_epi32(mask.bits);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        const __m256i shuffle_mask = _mm256_setr_epi8(\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            0,0,0,0,0,0,0,0,\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            1,1,1,1,1,1,1,1,\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            2,2,2,2,2,2,2,2,\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            3,3,3,3,3,3,3,3\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        );\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = " .. intrinFuncShuffle .. "(intrin_mask, shuffle_mask);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        __m256i bit_isolate = _mm256_setr_epi8(\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            1u<<0u, 1u<<1u, 1u<<2u, 1u<<3u, 1u<<4u, 1u<<5u, 1u<<6u, 1u<<7u,\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            1u<<0u, 1u<<1u, 1u<<2u, 1u<<3u, 1u<<4u, 1u<<5u, 1u<<6u, 1u<<7u,\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            1u<<0u, 1u<<1u, 1u<<2u, 1u<<3u, 1u<<4u, 1u<<5u, 1u<<6u, 1u<<7u,\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "            1u<<0u, 1u<<1u, 1u<<2u, 1u<<3u, 1u<<4u, 1u<<5u, 1u<<6u, 1u<<7u\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        );\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm256_and_si256(intrin_mask, bit_isolate);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm256_cmpeq_epi32(intrin_mask, bit_isolate);\n"
+        else
+            snipetsPrepareMask = snipetsPrepareMask .. "        __m256i intrin_mask = _mm256_set1_epi32(mask.bits);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        __m256i bit_isolate = _mm256_setr_epi32(1<<0, 1<<1, 1<<2, 1<<3, 1<<4, 1<<5, 1<<6, 1<<7);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm256_and_si256(intrin_mask, bit_isolate);\n"
+            snipetsPrepareMask = snipetsPrepareMask .. "        intrin_mask = _mm256_cmpeq_epi32(intrin_mask, bit_isolate);\n"
+        end
+    elseif x86_ISA == ISAs.x86_AVX_512 then
+        snipetsPrepareMask = snipetsPrepareMask .. "        const ".. snipetsScalarType .. "::MaskType::Type& intrin_mask = mask.bits;\n"
+    else
+        error("Unsupported ISA for x86")
+    end
+    local snipetsPackMask = ""
+    if x86_ISA == ISAs.x86_AVX_512 then
+        snipetsPackMask = snipetsPackMask .. "res"
+    elseif PrimitiveType == PrimitiveTypes.Double then
+        snipetsPackMask = snipetsPackMask .. "_" .. intrinCat .. "_movemask_pd(res)"
+    elseif intrinMovemask32bits then
+        snipetsPackMask = snipetsPackMask .. "_" .. intrinCat .. "_movemask_ps("
+        if not ISA.IsFloatingPoint then
+            snipetsPackMask = snipetsPackMask .. "_" .. intrinCat .. "_cast" .. intrinZeroSuffix .. "_ps("
+        end
+        snipetsPackMask = snipetsPackMask .. "res)"
+        if not ISA.IsFloatingPoint then
+            snipetsPackMask = snipetsPackMask .. ")"
+        end
+    else
+        snipetsPackMask = snipetsPackMask .. "_" .. intrinCat .. "_movemask_epi8(res)"
+    end
+    local snipetPack2OneBitsIndices = "    int intrin_indices = 0;\n"
+    snipetPack2OneBitsIndices = snipetPack2OneBitsIndices .. "    intrin_indices |= (indices[0] & 1);\n"
+    snipetPack2OneBitsIndices = snipetPack2OneBitsIndices .. "    intrin_indices |= (indices[1] & 1) << 1;\n"
+    local snipetPack4TwoBitsIndices = "    int intrin_indices = 0;\n"
+    snipetPack4TwoBitsIndices = snipetPack4TwoBitsIndices .. "    intrin_indices |= (indices[0] & 3);\n"
+    snipetPack4TwoBitsIndices = snipetPack4TwoBitsIndices .. "    intrin_indices |= (indices[1] & 3) << (1 * 2);\n"
+    snipetPack4TwoBitsIndices = snipetPack4TwoBitsIndices .. "    intrin_indices |= (indices[2] & 3) << (2 * 2);\n"
+    snipetPack4TwoBitsIndices = snipetPack4TwoBitsIndices .. "    intrin_indices |= (indices[3] & 3) << (3 * 2);\n"
+
+    f:write("// Scalar specialization for " .. ISA.Type .. " x " .. ISA.ElementCount .. "\n")
+    f:write("template<> struct alignas(" .. ISA.Alignment .. ") " .. snipetsScalarType .. "\n")
+    f:write("{\n")
+    f:write("    using Type = ".. ISA.Type ..";\n")
+    f:write("    using MaskType = Mask<".. ISA.ElementCount ..">;\n")
+    f:write("    using IndexerType = Scalar<int32_t, ".. ISA.ElementCount ..">;\n")
+    f:write("    \n")
+    f:write("    static constexpr size_t kThreadCount = ".. ISA.ElementCount ..";\n")
+    f:write("    static constexpr size_t kAlignment = ".. ISA.Alignment ..";\n")
+    f:write("    \n")
+    f:write("    static consteval size_t Size() {return kThreadCount;}\n")
+    f:write("    \n")
+    f:write("#if defined(__GNUC__) || defined(__clang__)\n")
+    f:write("   Type ALIGNED_VECTOR(kAlignment, kAlignment) m;\n")
+    f:write("#else\n")
+    f:write("   union { " .. ISA.Register .. " reg; Type data[kThreadCount]; };\n")
+    f:write("#endif\n")
+    f:write("\n")
+    f:write("    INLINE Scalar() : reg(" .. intrinFuncZero .. "()) {}\n")
+    f:write("    INLINE Scalar(Type val) : reg(" .. intrinFuncSet1 .. "(val)) {}\n")
+    f:write("    INLINE Scalar(" .. ISA.Register .. " registerVector) : reg(registerVector) {}\n")
+    f:write("    INLINE Scalar(std::initializer_list<Type> list)\n")
+    f:write("    {\n")
+    f:write("        Type tmp [kThreadCount] = {0}; size_t i = 0;\n")
+    f:write("        \n")
+    f:write("        for (auto v : list) if (i < kThreadCount) tmp[i++] = v;\n")
+    f:write("        \n")
+    f:write("        reg = " .. intrinFuncLoadUnaligned .. "(tmp);\n")
+    f:write("    }\n")
+    f:write("    INLINE Scalar(const Scalar& other) : reg(other.reg){}\n")
+    f:write("    INLINE Scalar& operator = (Type val) {reg = " .. intrinFuncSet1 .. "(val); return *this;}\n")
+    f:write("    INLINE Scalar& operator = (const Scalar& other) {reg = other.reg; return *this;}\n")
+    f:write("    INLINE Scalar& operator = (std::initializer_list<Type> list)\n")
+    f:write("    {\n")
+    f:write("        Type tmp [kThreadCount] = {0}; size_t i = 0;\n")
+    f:write("        \n")
+    f:write("        for (auto v : list) if (i < kThreadCount) tmp[i++] = v;\n")
+    f:write("        \n")
+    f:write("        reg = " .. intrinFuncLoadUnaligned .. "(tmp);\n")
+    f:write("        return *this;\n")
+    f:write("    }\n")
+    f:write("    \n")
+    f:write("    INLINE Type& operator [] (size_t index) {return data[index];}\n")
+    f:write("    INLINE const Type& operator [] (size_t index) const {return data[index];}\n")
+    f:write("    \n")
+
+    -- Arithmetical operators
+    for _, op_info in ipairs(opsArithmetical) do
+        local op, name, func = op_info[1], op_info[2], op_info[3]
+
+        f:write("    INLINE Scalar& operator " .. op .. "= (const Scalar& V)\n")
+        f:write("    {\n")
+        if not intrinArithmeticAvailable[op] then
+            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment)\n")
+            f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+            f:write("        {\n")
+            f:write("            data[i] = data[i] " .. op .. " V.data[i];\n")
+            f:write("        }\n")
+        else
+            f:write("        reg = " .. func .. "(reg, V.reg);\n")
+        end
+        f:write("        \n")
+        f:write("        return *this;\n")
+        f:write("    }\n")
+        f:write("    INLINE Scalar& operator " .. op .. "= (Type val) {return (*this) " .. op .. "= Scalar(val);}\n")
+
+        f:write("    INLINE Scalar operator " .. op .. " (const Scalar& V) const\n")
+        f:write("    {\n")
+        f:write("        Scalar r;\n")
+        if not intrinArithmeticAvailable[op] then
+            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+            f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+            f:write("        {\n")
+            f:write("            r.data[i] = data[i] " .. op .. " V.data[i];\n")
+            f:write("        }\n")
+        else
+            f:write("        r.reg = " .. func .. "(reg, V.reg);\n")
+        end
+        f:write("        \n")
+        f:write("        return r;\n")
+        f:write("    }\n")
+        f:write("    INLINE Scalar operator " .. op .. " (Type val) const {return (*this) " .. op .. " Scalar(val);}\n")
+        f:write("    \n")
+    end
+    f:write("    INLINE Scalar operator % (const Scalar& V)\n")
+    f:write("    {\n")
+    f:write("        Scalar div = *this / V, truncated;\n")
+    if ISA.IsFloatingPoint then
+        if x86_ISA == ISAs.x86_AVX_512 then
+            f:write("        truncated.reg = " .. intrinFuncRound .. "(div.reg, _MM_FROUND_TO_NEG_INF);\n")
+        else
+            f:write("        truncated.reg = " .. intrinFuncRound .. "(div.reg);\n")
+        end
+    end
+    f:write("        Scalar r = div - truncated;\n")
+    f:write("        return r * V;\n")
+    f:write("    }\n")
+    f:write("    INLINE Scalar operator % (Type val) {return (*this) % Scalar(val);}\n")
+    f:write("    INLINE Scalar operator-() const\n")
+    f:write("    {\n")
+    if ISA.IsFloatingPoint then
+        f:write("        return Scalar(-0) ^ *this;\n")
+    else
+        f:write("        return Scalar(0) - *this;\n")
+    end
+    f:write("    }\n")
+    f:write("    \n")
+
+    -- Set operators
+    f:write("    INLINE Scalar& Zero() {reg = " .. intrinFuncZero .. "(); return *this;}\n")
+    f:write("    \n")
+
+    -- Load/Store operators
+    f:write("    INLINE static Scalar Load(const Type* ptr)\n")
+    f:write("    {\n")
+    f:write("        Scalar r;\n")
+    if intrinLoadStoreAvailable then
+        f:write("        r.reg = " .. intrinFuncLoadUnaligned .. "(ptr);\n")
+    else
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment)\n")
+        f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+        f:write("        {\n")
+        f:write("            r.data[i] = ptr[i];\n")
+        f:write("        }\n")
+    end
+    f:write("        return r;\n")
+    f:write("    }\n")
+    f:write("    INLINE static Scalar Load(const Type* ptr, const MaskType& mask)\n")
+    f:write("    {\n")
+    f:write("        Scalar r;\n")
+    if intrinMaskedLoadStoreAvailable then
+        f:write(         snipetsPrepareMask)
+        if x86_ISA == ISAs.x86_AVX_512 then
+            f:write("        r.reg = " .. intrinFuncMaskedLoadUnaligned .. "(r.reg, intrin_mask, ptr);\n")
+        elseif intrinLoadStoreRequireInt32Cast == true then
+            f:write("        r.reg = " .. intrinFuncMaskedLoadUnaligned .. "((const int*)(ptr), intrin_mask);\n")
+        else
+            f:write("        r.reg = " .. intrinFuncMaskedLoadUnaligned .. "(ptr, intrin_mask);\n")
+        end
+    else
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+        f:write("        {\n")
+        f:write("            r.data[i] = mask[i] ? ptr[i] : Type(0);\n")
+        f:write("        }\n")
+    end
+    f:write("        return r;\n")
+    f:write("    }\n")
+    f:write("    INLINE static Scalar AlignedLoad(const Type* ptr)\n")
+    f:write("    {\n")
+    f:write("        Scalar r;\n")
+    if intrinLoadStoreAvailable then
+        f:write("        r.reg = " .. intrinFuncLoadAligned .. "(ptr);\n")
+    else
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+        f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+        f:write("        {\n")
+        f:write("            r.data[i] = ptr[i];\n")
+        f:write("        }\n")
+    end
+    f:write("        return r;\n")
+    f:write("    }\n")
+    f:write("    INLINE static Scalar AlignedLoad(const Type* ptr, const MaskType& mask)\n")
+    f:write("    {\n")
+    f:write("        Scalar r;\n")
+    if intrinMaskedLoadStoreAvailable then
+        f:write(         snipetsPrepareMask)
+        if x86_ISA == ISAs.x86_AVX_512 then
+            f:write("        r.reg = " .. intrinFuncMaskedLoadAligned .. "(r.reg, intrin_mask, ptr);\n")
+        elseif intrinLoadStoreRequireInt32Cast == true then
+            f:write("        r.reg = " .. intrinFuncMaskedLoadAligned .. "((const int*)(ptr), intrin_mask);\n")
+        else
+            f:write("        r.reg = " .. intrinFuncMaskedLoadAligned .. "(ptr, intrin_mask);\n")
+        end
+    else
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+        f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+        f:write("        {\n")
+        f:write("            r.data[i] = mask[i] ? ptr[i] : Type(0);\n")
+        f:write("        }\n")
+    end
+    f:write("        return r;\n")
+    f:write("    }\n")
+    f:write("    \n")
+    f:write("    INLINE void Store(Type* ptr)\n")
+    f:write("    {\n")
+    if intrinLoadStoreAvailable then
+        f:write("        " .. intrinFuncStoreUnaligned .. "(ptr, reg);\n")
+    else
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment)\n")
+        f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+        f:write("        {\n")
+        f:write("            ptr[i] = data[i];\n")
+        f:write("        }\n")
+    end
+    f:write("    }\n")
+    f:write("    INLINE void Store(Type* ptr, const MaskType& mask)\n")
+    f:write("    {\n")
+    if intrinMaskedLoadStoreAvailable then
+        f:write(         snipetsPrepareMask)
+        if x86_ISA == ISAs.x86_AVX_512 then
+            f:write("        " .. intrinFuncMaskedStoreUnaligned .. "(ptr, intrin_mask, reg);\n")
+        elseif intrinLoadStoreRequireInt32Cast == true then
+            f:write("        " .. intrinFuncMaskedStoreUnaligned .. "((int*)(ptr), intrin_mask, reg);\n")
+        else
+            f:write("        " .. intrinFuncMaskedStoreUnaligned .. "(ptr, intrin_mask, reg);\n")
+        end
+    else
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+        f:write("        {\n")
+        f:write("            ptr[i] = mask[i] ? data[i] : ptr[i];\n")
+        f:write("        }\n")
+    end
+    f:write("    }\n")
+    f:write("    INLINE void StoreAligned(Type* ptr)\n")
+    f:write("    {\n")
+    if intrinLoadStoreAvailable then
+        f:write("        " .. intrinFuncStoreAligned .. "(ptr, reg);\n")
+    else
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+        f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+        f:write("        {\n")
+        f:write("            ptr[i] = data[i];\n")
+        f:write("        }\n")
+    end
+    f:write("    }\n")
+    f:write("    INLINE void StoreAligned(Type* ptr, const MaskType& mask)\n")
+    f:write("    {\n")
+    if intrinMaskedLoadStoreAvailable then
+        f:write(         snipetsPrepareMask)
+        if x86_ISA == ISAs.x86_AVX_512 then
+            f:write("        " .. intrinFuncMaskedStoreAligned .. "(ptr, intrin_mask, reg);\n")
+        elseif intrinLoadStoreRequireInt32Cast == true then
+            f:write("        " .. intrinFuncMaskedStoreAligned .. "((int*)(ptr), intrin_mask, reg);\n")
+        else
+            f:write("        " .. intrinFuncMaskedStoreAligned .. "(ptr, intrin_mask, reg);\n")
+        end
+    else
+        f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+        f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+        f:write("        {\n")
+        f:write("            ptr[i] = mask[i] ? data[i] : ptr[i];\n")
+        f:write("        }\n")
+    end
+    f:write("    }\n")
+    f:write("    \n")
+
+    -- Bitwise binary operators
+    f:write("    INLINE Scalar operator&(const Scalar& other) const\n")
+    f:write("    {\n")
+    f:write("        return " .. intrinFuncBitwiseAnd .. "(reg, other.reg);\n")
+    f:write("    }\n")
+    f:write("    INLINE Scalar& operator&=(const Scalar& other) {*this = *this & other; return *this;}\n")
+    f:write("    INLINE Scalar operator|(const Scalar& other) const\n")
+    f:write("    {\n")
+    f:write("        return " .. intrinFuncBitwiseOr .. "(reg, other.reg);\n")
+    f:write("    }\n")
+    f:write("    INLINE Scalar& operator|=(const Scalar& other) {*this = *this | other; return *this;}\n")
+    f:write("    INLINE Scalar operator^(const Scalar& other) const\n")
+    f:write("    {\n")
+    f:write("        return " .. intrinFuncBitwiseXOr .. "(reg, other.reg);\n")
+    f:write("    }\n")
+    f:write("    INLINE Scalar& operator^=(const Scalar& other) {*this = *this ^ other; return *this;}\n")
+    f:write("    INLINE Scalar operator~() const\n")
+    f:write("    {\n")
+    f:write("        return " .. intrinFuncBitwiseXOr .. "(reg, " .. intrinFuncSet1 .. "(Type(-1)));\n")
+    f:write("    }\n")
+    if not ISA.IsFloatingPoint then
+        f:write("    INLINE Scalar operator<<(int s) const\n")
+        f:write("    {\n")
+        if intrinBitShiftingAvailable then
+            f:write("        return " .. intrinFuncShiftLeft .. "(reg, s);\n")
+        else
+            f:write("        Scalar r;\n")
+            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+            f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+            f:write("        {\n")
+            f:write("            r.data[i] = data[i] << s;\n")
+            f:write("        }\n")
+            f:write("        return r;\n")
+        end
+        f:write("    }\n")
+        f:write("    INLINE Scalar operator>>(int s) const\n")
+        f:write("    {\n")
+        if intrinBitShiftingAvailable then
+            f:write("        return " .. intrinFuncShiftRight .. "(reg, s);\n")
+        else
+            f:write("        Scalar r;\n")
+            f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
+            f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
+            f:write("        {\n")
+            f:write("            r.data[i] = data[i] >> s;\n")
+            f:write("        }\n")
+            f:write("        return r;\n")
+        end
+        f:write("    }\n")
+    end
+    f:write("    \n")
+
+    -- Comparaisons operators
+    for _, op_info in ipairs(opsLogicalTests) do
+        local op, func, post_operator, op_enum, op_fallback = op_info[1], op_info[2], op_info[3], op_info[4], op_info[5]
+        f:write("    INLINE MaskType operator" .. op .. "(const Scalar& other) const\n")
+        f:write("    {\n")
+        if op_fallback == "" then
+            if x86_ISA == ISAs.x86_AVX_512 then
+                f:write("        MaskType res = ");
+            else
+                f:write("        " .. ISA.Register .. " res = ");
+            end
+            if not ISA.IsFloatingPoint then
+                f:write("" ..  func .. "(reg, other.reg);\n")
+            else
+                f:write("" ..  func .. "(reg, other.reg, " .. op_enum .. ");\n")
+            end
+            f:write("        return " .. post_operator .. "MaskType(".. snipetsPackMask.. ");\n")
+        else
+            f:write("        return " .. op_fallback .. ";\n")
+        end
+        f:write("    }\n")
+    end
+    f:write("};\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Select".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& A,\n")
+    f:write("    const " .. snipetsScalarType .. "& B,\n")
+    f:write("    const " .. snipetsScalarType .. "::MaskType& /*Is A*/ mask\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if x86_ISA == ISAs.x86_AVX_512 then 
+        f:write(     snipetsPrepareMask)
+        f:write("    return " .. intrinFuncBlend .. "(intrin_mask, B.reg, A.reg);\n")
+    else
+        if intrinIs32bitInteger == true then
+            f:write(     snipetsPrepareMaskBypass)
+        elseif ISA.IsFloatingPoint == true then 
+            f:write(     snipetsPrepareMaskBypass)
+        else
+            f:write(     snipetsPrepareMask)
+        end
+        f:write("    return " .. intrinFuncBlend .. "(B.reg, A.reg, intrin_mask);\n")
+    end 
+    f:write("    \n")
+    f:write("}\n")
+    f:write("\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Gather".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. ISA.Type .. "* ptr,\n")
+    f:write("    const " .. snipetsScalarType .. "::IndexerType& indices\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinMaskedLoadStoreAvailable == false then
+        f:write("    " .. snipetsScalarType .. " r;\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
+        f:write("    {\n")
+        f:write("        r.data[i] = ptr[indices[i]];\n")
+        f:write("    }\n")
+        f:write("    return r;\n")
+    elseif x86_ISA == ISAs.x86_AVX_512 then
+        f:write("    return " .. intrinFuncI32Gather .. "(indices.reg, ptr, sizeof(" .. ISA.Type .. "));\n")
+    elseif intrinLoadStoreRequireInt32Cast == true then
+        f:write("    return " .. intrinFuncI32Gather .. "((int*)(ptr), indices.reg, sizeof(" .. ISA.Type .. "));\n")
+    else
+        f:write("    return " .. intrinFuncI32Gather .. "(ptr, indices.reg, sizeof(" .. ISA.Type .. "));\n")
+    end
+    f:write("}\n")
+    f:write("\n")
+    f:write("template<>\n")
+    f:write("INLINE void Scatter".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& values,\n")
+    f:write("    " .. ISA.Type .. "* ptr,\n")
+    f:write("    const " .. snipetsScalarType .. "::IndexerType& indices\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsScatterAvailable == true then
+        f:write("    " .. intrinFuncI32Scatter .. "(ptr, indices.reg, values.reg, sizeof(" .. ISA.Type .. "));\n")
+    else
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(indices.data, kAlignment)\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
+        f:write("    {\n")
+        f:write("        ptr[indices[i]] = values.data[i];\n")
+        f:write("    }\n")
+    end
+    f:write("}\n")
+    f:write("\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Permute".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    const " .. snipetsScalarType .. "::IndexerType& indices\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsPermuteAvailagle == true then
+        if x86_ISA == ISAs.x86_AVX_512 then 
+            f:write("    return " .. intrinFuncPermute .. "(indices.reg, V.reg);\n")
+        elseif x86_ISA == ISAs.x86_AVX then
+            if intrinIs32bit == true then
+                f:write("    return " .. intrinFuncPermute .. "(V.reg, indices.reg);\n")
+            elseif intrinIs64bit == true then
+                f:write(    snipetPack4TwoBitsIndices);
+                f:write("    return " .. intrinFuncPermute .. "(V.reg, intrin_indices);\n")
+            end
+        end
+    else
+        f:write("    " .. snipetsScalarType .." r;\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(indices.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
+        f:write("    {\n")
+        f:write("        r.data[indices[i]] = V.data[i];\n")
+        f:write("    }\n")
+        f:write("    return r;\n")
+    end
+    f:write("}\n")
+    f:write("\n")
+    -- f:write("template<>\n")
+    -- f:write("INLINE " .. snipetsScalarType .." Shuffle".. snipetTemplateSpecialisation .. "(\n")
+    -- f:write("    const " .. snipetsScalarType .. "& A,\n")
+    -- f:write("    const " .. snipetsScalarType .. "& B,\n")
+    -- f:write("    const " .. snipetsScalarType .. "::IndexerType& indices\n")
+    -- f:write("    )\n")
+    -- f:write("{\n")
+    -- f:write("    \n")
+    -- f:write("}\n")
+    -- f:write("\n")
+    -- f:write("template<int... Indices>\n")
+    -- f:write("INLINE " .. snipetsScalarType .." Shuffle".. snipetTemplateSpecialisation .. "(\n")
+    -- f:write("    const " .. snipetsScalarType .. "& A,\n")
+    -- f:write("    const " .. snipetsScalarType .. "& B\n")
+    -- f:write("    )\n")
+    -- f:write("{\n")
+    -- f:write("    static_assert(sizeof...(Indices) == ThreadCount, \"Permute requires exactly N indices\");\n")
+    -- f:write("    int indices[] = { Indices... };\n")
+    -- f:write("    \n")
+    -- f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Pack".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    const " .. snipetsScalarType .. "::MaskType& mask\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsCompressAvailable == true then
+        f:write("    return " .. intrinFuncCompress .. "(mask.bits, V.reg);\n")
+    else
+        f:write("    " .. snipetsScalarType .. " r(0);\n")
+        f:write("    size_t idx = 0;\n")
+        -- cannot really auto simdify this sequencial operation
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
+        f:write("    {\n")
+        f:write("        if (mask[i])\n")
+        f:write("            r.data[idx++] = V.data[i];\n")
+        f:write("    }\n")
+        f:write("    return r;\n")
+    end
+    f:write("}\n")
+    -- f:write("template<>\n")
+    -- f:write("INLINE " .. snipetsScalarType .." Pack".. snipetTemplateSpecialisation .. "(\n")
+    -- f:write("    const " .. snipetsScalarType .. "& V,\n")
+    -- f:write("    const " .. snipetsScalarType .. "::IndexerType& groups\n")
+    -- f:write("    )\n")
+    -- f:write("{\n")
+    -- if intrinIsCompressAvailable == true then
+    --     f:write("    return " .. intrinFuncCompress .. "(mask.bits, V.reg);\n")
+    -- else
+    --     f:write("    " .. snipetsScalarType .. " r(0);\n")
+    --     f:write("    size_t idx = 0;\n")
+    --     -- cannot really auto simdify this sequencial operation
+    --     f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+    --     f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
+    --     f:write("    {\n")
+    --     f:write("        if (mask[i])\n")
+    --     f:write("            r.data[idx++] = V.data[i];\n")
+    --     f:write("    }\n")
+    --     f:write("    return r;\n")
+    -- end
+    -- f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." UnPack".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    const " .. snipetsScalarType .. "::MaskType& mask\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsCompressAvailable == true then
+        f:write("    return " .. intrinFuncExpand .. "(mask.bits, V.reg);\n")
+    else
+        f:write("    " .. snipetsScalarType .. " r(0);\n")
+        f:write("    size_t idx = 0;\n")
+        -- cannot really auto simdify this sequencial operation
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
+        f:write("    {\n")
+        f:write("        if (mask[i])\n")
+        f:write("            r.data[i] = V.data[idx++];\n")
+        f:write("    }\n")
+        f:write("    return r;\n")
+    end
+    f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Split".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    const " .. snipetsScalarType .. "::MaskType& mask\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsCompressAvailable == true then
+        f:write("    const size_t bin1count = " .. intrinFuncPopcountMask .. "(mask.bits);\n")
+        f:write("    const size_t bin0count = " .. snipetsScalarType .. "::kThreadCount - bin1count; \n")
+        f:write("    \n")
+        f:write("    " .. snipetsScalarType .. " bin1 = Pack" .. snipetTemplateSpecialisation .. "(V, mask);\n")
+        f:write("    bin1 = Shift" .. snipetTemplateSpecialisation .. "(bin1, bin0count);\n")
+        f:write("    \n")
+        f:write("    return " .. intrinFuncCompressPassTrough .. "(bin1.reg, (!mask).bits, V.reg);\n")
+    else
+        f:write("    " .. snipetsScalarType .. " r(0);\n")
+        f:write("    \n")
+        f:write("    size_t count1 = 0;\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i) if (mask[i]) count1++;\n")
+        f:write("    \n")
+        f:write("    size_t idx1 = count1, idx0 = 0;\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
+        f:write("    {\n")
+        f:write("        if (mask[i])\n")
+        f:write("            r[idx1++] = V[i];\n")
+        f:write("        else\n")
+        f:write("            r[idx0++] = V[i];\n")
+        f:write("    }\n")
+        f:write("    return r;\n")
+    end
+    f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." UnSplit".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    const " .. snipetsScalarType .. "::MaskType& mask\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsCompressAvailable == true then
+        f:write("    const size_t bin1count = " .. intrinFuncPopcountMask .. "(mask.bits);\n")
+        f:write("    const size_t bin0count = " .. snipetsScalarType .. "::kThreadCount - bin1count; \n")
+        f:write("    \n")
+        f:write("    " .. snipetsScalarType .. " expanded1 = UnPack".. snipetTemplateSpecialisation .. "(Shift" .. snipetTemplateSpecialisation .."(V, -((int)bin0count)), mask);\n")
+        f:write("    \n")
+        f:write("    return " .. intrinFuncExpandPassTrough .. "(expanded1.reg, (!mask).bits, V.reg);\n")
+    else
+        f:write("    " .. snipetsScalarType .. " r(0);\n")
+        f:write("    \n")
+        f:write("    size_t count1 = 0;\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i) if (mask[i]) count1++;\n")
+        f:write("    \n")
+        f:write("    size_t idx1 = count1, idx0 = 0;\n")
+        f:write("    MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(V.data, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.data, kAlignment)\n")
+        f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; i++)\n")
+        f:write("    {\n")
+        f:write("        if (mask[i])\n")
+        f:write("            r[idx1++] = V[i];\n")
+        f:write("        else\n")
+        f:write("            r[idx0++] = V[i];\n")
+        f:write("    }\n")
+        f:write("    return r;\n")
+    end
+    f:write("}\n")
+    -- TODO introduce a hardware accelerated version when possible
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Bin".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    const " .. snipetsScalarType .. "::IndexerType& bins\n")
+    f:write("    )\n")
+    f:write("{\n")
+    f:write("    " .. snipetsScalarType .. " r(0);\n")
+    f:write("    int max_bin = 0;\n")
+    f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i) if (bins[i] > max_bin) max_bin = bins[i];\n")
+    f:write("    \n")
+    f:write("    size_t out_idx = 0;\n")
+    f:write("    for (int b = 0; b <= max_bin; ++b)\n")
+    f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i)\n")
+    f:write("    {\n")
+    f:write("        if (bins[i] == b) r[out_idx++] = V[i];\n")
+    f:write("    }\n")
+    f:write("    return r;\n")
+    f:write("}\n")
+    -- TODO introduce a hardware accelerated version when possible
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." UnBin".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    const " .. snipetsScalarType .. "::IndexerType& bins\n")
+    f:write("    )\n")
+    f:write("{\n")
+    f:write("    " .. snipetsScalarType .. " r(0);\n")
+    f:write("    int max_bin = 0;\n")
+    f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i) if (bins[i] > max_bin) max_bin = bins[i];\n")
+    f:write("    \n")
+    f:write("    size_t out_idx = 0;\n")
+    f:write("    for (int b = 0; b <= max_bin; ++b)\n")
+    f:write("    for (size_t i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i)\n")
+    f:write("    {\n")
+    f:write("        if (bins[i] == b) r[i] = V[out_idx++];\n")
+    f:write("    }\n")
+    f:write("    return r;\n")
+    f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Shift".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    int Amount\n")
+    f:write("    )\n")
+    f:write("{\n")
+    f:write("    " .. snipetsScalarType .. "::IndexerType indices;\n")
+    -- TODO introduce a hardware accelerated version when possible
+    f:write("    for (int i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i)\n")
+    f:write("    {\n")
+    f:write("        indices[i] = std::clamp(i + Amount, 0, static_cast<int>(" .. snipetsScalarType .. "::kThreadCount));\n")
+    f:write("    }\n")
+    f:write("    \n")
+    f:write("    return Permute" .. snipetTemplateSpecialisation .. "(V, indices);\n")
+    f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Rotate".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& V,\n")
+    f:write("    int Amount\n")
+    f:write("    )\n")
+    f:write("{\n")
+    f:write("    " .. snipetsScalarType .. "::IndexerType indices;\n")
+    f:write("    const int base_offset = " .. snipetsScalarType .. "::kThreadCount + (Amount % " .. snipetsScalarType .. "::kThreadCount);\n")
+    -- TODO introduce a hardware accelerated version when possible
+    f:write("    for (int i = 0; i < " .. snipetsScalarType .. "::kThreadCount; ++i)\n")
+    f:write("    {\n")
+    f:write("        indices[i] = (i + base_offset) % " .. snipetsScalarType .. "::kThreadCount;\n")
+    f:write("    }\n")
+    f:write("    \n")
+    f:write("    return Permute" .. snipetTemplateSpecialisation .. "(V, indices);\n")
+    f:write("}\n")
+    f:write("\n")
+
+end
+
+local function UpdateMathSIMTHeadersX86(ISA, HeaderName)
+    local out_file = path.join(gb_IntermediatesDir, "generated", "MathSimt", HeaderName)
+    
+    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "MathSimt")) then
+        os.mkdir(path.join(gb_IntermediatesDir, "generated", "MathSimt"))
+    end
+
+    local f = io.open(out_file, "w")
+
+    f:write("#pragma once\n\n")
+    f:write("#include <immintrin.h>\n")
+    f:write("#include \"_Types.h\"\n")
+    f:write("#include \"_TypesMSVCInterop.h\"\n")
+    f:write("\n")
+
+    f:write("namespace Math::Simt\n")
+    f:write("{\n")
+
+    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.Int32)
+    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.UInt32)
+    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.Float)
+    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.Double)
+    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.Int8)
+    WriteMathSIMTx86Specialization(f, ISA, PrimitiveTypes.UInt8)
+
+    f:write("}\n")
+
+    f:close()
+end
+
+local function UpdateConfig()
     local f = io.open("premake-config.lua", "w")
     
     f:write("gbUseSamples = " .. tostring(gbUseSamples) .. "\n")
@@ -429,6 +1497,9 @@ function UpdateConfig()
     f:write("gbUseShaderc = " .. tostring(gbUseShaderc) .. "\n")
     f:write("gbUseBreakpoints = " .. tostring(gbUseBreakpoints) .. "\n")
     f:write("gbUseUnitTests = " .. tostring(gbUseUnitTests) .. "\n")
+    f:write("gbUseSIMD_X86_SSE = " .. tostring(gbUseSIMD_X86_SSE) .. "\n")
+    f:write("gbUseSIMD_X86_AVX = " .. tostring(gbUseSIMD_X86_AVX) .. "\n")
+    f:write("gbUseSIMD_X86_AVX512 = " .. tostring(gbUseSIMD_X86_AVX512) .. "\n")
     f:write("gbWindowAPI = \"" .. gbWindowAPI .. "\"\n")
     
     f:close();
@@ -436,7 +1507,7 @@ end
 
 newaction {
     trigger = "update-sample-scenes",
-    description = "project setup",
+    description = "update the sample scene repositories",
     execute = function ()        
         if gbUseSampleScenes == true then
             UpdateSampleScenes()
@@ -448,13 +1519,31 @@ newaction {
 
 newaction {
     trigger = "update-shaderc",
-    description = "project setup",
+    description = "update shaderc compiler",
     execute = function ()        
         if gbUseShaderc == true then
             UpdateShaderCompiler()
         end
     
         UpdateConfig()
+    end
+}
+
+newaction {
+    trigger = "update-simd",
+    description = "update generated simd headers",
+    execute = function ()        
+        if gbUseSIMD_X86_SSE == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "_Types_SSE.h")
+        end
+
+        if gbUseSIMD_X86_AVX == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "_Types_AVX.h")
+        end
+
+        if gbUseSIMD_X86_AVX512 == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "_Types_AVX512.h")
+        end
     end
 }
 
@@ -467,6 +1556,9 @@ newaction {
         gbUseShaderc = _OPTIONS["shaderc"] ~= nil;
         gbUseBreakpoints = _OPTIONS["breakpoints"] ~= nil;
         gbUseUnitTests = _OPTIONS["unit-tests"] ~= nil;
+        gbUseSIMD_X86_SSE = _OPTIONS["simd-x86-sse"] ~= nil;
+        gbUseSIMD_X86_AVX = _OPTIONS["simd-x86-avx"] ~= nil;
+        gbUseSIMD_X86_AVX512 = _OPTIONS["simd-x86-avx512"] ~= nil;
         gbWindowAPI = _OPTIONS["window"]
         
         if gbUseSampleScenes == true then
@@ -478,6 +1570,18 @@ newaction {
     
         if gbUseUnitTests == true then
             GenerateCatch2Config()
+        end
+
+        if gbUseSIMD_X86_SSE == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "Types_SSE.h")
+        end
+
+        if gbUseSIMD_X86_AVX == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "Types_AVX.h")
+        end
+
+        if gbUseSIMD_X86_AVX512 == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "Types_AVX512.h")
         end
         
         UpdateConfig()

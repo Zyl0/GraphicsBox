@@ -43,7 +43,6 @@ SampleProjects = {
     "GLTFViewer",
     "MathSimtTests",
     "MiniEngineCooker",
-    "MathSimtTests",
     "MiniEngineSample",
     "PBR",
     "RayTracingBase",
@@ -100,6 +99,81 @@ solution "GraphicsBox"
 
     -- CPU Architecture
     architecture "x86_64"
+    filter "configurations:Debug"
+    filter "configurations:Development"
+        if gbUseSIMD_X86_AVX512 == true then
+            -- Not yet available in latest release of premake
+            -- vectorextensions "AVX512"
+
+            filter { "system:linux" , "configurations:Development" }
+                buildoptions { "-mavx512f -mavx512vl" }
+                linkoptions { "-mavx512f -mavx512vl" }
+       
+            filter { "system:linux" , "configurations:Release" }
+                buildoptions { "-mavx512f -mavx512vl" }
+                linkoptions { "-mavx512f -mavx512vl" }
+
+            filter { "system:windows" , "configurations:Development" }
+                vectorextensions "AVX2" 
+                buildoptions { "/arch:AVX512" }
+       
+            filter { "system:windows" , "configurations:Release" }
+                vectorextensions "AVX2" 
+                buildoptions { "/arch:AVX512" }
+
+            filter {}
+
+        elseif gbUseSIMD_X86_AVX == true then
+            vectorextensions "AVX2" 
+        elseif gbUseSIMD_X86_SSE == true then
+            vectorextensions "SSE4.2"
+        end
+        if gbUseSIMD_X86_SSE == true then
+            defines("USE_SSE")
+        end
+        if gbUseSIMD_X86_AVX == true then
+            defines("USE_AVX")
+        end
+        if gbUseSIMD_X86_AVX512 == true then
+            defines("USE_AVX512")
+        end
+    filter "configurations:Release"
+        if gbUseSIMD_X86_AVX512 == true then
+            -- Not yet available in latest release of premake
+            -- vectorextensions "AVX512"
+
+            filter { "system:linux" , "configurations:Development" }
+                buildoptions { "-mavx512f -mavx512vl" }
+                linkoptions { "-mavx512f -mavx512vl" }
+       
+            filter { "system:linux" , "configurations:Release" }
+                buildoptions { "-mavx512f -mavx512vl" }
+                linkoptions { "-mavx512f -mavx512vl" }
+
+            filter { "system:windows" , "configurations:Development" }
+                vectorextensions "AVX2" 
+                buildoptions { "/arch:AVX512" }
+       
+            filter { "system:windows" , "configurations:Release" }
+                vectorextensions "AVX2" 
+                buildoptions { "/arch:AVX512" }
+
+            filter {}
+        elseif gbUseSIMD_X86_AVX == true then
+            vectorextensions "AVX2" 
+        elseif gbUseSIMD_X86_SSE == true then
+            vectorextensions "SSE4.2"
+        end
+        if gbUseSIMD_X86_SSE == true then
+            defines("USE_SSE")
+        end
+        if gbUseSIMD_X86_AVX == true then
+            defines("USE_AVX")
+        end
+        if gbUseSIMD_X86_AVX512 == true then
+            defines("USE_AVX512")
+        end
+    filter {}
     
     -- Debug settings
     if gbUseBreakpoints then
@@ -109,6 +183,9 @@ solution "GraphicsBox"
     end
     
     flags { "NoPCH" }
+
+    -- generated code
+    includedirs(path.join(gb_IntermediatesDir, "generated"))
 
      -- Platforms specific setup
     filter "system:linux"
@@ -126,12 +203,21 @@ solution "GraphicsBox"
             linkoptions { "-g"}
 
         filter { "system:linux" , "configurations:Development" }
-            buildoptions { "-g", "-O3", "-mavx512f" }
+            buildoptions { "-g", "-O3" }
             linkoptions { "-g"}
+            if gbUseSIMD_X86_AVX512 == true then
+                buildoptions { "-mavx512vl" }
+                linkoptions { "-mavx512vl" }
+            end
        
         filter { "system:linux" , "configurations:Release" }
-            buildoptions { "-O3 -mavx512f" } -- TODO evaluate -flto optimisation --TODO -fopenmp and define USE_OPENMP
-            linkoptions { "-O3 -mavx512f" }  -- TODO evaluate -flto optimisation --TODO -fopenmp and define USE_OPENMP
+            buildoptions { "-O3 -fopenmp" } -- TODO evaluate -flto optimisation
+            linkoptions { "-O3 -fopenmp" }  -- TODO evaluate -flto optimisation
+            if gbUseSIMD_X86_AVX512 == true then
+                buildoptions { "-mavx512vl" }
+                linkoptions { "-mavx512vl" }
+            end
+            defines("USE_OPENMP")
         
         filter {"system:linux", "action:cmake"}
             staticruntime "On"
@@ -154,11 +240,11 @@ solution "GraphicsBox"
 
         filter { "system:windows" , "configurations:Development" }
             runtime "Debug"
-            buildoptions { "/O2 /Oi /arch:AVX2" }
+            buildoptions { "/O2 /Oi " }
 
         filter { "system:windows" , "configurations:Release" }
             runtime "Release"
-            buildoptions { "/O2 /Oi /arch:AVX2 /openmp:experimental" }
+            buildoptions { "/O2 /Oi /openmp:experimental" }
             -- ADD to not generate debugging symbols
 
         filter { "system:windows" , "action:vs*" }
@@ -472,7 +558,20 @@ group "Utilites"
             path.join(gb_SrcDir, "MathSimt", "**.hpp"),
             path.join(gb_SrcDir, "MathSimt", "**.c"),
             path.join(gb_SrcDir, "MathSimt", "**.cpp"),
+
         }
+
+        if gbUseSIMD_X86_SSE == true then
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_SSE.h"))
+        end
+
+        if gbUseSIMD_X86_AVX == true then
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX.h"))
+        end
+
+        if gbUseSIMD_X86_AVX512 == true then
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX512.h"))
+        end
 
     project "Modeling"
         language "C++"

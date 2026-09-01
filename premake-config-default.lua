@@ -1,6 +1,9 @@
-gbUseSamples = false;
-gbUseSampleScenes = false;
-gbUseShaderc = false;
-gbUseBreakpoints = false;
-gbUseUnitTests = false;
+gbUseSamples = false
+gbUseSampleScenes = false
+gbUseShaderc = false
+gbUseBreakpoints = false
+gbUseUnitTests = false
+gbUseSIMD_X86_SSE = false
+gbUseSIMD_X86_AVX = false
+gbUseSIMD_X86_AVX512 = false
 gbWindowAPI = "glfw"
