@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <bit>
 #include <initializer_list>
 
 #include "Memory/Functions.h"
@@ -138,6 +139,7 @@ namespace Math::Simt
         void Store(DataType* ptr, const Mask<ThreadCount>& mask) const;
         void StoreAligned(DataType* ALIGNED(kAlignment) ptr) const;
         void StoreAligned(DataType* ALIGNED(kAlignment) ptr, const MaskType& mask) const;
+        void Set(const DataType& rawValue);
         
         Scalar operator%(const Scalar& o) const requires std::is_integral_v<DataType> { Scalar r; for (size_t i=0; i<ThreadCount; ++i) r.m[i] = m[i] % o.m[i]; return r; }
         Scalar operator&(const Scalar& o) const requires std::is_integral_v<DataType> { Scalar r; for (size_t i=0; i<ThreadCount; ++i) r.m[i] = m[i] & o.m[i]; return r; }
@@ -597,7 +599,16 @@ namespace Math::Simt
                 }
     }
 
-    
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    void Scalar<DataType, ThreadCount>::Set(const DataType& rawValue)
+    {
+        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            m[i] = rawValue;
+        }
+    }
+
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
     INLINE Scalar<DataType, ThreadCount> Select(
         const Scalar<DataType, ThreadCount>& A,

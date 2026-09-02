@@ -1089,6 +1089,10 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
         f:write("        }\n")
     end
     f:write("    }\n")
+    f:write("    INLINE void Set(const Type& val)\n")
+    f:write("    {\n")
+    f:write("        ".. intrinFuncSet1 .."(val);\n")
+    f:write("    }\n")
     f:write("    \n")
 
     -- Bitwise binary operators

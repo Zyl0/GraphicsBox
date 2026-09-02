@@ -76,10 +76,8 @@
 #elif defined(_MSC_VER)
 // todo find MSVC dedicated memory alignment annotation
 #define ALIGNED(Alignment) 
-//alignas(Alignment)
 #else
 #define ALIGNED(Alignment)
-//alignas(Alignment)
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -91,6 +89,14 @@
 #else
 #define ALIGNED_VECTOR(Stride, Alignment)
 #define VECTOR_FALLBACK(ThreadCount) [ThreadCount]
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define RESTRICT __restrict 
+#elif defined(_MSC_VER)
+#define RESTRICT __restrict 
+#else
+#define RESTRICT 
 #endif
 
 #define DYNAMIC_LIB_EXPORT PLATFORM_LIB_EXPORT

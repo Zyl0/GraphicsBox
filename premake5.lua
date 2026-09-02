@@ -41,7 +41,7 @@ SampleScencesRepos = {
 SampleProjects = {
     "AntiAliasing",
     "GLTFViewer",
-    "MathSimtTests",
+    "MathSimtBenchmarks",
     "MiniEngineCooker",
     "MiniEngineSample",
     "PBR",
