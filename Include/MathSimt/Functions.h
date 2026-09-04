@@ -117,13 +117,8 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Abs(Scalar<DataType, ThreadCount> v)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = std::abs(v.m[i]);
-        }
-
-        return v;
+        typename Scalar<DataType, ThreadCount>::MaskType mask = v < 0;
+        return Select(-v, v, mask);
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -165,13 +160,7 @@ MATH_SIMT_SIMDIFY_FOR
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Pow2(Scalar<DataType, ThreadCount> v)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = v.m[i] * v.m[i];
-        }
-
-        return v;
+        return v * v;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -199,124 +188,69 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> Radians(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> Radians(Scalar<DataType, ThreadCount> degrees)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = Math::Radians(v.m[i]);
-        }
-
-        return v;
+        constexpr DataType w = static_cast<DataType>(M_PI) / DataType(180);
+        return w * degrees;
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> Degrees(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> Degrees(Scalar<DataType, ThreadCount> radians)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = Math::Degrees(v.m[i]);
-        }
-
-        return v;
+        constexpr DataType w = static_cast<DataType>(180) / DataType(M_PI);
+        return w * radians;
     }
-
-
+    
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Min(Scalar<DataType, ThreadCount> v, DataType min)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = std::min(v.m[i], min);
-        }
-
-        return v;
+        typename Scalar<DataType, ThreadCount>::MaskType mask = v < min;
+        return Select(v, min, mask);
     }
 
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Min(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> min)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = std::min(v.m[i], min);
-        }
-
-        return v;
+        typename Scalar<DataType, ThreadCount>::MaskType mask = v < min;
+        return Select(v, min, mask);
     }
 
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Max(Scalar<DataType, ThreadCount> v, DataType max)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = std::max(v.m[i], max);
-        }
-
-        return v;
+        typename Scalar<DataType, ThreadCount>::MaskType mask = v > max;
+        return Select(v, max, mask);
     }
 
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Max(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> max)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = std::max(v.m[i], max);
-        }
-
-        return v;
+        typename Scalar<DataType, ThreadCount>::MaskType mask = v > max;
+        return Select(v, max, mask);
     }
 
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Clamp(Scalar<DataType, ThreadCount> v, DataType min, DataType max)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = (v.m[i] > max ? max : v.m[i] < min ? min : v.m[i]);
-        }
-
-        return v;
+        return Min(Max(v, min), max);
     }
 
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Clamp(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> min, DataType max)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = (v.m[i] > max ? max : v.m[i] < min.m[i] ? min.m[i] : v.m[i]);
-        }
-
-        return v;
+        return Min(Max(v, min), max);
     }
 
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Clamp(Scalar<DataType, ThreadCount> v, DataType min, Scalar<DataType, ThreadCount> max)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = (v.m[i] > max.m[i] ? max.m[i] : v.m[i] < min ? min : v.m[i]);
-        }
-
-        return v;
+        return Min(Max(v, min), max);
     }
 
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Clamp(Scalar<DataType, ThreadCount> v, Scalar<DataType, ThreadCount> min, Scalar<DataType, ThreadCount> max)
     {
-MATH_SIMT_SIMDIFY_FOR
-        for (size_t i = 0; i < ThreadCount; ++i)
-        {
-            v.m[i] = (v.m[i] > max.m[i] ? max.m[i] : v.m[i] < min.m[i] ? min.m[i] : v.m[i]);
-        }
-
-        return v;
+        return Min(Max(v, min), max);
     }
 
     template<typename DataType, size_t ThreadCount>

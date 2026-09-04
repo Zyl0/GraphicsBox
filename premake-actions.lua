@@ -643,6 +643,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
 
     -- Generated intrinsics
     local intrinFuncZero = "_" .. intrinCat .. "_setzero_" .. intrinZeroSuffix
+    local intrinFuncSet = "_" .. intrinCat .. "_set_" .. ISA.Suffix
     local intrinFuncSet1 = "_" .. intrinCat .. "_set1_" .. ISA.Suffix
     local intrinFuncLoadUnaligned = "_" .. intrinCat .. "_loadu_" .. ISA.Suffix
     local intrinFuncLoadAligned = string.gsub(intrinFuncLoadUnaligned, "loadu", "load")
@@ -859,6 +860,22 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("    INLINE Scalar() : reg(" .. intrinFuncZero .. "()) {}\n")
     f:write("    INLINE Scalar(Type val) : reg(" .. intrinFuncSet1 .. "(val)) {}\n")
     f:write("    INLINE Scalar(" .. ISA.Register .. " registerVector) : reg(registerVector) {}\n")
+    f:write("    INLINE Scalar(\n        ")
+    for i = 1,(ISA.ElementCount - 1) do
+        f:write("Type e"..i..", ")
+        if i % 4 == 0 then
+            f:write("\n        ")
+        end
+    end
+    f:write("Type e"..ISA.ElementCount.."\n    ):\n        reg("..intrinFuncSet.."(\n            ")
+    
+    for i = 1,(ISA.ElementCount - 1) do
+        f:write("e"..i..", ")
+        if i % 4 == 0 then
+            f:write("\n            ")
+        end 
+    end
+    f:write("e"..ISA.ElementCount..")\n        ) \n    {}\n")
     f:write("    INLINE Scalar(std::initializer_list<Type> list)\n")
     f:write("    {\n")
     f:write("        Type tmp [kThreadCount] = {0}; size_t i = 0;\n")
