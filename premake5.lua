@@ -669,17 +669,19 @@ group "Utilites"
             path.join(gb_SrcDir, "Importers", "**.cpp"),
         }
     
-        defines {"USE_TINY_GLTF"}
-        -- defines {"USE_TINY_GLTF_3"}
+        -- defines {"USE_TINY_GLTF"}
+        defines {"USE_TINY_GLTF_3"}
 
         -- Dependencies
         dependson {
             "Image",
-            "TinyGLTF", -- "TinyGLTF3"
+            -- "TinyGLTF", 
+            "TinyGLTF3",
         }
         links {
             "Image",
-            "TinyGLTF", -- "TinyGLTF3"
+            -- "TinyGLTF", 
+            "TinyGLTF3"
         }
 
     project "Files"
@@ -874,7 +876,7 @@ group "Samples"
             "Modeling",
             "RayTracing",
             "Rendering",
-            "TinyGLTF",
+            "TinyGLTF3",
             "ImGUI"
         }
 
@@ -890,7 +892,7 @@ group "Samples"
             "Modeling",
             "RayTracing",
             "Rendering",
-            "TinyGLTF",
+            "TinyGLTF3",
             "ImGUI"
         }
 
@@ -1055,7 +1057,7 @@ group "Samples"
                     "Modeling",
                     "RayTracing",
                     "Rendering",
-                    "TinyGLTF",
+                    "TinyGLTF3",
                     "ImGUI", 
                     "stb_image",
                     "stb_image_write"

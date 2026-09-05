@@ -60,16 +60,40 @@ group "Unit Tests"
                 defines ("WINDOW_SDL3")
                 includedirs (path.join(gb_CompiledDependencyDir, "SDL3", "include"))
             end
-    
-            links {
-                "MiniEngine",
-                "Catch2"
-            }
-    
-            dependson {
-                "MiniEngine",
-                "Catch2"
-            }
+
+                    links {
+            "Camera",
+            "Shared",
+            "Files",
+            "Image",
+            "Importers",
+            "Math",
+            "MathSimt",
+            "Memory",
+            "Modeling",
+            "RayTracing",
+            "Rendering",
+            "TinyGLTF3",
+            "ImGUI",
+            "Catch2"
+        }
+
+        dependson {
+            "Camera",
+            "Shared",
+            "Files",
+            "Image",
+            "Importers",
+            "Math",
+            "MathSimt",
+            "Memory",
+            "Modeling",
+            "RayTracing",
+            "Rendering",
+            "TinyGLTF3",
+            "ImGUI",
+            "Catch2"
+        }
         
             if gbUseSpirV then
                 links { "shaderc_combined" }
@@ -80,21 +104,8 @@ group "Unit Tests"
                 links { "GLEW", "GL" }
             
                 links {
-                    "Camera",
-                    "Shared",
-                    "Files",
-                    "Image",
-                    "Importers",
-                    "Math",
-                    "Memory",
-                    "Modeling",
-                    "RayTracing",
-                    "Rendering",
-                    "TinyGLTF",
-                    "ImGUI", 
                     "stb_image",
                     "stb_image_write",
-                    "Catch2"
                 }
     
                 if gbUseShaderc then
