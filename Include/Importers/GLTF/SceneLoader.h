@@ -62,7 +62,14 @@ namespace GLTF
             NoShadows =             1 << 3,
             UseSpecularExt =        1 << 4,
             UseTransmissionExt =    1 << 5,
-            UseClearCoat =          1 << 6,  // todo clearcoat
+            UseClearCoatExt =       1 << 6,  // todo clearcoat
+            UseIORExt =             1 << 7,
+
+            // When enabled
+            // Color_diff = diffuse.rgb * (1 - max(specular.x, specular.y, specular.z))
+            // F0 = specular
+            // alpha = roughness ^ 2
+            UseSpecularGlossinessPBRExt =      1 << 8,
         } flags = None;
 
         Texture colorTexture = UINT64_MAX;
@@ -142,6 +149,15 @@ namespace GLTF
         std::vector<Transform> transforms;
 
         std::vector<MeshInstance> instances;
+
+        void Clear()
+        {
+            textures.clear();
+            meshes.clear();
+            materials.clear();
+            transforms.clear();
+            instances.clear();
+        }
     };
 
     // TODO move out of namespace

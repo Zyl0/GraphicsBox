@@ -3,11 +3,9 @@
 
 #include <fstream>
 
-#include "tiny_gltf.h"
 // #include "Files/Files.h"
 
 #include <stack>
-#include <stb_image_write.h>
 
 namespace GBS
 {
