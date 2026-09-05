@@ -1700,15 +1700,15 @@ newaction {
         end
 
         if gbUseSIMD_X86_SSE == true then
-            UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "Types_SSE.h")
+            UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "_Types_SSE")
         end
 
         if gbUseSIMD_X86_AVX == true then
-            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "Types_AVX.h")
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "_Types_AVX")
         end
 
         if gbUseSIMD_X86_AVX512 == true then
-            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "Types_AVX512.h")
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "_Types_AVX512")
         end
         
         UpdateConfig()
