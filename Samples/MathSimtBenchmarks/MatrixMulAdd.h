@@ -49,12 +49,36 @@ void SquareMatrixMulAddR_OP1_x64_Cached(float* Out, int Size, const float* A, co
 void SquareMatrixMulAddR_OP1_x128_Cached(float* Out, int Size, const float* A, const float* B, const float* C );
 
 // R = A * B + C
+// OP0 + tiling (L0, L1 & L2 optimizations) 256 * 256 + Auto SIMD (Compiler) + cached output buffer
+void SquareMatrixMulAddR_OP1_x256_Cached(float* Out, int Size, const float* A, const float* B, const float* C );
+
+// R = A * B + C
+// OP0 + tiling (L0, L1 & L2 optimizations) 32 * 32 + Auto SIMD (Compiler) + cached output buffer
+void SquareMatrixMulAddR_OP1_x32_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C );
+
+// R = A * B + C
+// OP0 + tiling (L0, L1 & L2 optimizations) 64 * 64 + Auto SIMD (Compiler) + cached output buffer
+void SquareMatrixMulAddR_OP1_x64_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C );
+
+// R = A * B + C
+// OP0 + tiling (L0, L1 & L2 optimizations) 128 * 128 + Auto SIMD (Compiler) + cached output buffer
+void SquareMatrixMulAddR_OP1_x128_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C );
+
+// R = A * B + C
+// OP0 + tiling (L0, L1 & L2 optimizations) 256 * 256 + Auto SIMD (Compiler) + cached output buffer
+void SquareMatrixMulAddR_OP1_x256_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C );
+
+// R = A * B + C
 // OP1 + Multicore
 void SquareMatrixMulAddR_OP2(float* Out, int Size, const float* A, const float* B, const float* C );
 
 // R = A * B + C
 // OP1 + Multicore + cached output buffer
 void SquareMatrixMulAddR_OP2_Cached(float* Out, int Size, const float* A, const float* B, const float* C );
+
+// R = A * B + C
+// OP1 + Multicore + cached in & out buffers
+void SquareMatrixMulAddR_OP2_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C );
 
 // R = A * B + C
 // OP1 + Multicore dynamic schedule + cached output buffer

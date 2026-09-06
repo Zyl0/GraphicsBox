@@ -285,6 +285,206 @@ void SquareMatrixMulAddR_OP1_x128_Cached(float* Out, int Size, const float* A, c
     }
 }
 
+void SquareMatrixMulAddR_OP1_x256_Cached(float* Out, int Size, const float* A, const float* B, const float* C)
+{
+    constexpr int TileSize = 256;
+    
+    {
+        float CacheOut[TileSize * TileSize];
+        
+        for (int ti = 0; ti < Size; ti+=TileSize)
+        for (int tk = 0; tk < Size; tk+=TileSize)
+        for (int tj = 0; tj < Size; tj+=TileSize)
+        {
+            for (int i = 0; i < TileSize * TileSize; ++i) CacheOut[i] = 0; 
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int k = 0; k < (TileSize); k++)
+            for (int j = 0; j < (TileSize); j++)
+                 CacheOut[i * TileSize + j] += A[(i + ti) * Size + (k + tk)] * B[(k + tk) * Size + (j + tj)];
+            
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+                Out[(i + ti) * Size + (j + tj)] += CacheOut[i * TileSize + j];
+        }
+    
+#ifdef ENABLE_ADD
+        for (int i = 0; i < Size; i++)
+        for (int j = 0; j < Size; j++)
+            Out[i * Size + j] += C[i * Size + j];
+#endif // ENABLE_ADD
+    }
+}
+
+void SquareMatrixMulAddR_OP1_x32_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C)
+{
+    constexpr int TileSize = 32;
+    
+    {
+        float CacheOut[TileSize * TileSize];
+        float CacheA[TileSize * TileSize];
+        float CacheB[TileSize * TileSize];
+        
+        for (int ti = 0; ti < Size; ti+=TileSize)
+        for (int tk = 0; tk < Size; tk+=TileSize)
+        for (int tj = 0; tj < Size; tj+=TileSize)
+        {
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                CacheOut[i * TileSize + j] = 0;
+                CacheA[i * TileSize + j] = A[(i + ti) * Size + (j + tk)];
+                CacheB[i * TileSize + j] = B[(i + tk) * Size + (j + tj)];
+            } 
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int k = 0; k < (TileSize); k++)
+            for (int j = 0; j < (TileSize); j++)
+                 CacheOut[i * TileSize + j] += CacheA[i * TileSize + k] * CacheB[k * TileSize + j];
+            
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                Out[(i + ti) * Size + (j + tj)] += CacheOut[i * TileSize + j];
+            }
+        }
+    
+#ifdef ENABLE_ADD
+        for (int i = 0; i < Size; i++)
+        for (int j = 0; j < Size; j++)
+            Out[i * Size + j] += C[i * Size + j];
+#endif // ENABLE_ADD
+    }
+}
+
+void SquareMatrixMulAddR_OP1_x64_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C)
+{
+    constexpr int TileSize = 64;
+    
+    {
+        float CacheOut[TileSize * TileSize];
+        float CacheA[TileSize * TileSize];
+        float CacheB[TileSize * TileSize];
+        
+        for (int ti = 0; ti < Size; ti+=TileSize)
+        for (int tk = 0; tk < Size; tk+=TileSize)
+        for (int tj = 0; tj < Size; tj+=TileSize)
+        {
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                CacheOut[i * TileSize + j] = 0;
+                CacheA[i * TileSize + j] = A[(i + ti) * Size + (j + tk)];
+                CacheB[i * TileSize + j] = B[(i + tk) * Size + (j + tj)];
+            } 
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int k = 0; k < (TileSize); k++)
+            for (int j = 0; j < (TileSize); j++)
+                 CacheOut[i * TileSize + j] += CacheA[i * TileSize + k] * CacheB[k * TileSize + j];
+            
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                Out[(i + ti) * Size + (j + tj)] += CacheOut[i * TileSize + j];
+            }
+        }
+    
+#ifdef ENABLE_ADD
+        for (int i = 0; i < Size; i++)
+        for (int j = 0; j < Size; j++)
+            Out[i * Size + j] += C[i * Size + j];
+#endif // ENABLE_ADD
+    }
+}
+
+void SquareMatrixMulAddR_OP1_x128_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C)
+{
+    constexpr int TileSize = 128;
+    
+    {
+        float CacheOut[TileSize * TileSize];
+        float CacheA[TileSize * TileSize];
+        float CacheB[TileSize * TileSize];
+        
+        for (int ti = 0; ti < Size; ti+=TileSize)
+        for (int tk = 0; tk < Size; tk+=TileSize)
+        for (int tj = 0; tj < Size; tj+=TileSize)
+        {
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                CacheOut[i * TileSize + j] = 0;
+                CacheA[i * TileSize + j] = A[(i + ti) * Size + (j + tk)];
+                CacheB[i * TileSize + j] = B[(i + tk) * Size + (j + tj)];
+            } 
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int k = 0; k < (TileSize); k++)
+            for (int j = 0; j < (TileSize); j++)
+                 CacheOut[i * TileSize + j] += CacheA[i * TileSize + k] * CacheB[k * TileSize + j];
+            
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                Out[(i + ti) * Size + (j + tj)] += CacheOut[i * TileSize + j];
+            }
+        }
+    
+#ifdef ENABLE_ADD
+        for (int i = 0; i < Size; i++)
+        for (int j = 0; j < Size; j++)
+            Out[i * Size + j] += C[i * Size + j];
+#endif // ENABLE_ADD
+    }
+}
+
+void SquareMatrixMulAddR_OP1_x256_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C)
+{
+    constexpr int TileSize = 256;
+    
+    {
+        float CacheOut[TileSize * TileSize];
+        float CacheA[TileSize * TileSize];
+        float CacheB[TileSize * TileSize];
+        
+        for (int ti = 0; ti < Size; ti+=TileSize)
+        for (int tk = 0; tk < Size; tk+=TileSize)
+        for (int tj = 0; tj < Size; tj+=TileSize)
+        {
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                CacheOut[i * TileSize + j] = 0;
+                CacheA[i * TileSize + j] = A[(i + ti) * Size + (j + tk)];
+                CacheB[i * TileSize + j] = B[(i + tk) * Size + (j + tj)];
+            } 
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int k = 0; k < (TileSize); k++)
+            for (int j = 0; j < (TileSize); j++)
+                 CacheOut[i * TileSize + j] += CacheA[i * TileSize + k] * CacheB[k * TileSize + j];
+            
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                Out[(i + ti) * Size + (j + tj)] += CacheOut[i * TileSize + j];
+            }
+        }
+    
+#ifdef ENABLE_ADD
+        for (int i = 0; i < Size; i++)
+        for (int j = 0; j < Size; j++)
+            Out[i * Size + j] += C[i * Size + j];
+#endif // ENABLE_ADD
+    }
+}
+
 void SquareMatrixMulAddR_OP2(float* Out, int Size, const float* A, const float* B, const float* C)
 {
     constexpr int TileSize = 64;
@@ -328,6 +528,51 @@ void SquareMatrixMulAddR_OP2_Cached(float* Out, int Size, const float* A, const 
             for (int k = 0; k < (TileSize); k++)
             for (int j = 0; j < (TileSize); j++)
                  CacheOut[i * TileSize + j] += A[(i + ti) * Size + (k + tk)] * B[(k + tk) * Size + (j + tj)];
+            
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                Out[(i + ti) * Size + (j + tj)] += CacheOut[i * TileSize + j];
+            }
+        }
+    
+#ifdef ENABLE_ADD
+#pragma omp for collapse(2)
+        for (int i = 0; i < Size; i++)
+        for (int j = 0; j < Size; j++)
+            Out[i * Size + j] += C[i * Size + j];
+#endif // ENABLE_ADD
+    }
+}
+
+void SquareMatrixMulAddR_OP2_CachedAll(float* Out, int Size, const float* A, const float* B, const float* C)
+{
+    constexpr int TileSize = 64;
+    
+#pragma omp parallel 
+    {
+        float CacheOut[TileSize * TileSize];
+        float CacheA[TileSize * TileSize];
+        float CacheB[TileSize * TileSize];
+        
+#pragma omp for collapse(3) private(CacheOut, CacheA, CacheB)
+        for (int ti = 0; ti < Size; ti+=TileSize)
+        for (int tk = 0; tk < Size; tk+=TileSize)
+        for (int tj = 0; tj < Size; tj+=TileSize)
+        {
+            for (int i = 0; i < (TileSize); i++)
+            for (int j = 0; j < (TileSize); j++)
+            {
+                CacheOut[i * TileSize + j] = 0;
+                CacheA[i * TileSize + j] = A[(i + ti) * Size + (j + tk)];
+                CacheB[i * TileSize + j] = B[(i + tk) * Size + (j + tj)];
+            } 
+            
+            for (int i = 0; i < (TileSize); i++)
+            for (int k = 0; k < (TileSize); k++)
+            for (int j = 0; j < (TileSize); j++)
+                 CacheOut[i * TileSize + j] += CacheA[i * TileSize + k] * CacheB[k * TileSize + j];
             
             
             for (int i = 0; i < (TileSize); i++)

@@ -1,5 +1,6 @@
 
 #include <chrono>
+#include <filesystem>
 #include <string_view>
 #include <sciplot/sciplot.hpp>
 
@@ -72,12 +73,25 @@ static void BenchmarkResultAverageTimings(BenchmarkResult& result)
     BenchmarkResultAverageTimings(BenchResult);\
 }
 
-#define BENCHMARK_PRINT_RES(BenchmarkResults, ReferenceResults)\
+#define BENCHMARK_CSV_BEGIN(Name)\
+std::filesystem::path exportPath = std::filesystem::path(TEMP_DIR) / Name".csv";\
+if (!exists(exportPath)) std::filesystem::create_directory(exportPath.parent_path());\
+std::ofstream output(exportPath);\
+output.clear();\
+output << "Benchmark" << Name <<",\n";
+
+#define BENCHMARK_SECTION(CSV, ParamName, ParamValue, OpsCount) \
+    CSV << " -- Section --," << ParamName << ": " << std::to_string(ParamValue) << ", Operation Count:, " << OpsCount << ",\n";\
+    CSV << "name, " << "average time (ms), " << "standard deviation (ms), " << "speedup (x times faster)," << "mean of error, " << "," << "," << "," << ", Raw timings" << ",\n";
+
+#define BENCHMARK_CSV_END() output.close();
+
+#define BENCHMARK_PRINT_RES(CSV, BenchmarkResults, ReferenceResults)\
     std::printf("%-76s - time: %8.2f ms (stddev %8.2f ms) - speedup: %6.1fx - flops: %16.1f (%6.1f GFlops) - mean of error: %12f\n", \
         BenchmarkResults.Name.data(), \
         BenchmarkResults.AverageTimeMS,\
-        ReferenceResults.AverageTimeMS / BenchmarkResults.AverageTimeMS,\
         BenchmarkResults.TimeStandardDeviationMS,\
+        ReferenceResults.AverageTimeMS / BenchmarkResults.AverageTimeMS,\
         BenchmarkResults.FLOPS,\
         BenchmarkResults.FLOPS / 1000000000.,\
         BenchmarkResults.MeanOfError\
@@ -87,6 +101,12 @@ static void BenchmarkResultAverageTimings(BenchmarkResult& result)
     float* Name; PLATFORM_ALIGNED_MALLOC(float, Name, Alignment, Size * Size * sizeof(float));\
     for (size_t i = 0; i < Size * Size; i++) Name[i] = Value;
 
+        );\
+        CSV << BenchmarkResults.Name << ", " << BenchmarkResults.AverageTimeMS << ", "\
+            << BenchmarkResults.TimeStandardDeviationMS << ", " << ReferenceResults.AverageTimeMS / BenchmarkResults.AverageTimeMS << "," << BenchmarkResults.MeanOfError << ", "\
+            << "," << "," << "," << ", ";\
+            for (size_t t_i = 0; t_i < TEST_COUNT; t_i++) {CSV << BenchmarkResults.TimesMS[t_i] << ", ";};\
+        CSV << "Raw timings" << ",\n";
 #define MakeBuffer(Name, Size, Alignment) float* Name; PLATFORM_ALIGNED_MALLOC(float, Name, Alignment, Size * sizeof(float));
 #define MakeBufferV(Name, Size, Alignment, Value) MakeBuffer(Name, Size, Alignment) for (size_t i = 0; i < Size; i++) Name[i] = Value;
 #define ReleaseBuffer(Name) PLATFORM_ALIGNED_FREE(Name)
@@ -95,8 +115,10 @@ static void BenchmarkResultAverageTimings(BenchmarkResult& result)
 #define MatrixSquareZero(Name, Size) for (size_t i = 0; i < Size * Size; i++) Name[i] = 0
 #define ReleaseSquareFloatMatrix(Name) ReleaseBuffer(Name)
 
-void BenchmarkSquareMatrixMulAdd(size_t Size)
-{
+void BenchmarkSquareMatrixMulAdd(std::ofstream& CSV, size_t Size)
+{    
+    BENCHMARK_SECTION(CSV, "Size", (Size * Size), SquareMatrixMullAddR_FLO(Size))
+    
     MakeSquareFloatMatrix(A, Size, 64, (float)rand()/(float)(RAND_MAX))
     MakeSquareFloatMatrix(B, Size, 64, (float)rand()/(float)(RAND_MAX))
     MakeSquareFloatMatrix(C, Size, 64, (float)rand()/(float)(RAND_MAX))
@@ -111,49 +133,49 @@ void BenchmarkSquareMatrixMulAdd(size_t Size)
     BECHMARK("Square Matrix MulAdd - Reference", ReferenceResult, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_Baseline(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(ReferenceResult, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, ReferenceResult, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 0", Opt0Result, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP0(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt0Result, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt0Result, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 1 - tile 16", Opt1Result16, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x16(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt1Result16, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt1Result16, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 1 - tile 32", Opt1Result32, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x32(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt1Result32, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt1Result32, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 1 - tile 64", Opt1Result64, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x64(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt1Result64, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt1Result64, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 1 - tile 16 + Cached Output", Opt1Result16CO, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x16_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt1Result16CO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt1Result16CO, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 1 - tile 32 + Cached Output", Opt1Result32CO, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x32_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt1Result32CO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt1Result32CO, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 1 - tile 64 + Cached Output", Opt1Result64CO, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x64_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt1Result64CO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt1Result64CO, ReferenceResult)
     
     if (Size >= 128)
     {
@@ -161,146 +183,191 @@ void BenchmarkSquareMatrixMulAdd(size_t Size)
         BECHMARK("Square Matrix MulAdd - Opt 1 - tile 128 + Cached Output", Opt1Result128CO, 
             Out, Ref, Error, Size * Size, 
             SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x128_Cached(Out, Size, A, B, C))
-        BENCHMARK_PRINT_RES(Opt1Result128CO, ReferenceResult)
+        BENCHMARK_PRINT_RES(CSV, Opt1Result128CO, ReferenceResult)
+    }
+    
+    if (Size >= 256)
+    {
+        MatrixSquareZero(Out, Size);
+        BECHMARK("Square Matrix MulAdd - Opt 1 - tile 256 + Cached Output", Opt1Result128CO, 
+            Out, Ref, Error, Size * Size, 
+            SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x256_Cached(Out, Size, A, B, C))
+        BENCHMARK_PRINT_RES(CSV, Opt1Result128CO, ReferenceResult)
+    }
+    
+    MatrixSquareZero(Out, Size);
+    BECHMARK("Square Matrix MulAdd - Opt 1 - tile 32 + Cached In & Out", Opt1Result32CIO, 
+        Out, Ref, Error, Size * Size, 
+        SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x32_CachedAll(Out, Size, A, B, C))
+    BENCHMARK_PRINT_RES(CSV, Opt1Result32CIO, ReferenceResult)
+    
+    MatrixSquareZero(Out, Size);
+    BECHMARK("Square Matrix MulAdd - Opt 1 - tile 64 + Cached In & Out", Opt1Result64CIO, 
+        Out, Ref, Error, Size * Size, 
+        SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x64_CachedAll(Out, Size, A, B, C))
+    BENCHMARK_PRINT_RES(CSV, Opt1Result64CIO, ReferenceResult)
+    
+    if (Size >= 128)
+    {
+        MatrixSquareZero(Out, Size);
+        BECHMARK("Square Matrix MulAdd - Opt 1 - tile 128 + Cached In & Out", Opt1Result128CIO, 
+            Out, Ref, Error, Size * Size, 
+            SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x128_CachedAll(Out, Size, A, B, C))
+        BENCHMARK_PRINT_RES(CSV, Opt1Result128CIO, ReferenceResult)
+    }
+    
+    if (Size >= 256)
+    {
+        MatrixSquareZero(Out, Size);
+        BECHMARK("Square Matrix MulAdd - Opt 1 - tile 256 + Cached In & Out", Opt1Result128CIO, 
+            Out, Ref, Error, Size * Size, 
+            SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP1_x256_CachedAll(Out, Size, A, B, C))
+        BENCHMARK_PRINT_RES(CSV, Opt1Result128CIO, ReferenceResult)
     }
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 2 - Multicore", Opt2Result, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP2(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2Result, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2Result, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 2 - Multicore + Cached Output", Opt2ResultCO, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP2_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2ResultCO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2ResultCO, ReferenceResult)
+    
+    MatrixSquareZero(Out, Size);
+    BECHMARK("Square Matrix MulAdd - Opt 2 - Multicore + Cached In & Out", Opt2ResultCIO, 
+        Out, Ref, Error, Size * Size, 
+        SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP2_CachedAll(Out, Size, A, B, C))
+    BENCHMARK_PRINT_RES(CSV, Opt2ResultCIO, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 2 - Multicore in Dynamic schedule + Cached Output", Opt2ResultDCO, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP2_Cached_DynamicSchedule(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2ResultDCO, ReferenceResult)    
+    BENCHMARK_PRINT_RES(CSV, Opt2ResultDCO, ReferenceResult)    
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - SSE - Intrinsics", Opt2SSEResult, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_SSE(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2SSEResult, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2SSEResult, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - AVX - Intrinsics", Opt2AVXResult, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_AVX(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2AVXResult, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2AVXResult, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - AVX x 4 - Intrinsics", Opt2AVXx4Result, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_AVXx4(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2AVXx4Result, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2AVXx4Result, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - AVX512 - Intrinsics", Opt2AVX512Result,  
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_AVX512(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2AVX512Result, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2AVX512Result, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - AVX512 x 2 - Intrinsics", Opt2AVX512x2Result,  
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_AVX512x2(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2AVX512x2Result, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2AVX512x2Result, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - SSE - Intrinsics + Cached Output", Opt2SSEResultCO, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_SSE_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2SSEResultCO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2SSEResultCO, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - AVX - Intrinsics + Cached Output", Opt2AVXResultCO, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_AVX_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2AVXResultCO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2AVXResultCO, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - AVX x 4 - Intrinsics + Cached Output", Opt2AVXx4ResultCO, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_AVXx4_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2AVXx4ResultCO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2AVXx4ResultCO, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - AVX512 - Intrinsics + Cached Output", Opt2AVX512ResultCO,  
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_AVX512_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2AVX512ResultCO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2AVX512ResultCO, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 3 - AVX512 x 2 - Intrinsics + Cached Output", Opt2AVX512x2ResultCO,  
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP3_AVX512x2_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt2AVX512x2ResultCO, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt2AVX512x2ResultCO, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - SSE - Math SIMT", Opt3SSEResult, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_SSE_MathSimt(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3SSEResult, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3SSEResult, ReferenceResult)
         
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - AVX - Math SIMT", Opt3AVXResult, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_AVX_MathSimt(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3AVXResult, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3AVXResult, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - AVX x 4 - Math SIMT", Opt3AVXx4Result, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_AVXx4_MathSimt(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3AVXx4Result, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3AVXx4Result, ReferenceResult)
         
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - AVX512 - Math SIMT", Opt3AVX512Result,  
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_AVX512_MathSimt(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3AVX512Result, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3AVX512Result, ReferenceResult)
         
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - AVX512 x 2 - Math SIMT", Opt3AVX512x2Result,  
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_AVX512x2_MathSimt(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3AVX512x2Result, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3AVX512x2Result, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - SSE - Math SIMT + Cached Output", Opt3SSEResultOC, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_SSE_MathSimt_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3SSEResultOC, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3SSEResultOC, ReferenceResult)
         
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - AVX - Math SIMT + Cached Output", Opt3AVXResultOC, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_AVX_MathSimt_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3AVXResultOC, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3AVXResultOC, ReferenceResult)
     
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - AVX x 4 - Math SIMT + Cached Output", Opt3AVXx4ResultOC, 
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_AVXx4_MathSimt_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3AVXx4ResultOC, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3AVXx4ResultOC, ReferenceResult)
         
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - AVX512 - Math SIMT + Cached Output", Opt3AVX512ResultOC,  
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_AVX512_MathSimt_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3AVX512ResultOC, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3AVX512ResultOC, ReferenceResult)
         
     MatrixSquareZero(Out, Size);
     BECHMARK("Square Matrix MulAdd - Opt 4 - AVX512 x 2 - Math SIMT + Cached Output", Opt3AVX512x2ResultOC,  
         Out, Ref, Error, Size * Size, 
         SquareMatrixMullAddR_FLO(Size), SquareMatrixMulAddR_OP4_AVX512x2_MathSimt_Cached(Out, Size, A, B, C))
-    BENCHMARK_PRINT_RES(Opt3AVX512x2ResultOC, ReferenceResult)
+    BENCHMARK_PRINT_RES(CSV, Opt3AVX512x2ResultOC, ReferenceResult)
     
 
     
@@ -336,8 +403,15 @@ int main(int argc, char* argv[])
 #endif // !CONFIG_DEBUG
     
     // Matrix MulAdd benchmark
-    for (size_t i = 1; i <= 64llu; i *= 2) 
-        BenchmarkSquareMatrixMulAdd(64llu * i);
+    {
+        BENCHMARK_CSV_BEGIN("Matrix Multiplication")
+        
+        for (size_t i = 1; i <= 32llu; i *= 2) 
+        // for (size_t i = 1; i <= 64llu; i *= 2) 
+            BenchmarkSquareMatrixMulAdd(output, 64llu * i);
+        
+        BENCHMARK_CSV_END()
+    }
 
     return 0;
 }
