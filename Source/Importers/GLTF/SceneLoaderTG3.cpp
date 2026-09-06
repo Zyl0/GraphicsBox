@@ -3,6 +3,7 @@
 #ifdef USE_TINY_GLTF_3
 
 
+#include <array>
 #include <functional>
 #include <tiny_gltf_v3.h>
 
@@ -13,21 +14,6 @@
 
 namespace GLTF
 {
-    struct ImageLoadFreeState
-    {
-        
-    };
-    
-    static int32_t ImageLoadCallback(tg3_image_result *result, const tg3_image_request *request, void *user_data)
-    {
-        
-    }
-
-    static void ImageReleaseCallback(uint8_t *pixels, void *user_data)
-    {
-        
-    }
-
     static const tg3_extension* FindExtension(const tg3_extras_ext& extentions, std::string_view extension)
     {
         for (size_t i = 0; i < extentions.extensions_count; ++i)
@@ -112,6 +98,66 @@ namespace GLTF
         return true;
     }
 
+    static bool IsImageExention(std::string_view extention)
+    {
+        if (
+            extention.compare(".dds") == 0 ||
+            extention.compare(".exr") == 0 ||
+            extention.compare(".png") == 0 ||
+            extention.compare(".jpg") == 0 ||
+            extention.compare(".jepg") == 0 ||
+            extention.compare(".tga") == 0 ||
+            extention.compare(".bmp") == 0 ||
+            extention.compare(".hdr") == 0 
+            ) 
+            return true;
+
+        return false;
+    }
+    
+    static std::filesystem::path ResolveFileTypeMismatch(const std::filesystem::path& gltf_path, std::string_view local_filename) 
+    {
+        std::filesystem::path p = gltf_path.parent_path() / local_filename;
+        if (exists(p)) return p;
+        
+        if (p.has_extension())
+        {
+            static std::array<const std::string_view, 8> extensionsToCheck {
+                ".dds", ".exr", ".png", ".jpg", ".jpeg", ".tga", ".bmp", ".hdr"
+            };
+                
+            // static std::array<const Image::FileType, 8> extensionsType {
+            //     Image::FileType::DDS,
+            //     Image::FileType::EXR, 
+            //     Image::FileType::PNG, 
+            //     Image::FileType::JPG, 
+            //     Image::FileType::JPG, 
+            //     Image::FileType::TGA,
+            //     Image::FileType::BMP, 
+            //     Image::FileType::HDR
+            // };
+            
+            std::string extension = p.extension().generic_string();
+            
+            if (extension == ".gltf" || extension == ".glb") {}
+            else
+                if (IsImageExention(extension))
+                {
+                    for (size_t i = 0; i < extensionsToCheck.size(); i++)
+                    {
+                        p.replace_extension(extensionsToCheck[i]);
+                        if (std::filesystem::exists(p))
+                        {
+                            return p;
+                        }
+                    }
+                }
+                EngineLoggerErrorF("Unsupported file extension type \"%ls\"", p.extension().c_str());
+        }
+        
+        return p;
+    }
+    
     Transform GetNodeWorldTransform(const tinygltf3::Model& model, const tg3_node& NodeObject)
     {
         Transform transform;
@@ -236,9 +282,7 @@ namespace GLTF
         tinygltf3::ErrorStack errors;
         tg3_parse_options options;
 
-        tg3_parse_options_init(&options);
-        // options.image.load_image = &ImageLoadCallback;
-        // options.image.free_image = &ImageReleaseCallback;        
+        tg3_parse_options_init(&options);     
         tg3_error_code rc = tinygltf3::parse_file(model, errors, path.generic_string().c_str(), &options);
         AssertOrErrorCall(rc == TG3_OK, goto on_failed_tg3_parse, "Failed to load gltf model")
 
@@ -256,59 +300,47 @@ namespace GLTF
                 const auto & image = model->images[texture.source];
                 AssertOrErrorCall(!image.as_is, continue;, "Custom image file type are not supported")
 
-                Image::Layout Layout;
-                switch(image.component)
+                if (image.buffer_view >= 0)
                 {
-                case 1:
-                    Layout = Image::R;
-                    break;
-                case 2: 
-                    Layout = Image::RG;
-                    break;
-                case 3: 
-                    Layout = Image::RGB;
-                    break;
-                case 4: 
-                    Layout = Image::RGBA;
-                    break;
-                        
-                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported image %s, unsupported component count (%d)", texture.name.data, image.component)
-                    }
+                    const auto& bv = model->buffer_views[image.buffer_view];
+                    const auto& buffer = model->buffers[bv.buffer];
+                    const uint8_t* rawData = buffer.data.data + bv.byte_offset;
+                    size_t rawSize = bv.byte_length;
                 
-                Image::Type Type;
-                Image::Encoding Encoding = Image::Linear;
-                switch(image.pixel_type)
+                    Image::FileType fileType = Image::FileType::_Count; // default
+                    if (image.mime_type.len > 0)
+                    {
+                        if (SAFE_STRCMP_S_LS(image.mime_type.data, image.mime_type.len, "image/jpeg") == 0)
+                        {
+                            fileType = Image::FileType::JPG;
+                        }
+                        else if (SAFE_STRCMP_S_LS(image.mime_type.data, image.mime_type.len, "image/bmp") == 0)
+                        {
+                            fileType = Image::FileType::BMP;
+                        }
+                        else if (SAFE_STRCMP_S_LS(image.mime_type.data, image.mime_type.len, "image/png") == 0)
+                        {
+                            fileType = Image::FileType::PNG;
+                        }
+                        else
+                        {
+                            AssertOrErrorCallF(false, goto on_failed_to_load_image;, "Unsupported mime type format \"%.*s\"", image.mime_type.len, image.mime_type.data)
+                        }
+                    }
+                    scene.textures.emplace_back(ImageLoadFromMemory(rawData, rawSize, fileType));    
+                    continue;
+                }
+                if (image.uri.data != nullptr && image.uri.len > 0)
                 {
-                case TG3_COMPONENT_TYPE_BYTE: 
-                    Type = Image::Byte;
-                    break;
-                case TG3_COMPONENT_TYPE_UNSIGNED_BYTE:                     
-                    Type = Image::UnsignedByte;
-                    Encoding = Image::sRGB;
-                    break;
-                case TG3_COMPONENT_TYPE_SHORT: 
-                    Type = Image::Short;
-                    break;
-                case TG3_COMPONENT_TYPE_UNSIGNED_SHORT: 
-                    Type = Image::UnsignedShort;
-                    break;
-                case TG3_COMPONENT_TYPE_INT: 
-                    Type = Image::Int;
-                    break;
-                case TG3_COMPONENT_TYPE_UNSIGNED_INT: 
-                    Type = Image::UnsignedInt;
-                    break;
-                case TG3_COMPONENT_TYPE_FLOAT: 
-                    Type = Image::Float;
-                    break;
-                case TG3_COMPONENT_TYPE_DOUBLE: 
-                    Type = Image::Double;
-                    break;
-                        
-                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported image %s, unsupported data type (%d)", texture.name.data, image.pixel_type)
-                    }
+                    scene.textures.emplace_back(ImageLoad(ResolveFileTypeMismatch(path, std::string_view(image.uri.data, image.uri.len)), Image::UnsignedByte));   
+                    continue;
+                }
                 
-                scene.textures.emplace_back(image.width, image.height, Type, Layout, Encoding, image.image.data);
+                AssertOrErrorCallF(false,,"Unsupported image. Could not find a way to import")
+                     
+            on_failed_to_load_image:
+                Image emptyImage(1, 1, Image::UnsignedByte, Image::R);
+                scene.textures.emplace_back(emptyImage);
             }
         }
 
@@ -825,276 +857,6 @@ namespace GLTF
         return false;
     }
     
-/*
-    static struct CustomImageLoaderState
-    {
-        // std::filesystem::path gltfPath;
-        Image::FileType imageFileType;
-        bool imageHasReplacedExtension;
-    };
-
-    static bool IsImageExention(std::string_view extention)
-    {
-        if (
-            extention.compare(".dds") == 0 ||
-            extention.compare(".exr") == 0 ||
-            extention.compare(".png") == 0 ||
-            extention.compare(".jpg") == 0 ||
-            extention.compare(".jepg") == 0 ||
-            extention.compare(".tga") == 0 ||
-            extention.compare(".bmp") == 0 ||
-            extention.compare(".hdr") == 0 
-            ) 
-            return true;
-
-        return false;
-    }
-    
-    static bool CustomFileExists(const std::string &abs_filename, void *user_data) 
-    {
-        CustomImageLoaderState* State = static_cast<CustomImageLoaderState*>(user_data);
-        State->imageHasReplacedExtension = false;
-
-        std::filesystem::path p(abs_filename);
-        if (p.has_extension())
-        {
-            static std::array<const std::string_view, 8> extensionsToCheck {
-                ".dds", ".exr", ".png", ".jpg", ".jpeg", ".tga", ".bmp", ".hdr"
-            };
-                
-            static std::array<const Image::FileType, 8> extensionsType {
-                Image::FileType::DDS,
-                Image::FileType::EXR, 
-                Image::FileType::PNG, 
-                Image::FileType::JPG, 
-                Image::FileType::JPG, 
-                Image::FileType::TGA,
-                Image::FileType::BMP, 
-                Image::FileType::HDR
-            };
-                
-            
-            std::string extension = p.extension().generic_string();
-            
-            if (extension == ".gltf" || extension == ".glb") {}
-            else
-                if (IsImageExention(extension))
-                {
-                    if (! std::filesystem::exists(p))
-                    {
-                        State->imageHasReplacedExtension = true;
-                        for (size_t i = 0; i < extensionsToCheck.size(); i++)
-                        {
-                            p.replace_extension(extensionsToCheck[i]);
-                            if (std::filesystem::exists(p))
-                            {
-                                State->imageFileType = extensionsType[i];
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        for (size_t i = 0; i < extensionsToCheck.size(); i++)
-                        {
-                            if (extension == extensionsToCheck[i])
-                            {
-                                State->imageFileType = extensionsType[i];
-                                break;
-                            }
-                        }
-                    }
-                
-                    if (! std::filesystem::exists(p))
-                    {
-                        EngineLoggerErrorF("Failed to find file \"%ls\"", p.c_str());
-                        return false;
-                    }
-                    else
-                    {
-                        return true;
-                    }
-                }
-                else
-                {
-                    EngineLoggerErrorF("Unsupported file extension type \"%ls\"", p.extension().c_str());
-                }
-        }
-        
-        return tinygltf::FileExists(abs_filename, user_data);
-    }
-
-    static bool CustomReadWholeFile(std::vector<unsigned char> *out, std::string *err, const std::string &filepath, void *user_data) 
-    {
-        CustomImageLoaderState* State = static_cast<CustomImageLoaderState*>(user_data);
-        
-        if (State->imageHasReplacedExtension)
-        {
-            std::filesystem::path p(filepath);
-            switch (State->imageFileType)
-            {
-            case Image::JPG:
-                p.replace_extension(".jpg");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf3::ReadWholeFile(out, err, p.generic_string(), user_data);
-                }
-                
-                p.replace_extension(".jpeg");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::PNG:
-                p.replace_extension(".png");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::TGA:
-                p.replace_extension(".tga");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::BMP:
-                p.replace_extension(".bmp");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::HDR:
-                p.replace_extension(".hdr");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::DDS:
-                p.replace_extension(".dds");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::EXR:
-                p.replace_extension(".exr");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::ReadWholeFile(out, err, p.generic_string(), user_data);
-                }
-                break;
-                
-                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image file type")
-                }
-        }
-        
-        return tinygltf::ReadWholeFile(out, err, filepath, user_data);
-    }
-
-    static bool CustomGetFileSizeInBytes(size_t *filesize_out, std::string *err, const std::string &filepath, void *user_data) 
-    {
-        CustomImageLoaderState* State = static_cast<CustomImageLoaderState*>(user_data);
-        
-        if (State->imageHasReplacedExtension)
-        {
-            std::filesystem::path p(filepath);
-            switch (State->imageFileType)
-            {
-            case Image::JPG:
-                p.replace_extension(".jpg");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
-                }
-                
-                p.replace_extension(".jpeg");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::PNG:
-                p.replace_extension(".png");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::TGA:
-                p.replace_extension(".tga");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::BMP:
-                p.replace_extension(".bmp");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::HDR:
-                p.replace_extension(".hdr");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::DDS:
-                p.replace_extension(".dds");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
-                }
-                break;
-            case Image::EXR:
-                p.replace_extension(".exr");
-                if (std::filesystem::exists(p))
-                {
-                    return tinygltf::GetFileSizeInBytes(filesize_out, err, p.generic_string(), user_data);
-                }
-                break;
-                
-                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image file type")
-                }
-        }
-        
-        return tinygltf::GetFileSizeInBytes(filesize_out, err, filepath, user_data);
-    }
-
-    static bool CustomImageLoader(tinygltf::Image* image, const int image_idx, std::string* err, std::string* warn,
-                     int req_width, int req_height, const unsigned char* bytes, int size, void* user_data)
-    {
-        if (size == 0) return false;
-        
-        CustomImageLoaderState* State = static_cast<CustomImageLoaderState*>(user_data);
-        
-        Image LoadedImage = ImageLoadFromMemory(bytes, size, State->imageFileType);
-        if (LoadedImage.Width() == 0 || LoadedImage.Height() == 0)
-        {
-            if (err) *err += "Failed to decode image from memory.";
-#ifdef CONFIG_DEBUG
-            EngineRuntimeBREAKPOINT
-#endif // CONFIG_DEBUG
-            return false;
-        }
-        image->width = static_cast<int>(LoadedImage.Width());
-        image->height = static_cast<int>(LoadedImage.Height());
-        image->component = static_cast<int>(LoadedImage.ComponentCount());
-        image->bits = 8;
-        image->pixel_type = TG3_COMPONENT_TYPE_UNSIGNED_BYTE;
-        image->image.resize(LoadedImage.DataSize());
-        std::memcpy(image->image.data(), LoadedImage.Data(), LoadedImage.DataSize());
-        return true;
-    }
-    */
-    
     void LoadSceneTree(
         const tinygltf3::Model& model,
         int node,
@@ -1243,58 +1005,48 @@ namespace GLTF
                 const auto& texture = model->textures[i];
                 const auto & image = model->images[texture.source];
                 AssertOrErrorCall(!image.as_is, continue;, "Custom image file type are not supported")
-
-                Image::Layout Layout;
-                switch(image.component)
+                
+                if (image.buffer_view >= 0)
                 {
-                case 1:
-                    Layout = Image::R;
-                    break;
-                case 2: 
-                    Layout = Image::RG;
-                    break;
-                case 3: 
-                    Layout = Image::RGB;
-                    break;
-                case 4: 
-                    Layout = Image::RGBA;
-                    break;
-                    
-                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported image %s, unsupported component count (%d)", texture.name.data, image.component)
+                    const auto& bv = model->buffer_views[image.buffer_view];
+                    const auto& buffer = model->buffers[bv.buffer];
+                    const uint8_t* rawData = buffer.data.data + bv.byte_offset;
+                    size_t rawSize = bv.byte_length;
+                
+                    Image::FileType fileType = Image::FileType::_Count; // default
+                    if (image.mime_type.len > 0)
+                    {
+                        if (SAFE_STRCMP_S_LS(image.mime_type.data, image.mime_type.len, "image/jpeg") == 0)
+                        {
+                            fileType = Image::FileType::JPG;
+                        }
+                        else if (SAFE_STRCMP_S_LS(image.mime_type.data, image.mime_type.len, "image/bmp") == 0)
+                        {
+                            fileType = Image::FileType::BMP;
+                        }
+                        else if (SAFE_STRCMP_S_LS(image.mime_type.data, image.mime_type.len, "image/png") == 0)
+                        {
+                            fileType = Image::FileType::PNG;
+                        }
+                        else
+                        {
+                            AssertOrErrorCallF(false, goto on_failed_to_load_image;, "Unsupported mime type format \"%.*s\"", image.mime_type.len, image.mime_type.data)
+                        }
                     }
-            
-                Image::Type Type;
-                switch(image.pixel_type)
+                    scene.textures.emplace_back(ImageLoadFromMemory(rawData, rawSize, fileType));    
+                    continue;
+                }
+                if (image.uri.data != nullptr && image.uri.len > 0)
                 {
-                case TG3_COMPONENT_TYPE_BYTE: 
-                    Type = Image::Byte;
-                    break;
-                case TG3_COMPONENT_TYPE_UNSIGNED_BYTE:                     
-                    Type = Image::UnsignedByte;
-                    break;
-                case TG3_COMPONENT_TYPE_SHORT: 
-                    Type = Image::Short;
-                    break;
-                case TG3_COMPONENT_TYPE_UNSIGNED_SHORT: 
-                    Type = Image::UnsignedShort;
-                    break;
-                case TG3_COMPONENT_TYPE_INT: 
-                    Type = Image::Int;
-                    break;
-                case TG3_COMPONENT_TYPE_UNSIGNED_INT: 
-                    Type = Image::UnsignedInt;
-                    break;
-                case TG3_COMPONENT_TYPE_FLOAT: 
-                    Type = Image::Float;
-                    break;
-                case TG3_COMPONENT_TYPE_DOUBLE: 
-                    Type = Image::Double;
-                    break;
-                    
-                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGEF("Unsupported image %s, unsupported data type (%d)", texture.name.data, image.pixel_type)
-                    }
-            
-                scene.textures.emplace_back(image.width, image.height, Type, Layout, image.image.data, image.image.count);
+                    scene.textures.emplace_back(ImageLoad(ResolveFileTypeMismatch(path, std::string_view(image.uri.data, image.uri.len)), Image::UnsignedByte));   
+                    continue;
+                }
+                
+                AssertOrErrorCallF(false,,"Unsupported image. Could not find a way to import")
+                     
+            on_failed_to_load_image:
+                Image emptyImage(1, 1, Image::UnsignedByte, Image::R);
+                scene.textures.emplace_back(emptyImage);
             }
         }
 
