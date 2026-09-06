@@ -1715,19 +1715,21 @@ newaction {
         if gbUseUnitTests == true then
             GenerateCatch2Config()
         end
+    
+        if gbUseSIMD_X86_AVX512 == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "_Types_AVX512")
+            gbUseSIMD_X86_AVX = true
+        end
+    
+        if gbUseSIMD_X86_AVX == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "_Types_AVX")
+            gbUseSIMD_X86_SSE = true
+        end
 
         if gbUseSIMD_X86_SSE == true then
             UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "_Types_SSE")
         end
 
-        if gbUseSIMD_X86_AVX == true then
-            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "_Types_AVX")
-        end
-
-        if gbUseSIMD_X86_AVX512 == true then
-            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "_Types_AVX512")
-        end
-        
         UpdateConfig()
         
         print("Setup complete")

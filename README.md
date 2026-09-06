@@ -16,9 +16,9 @@ deprecated flag usage warnings depending on your version of Premake.)
    This will download and compile the shaderc shader compiler. This requires a toolset to be specified using ```--dependencies-toolset=...```.
    - ```--dependencies-toolset=<toolset>``` toolset used to compile third party library during setup phase.
    - ```--unit-tests``` to generate the unit tests projects
-   - ```simd-x86-sse``` to enable SSE SIMD instruction generation for x86/x64
-   - ```simd-x86-avx``` to enable SSE SIMD instruction generation for x86/x64
-   - ```simd-x86-avx512``` to enable SSE SIMD instruction generation for x86/x64
+   - ```--simd-x86-sse``` to enable SSE SIMD instruction generation for x86/x64
+   - ```--simd-x86-avx``` to enable AVX SIMD instruction generation for x86/x64, this enables ```--simd-x86-sse```
+   - ```--simd-x86-avx512``` to enable AVX512 SIMD instruction generation for x86/x64, this enables ```--simd-x86-avx``` and ```--simd-x86-sse```
 
 ## Windows (using Visual studio) 
 
