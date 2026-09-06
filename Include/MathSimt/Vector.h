@@ -26,6 +26,7 @@ namespace Math::Simt
         constexpr Vector2() = default;
         constexpr Vector2(ScalarType a) : x(a), y(a) {}
         constexpr Vector2(ScalarType a, ScalarType b) : x(a), y(b) {}
+        constexpr Vector2(const Vector2t<Type>& v) : x(v.a), y(v.b) {}
         constexpr Vector2(const Vector2& rhs) = default;
         constexpr Vector2(const Vector2 a, const Vector2 b) : x(b.x - a.x), y(b.y - a.y) {}
 
@@ -33,6 +34,11 @@ namespace Math::Simt
         const ScalarType& operator[](const int i) const {return (&x)[i];}
         ScalarType& operator[](const size_t i) {return (&x)[i];}
         const ScalarType& operator[](const size_t i) const {return (&x)[i];}
+        
+        Vector2t<Type> Elt(size_t index) const
+        {
+            return {x[index], y[index]};
+        }
 
         const ScalarType* data() const {return &x;}
 
@@ -40,6 +46,13 @@ namespace Math::Simt
         {
             x = rhs.x;
             y = rhs.y;
+            return *this;
+        }
+        
+        Vector2& operator = (const Vector2t<Type>& v)
+        {
+            x = v.x;
+            y = v.y;
             return *this;
         }
 
@@ -237,6 +250,7 @@ namespace Math::Simt
         constexpr Vector3() = default;
         constexpr Vector3(ScalarType a) : x(a), y(a), z(a) {}
         constexpr Vector3(ScalarType a, ScalarType b, ScalarType c) : x(a), y(b), z(c) {}
+        constexpr Vector3(const Vector3t<Type>& v) : x(v.x), y(v.y), z(v.z) {}
         constexpr Vector3(const Vector3& rhs) = default;
         constexpr Vector3(const Vector3 a, const Vector3 b) : x(b.x - a.x), y(b.y - a.y), z(b.z - a.z) {}
 
@@ -244,6 +258,11 @@ namespace Math::Simt
         const ScalarType& operator[](const int i) const {return (&x)[i];}
         ScalarType& operator[](const size_t i) {return (&x)[i];}
         const ScalarType& operator[](const size_t i) const {return (&x)[i];}
+        
+        Vector3t<Type> Elt(size_t index) const
+        {
+            return {x[index], y[index], z[index]};
+        }
 
         const ScalarType* data() const {return &x;}
 
@@ -252,6 +271,14 @@ namespace Math::Simt
             x = rhs.x;
             y = rhs.y;
             z = rhs.z;
+            return *this;
+        }
+        
+        Vector3& operator = (const Vector3t<Type>& v)
+        {
+            x = v.x;
+            y = v.y;
+            z = v.z;
             return *this;
         }
 
@@ -473,10 +500,22 @@ namespace Math::Simt
         constexpr Point3(typename Vector3<DataType, ThreadCount>::ScalarType a, typename Vector3<DataType, ThreadCount>::ScalarType b, typename Vector3<DataType, ThreadCount>::ScalarType c):
             Vector3<DataType, ThreadCount>::Vector3(a, b, c)
         {}
+        constexpr Point3(const Point3t<DataType>& v) :
+            Vector3<DataType, ThreadCount>::Vector3(v)
+        {}
         constexpr Point3(const Point3& rhs) = default;
         constexpr Point3(const Point3 a, const Point3 b):
             Vector3<DataType, ThreadCount>::Vector3(a, b)
         {}
+        Point3(const Vector3<DataType, ThreadCount>& Other):
+            Vector3<DataType, ThreadCount>(Other)
+        {
+        }
+        
+        Point3t<DataType> Elt(size_t index) const
+        {
+            return Vector3<DataType, ThreadCount>::Elt(index);
+        }
 
         Point3& operator=(const Point3& Other)
         {
@@ -485,12 +524,14 @@ namespace Math::Simt
             Vector3<DataType, ThreadCount>::operator =(Other);
             return *this;
         }
-
-        Point3(const Vector3<DataType, ThreadCount>& Other):
-            Vector3<DataType, ThreadCount>(Other)
+        Point3& operator=(const Point3t<DataType>& Other)
         {
+            if (this == &Other)
+                return *this;
+            Vector3<DataType, ThreadCount>::operator =(Other);
+            return *this;
         }
-
+        
         Point3& operator=(const Vector3<DataType, ThreadCount>& Other)
         {
             if (this == &Other)
@@ -574,12 +615,18 @@ namespace Math::Simt
         Vector4() = default;
 
         Vector4(const ScalarType s) : x(s), y(s), z(s), w(s) {}
+        Vector4(const Vector4t<Type> v) : x(v.x), y(v.y), z(v.z), w(v.w) {}
 
         Vector4(const Vector3<DataType, ThreadCount> &v3, const ScalarType d) : x(v3.x), y(v3.y), z(v3.z), w(d) {}
 
         Vector4(const ScalarType a, const ScalarType b, const ScalarType c, const ScalarType d) : x(a), y(b), z(c), w(d) {}
         
         Vector4(const Vector4& a, const Vector4 b) : x(b.x - a.x), y(b.y - a.y), z(b.z - a.z), w(b.w - a.w) {}
+        
+        Vector3t<Type> Elt(size_t index) const
+        {
+            return {x[index], y[index], z[index], w[index]};
+        }
         
         Vector3<DataType, ThreadCount>& xyz()
         {
@@ -597,6 +644,15 @@ namespace Math::Simt
         const DataType& operator[](const size_t i) const {return (&x)[i];}
         const DataType* data() const  {return &x;}
         DataType* data() {return &x;}
+        
+        Vector4& operator =(Vector4t<Type> v)
+        {
+            x = v.x;
+            y = v.y;
+            z = v.z;
+            w = v.w;
+            return *this;
+        }
 
         Vector4& operator *=(ScalarType s)
         {
