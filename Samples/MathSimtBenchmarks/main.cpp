@@ -95,12 +95,6 @@ output << "Benchmark" << Name <<",\n";
         BenchmarkResults.FLOPS,\
         BenchmarkResults.FLOPS / 1000000000.,\
         BenchmarkResults.MeanOfError\
-        );
-
-#define MakeSquareFloatMatrix(Name, Size, Alignment, Value)\
-    float* Name; PLATFORM_ALIGNED_MALLOC(float, Name, Alignment, Size * Size * sizeof(float));\
-    for (size_t i = 0; i < Size * Size; i++) Name[i] = Value;
-
         );\
         CSV << BenchmarkResults.Name << ", " << BenchmarkResults.AverageTimeMS << ", "\
             << BenchmarkResults.TimeStandardDeviationMS << ", " << ReferenceResults.AverageTimeMS / BenchmarkResults.AverageTimeMS << "," << BenchmarkResults.MeanOfError << ", "\
