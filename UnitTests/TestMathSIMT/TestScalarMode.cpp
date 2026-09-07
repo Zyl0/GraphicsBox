@@ -11,7 +11,8 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
     (uint8_t, 4), (int32_t, 4), (uint32_t, 4), (float, 4),
     (uint8_t, 8), (int32_t, 8), (uint32_t, 8), (float, 8),
     (uint8_t, 16), (int32_t, 16), (uint32_t, 16), (float, 16),
-    (uint8_t, 32), (int32_t, 32), (uint32_t, 32), (float, 32))
+    (uint8_t, 32), (int32_t, 32), (uint32_t, 32), (float, 32),
+    (uint8_t, 64), (int32_t, 64), (uint32_t, 64), (float, 64))
 {
     using ScalarType = Scalar<T, N>;
     constexpr size_t ThreadCount = N;
