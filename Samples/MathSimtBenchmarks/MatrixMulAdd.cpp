@@ -780,10 +780,14 @@ void SquareMatrixMulAddR_OP3_AVXx4(float* ALIGNED(32) Out, int Size, const float
                     __m256 b2 = _mm256_load_ps(B + (k * Size + j + 16));
                     __m256 b3 = _mm256_load_ps(B + (k * Size + j + 24));
 
-                    __m256 res0 = _mm256_add_ps(in0, _mm256_mul_ps(a, b0));
-                    __m256 res1 = _mm256_add_ps(in1, _mm256_mul_ps(a, b1));
-                    __m256 res2 = _mm256_add_ps(in2, _mm256_mul_ps(a, b2));
-                    __m256 res3 = _mm256_add_ps(in3, _mm256_mul_ps(a, b3));
+                    __m256 res0 = _mm256_mul_ps(a, b0);
+                    __m256 res1 = _mm256_mul_ps(a, b1);
+                    __m256 res2 = _mm256_mul_ps(a, b2);
+                    __m256 res3 = _mm256_mul_ps(a, b3);
+                    res0 = _mm256_add_ps(in0, res0);
+                    res1 = _mm256_add_ps(in1, res1);
+                    res2 = _mm256_add_ps(in2, res2);
+                    res3 = _mm256_add_ps(in3, res3);
                     
                     _mm256_store_ps(Out + (i * Size + j), res0);
                     _mm256_store_ps(Out + (i * Size + j + 8), res1);
@@ -843,8 +847,11 @@ void SquareMatrixMulAddR_OP3_AVX512x2(float* ALIGNED(64) Out, int Size, const fl
                         __m512 b0 = _mm512_load_ps(B + (k * Size + j));
                         __m512 b1 = _mm512_load_ps(B + (k * Size + j + 16));
 
-                        __m512 res0 = _mm512_add_ps(in0, _mm512_mul_ps(a, b0));
-                        __m512 res1 = _mm512_add_ps(in1, _mm512_mul_ps(a, b1));
+                        __m512 res0 = _mm512_mul_ps(a, b0);
+                        __m512 res1 = _mm512_mul_ps(a, b1);
+                        res0 = _mm512_add_ps(in0, res0);
+                        res1 = _mm512_add_ps(in1, res1);
+                        
                         _mm512_store_ps(Out + (i * Size + j), res0);
                         _mm512_store_ps(Out + (i * Size + j + 16), res1);
                     }
@@ -1073,10 +1080,15 @@ void SquareMatrixMulAddR_OP3_AVXx4_Cached(float* ALIGNED(32) Out, int Size, cons
                     __m256 b2 = _mm256_load_ps(B + ((k + tk) * Size + (j + tj + 16)));
                     __m256 b3 = _mm256_load_ps(B + ((k + tk) * Size + (j + tj + 24)));
 
-                    CacheOut[((i * TileSize + j) / 8)] = _mm256_add_ps(in0, _mm256_mul_ps(a, b0));
-                    CacheOut[((i * TileSize + j) / 8) + 1] = _mm256_add_ps(in1, _mm256_mul_ps(a, b1));
-                    CacheOut[((i * TileSize + j) / 8) + 2] = _mm256_add_ps(in2, _mm256_mul_ps(a, b2));
-                    CacheOut[((i * TileSize + j) / 8) + 3] = _mm256_add_ps(in3, _mm256_mul_ps(a, b3));
+                    __m256 r0 = _mm256_mul_ps(a, b0);
+                    __m256 r1 = _mm256_mul_ps(a, b1);
+                    __m256 r2 = _mm256_mul_ps(a, b2);
+                    __m256 r3 = _mm256_mul_ps(a, b3);
+
+                    CacheOut[((i * TileSize + j) / 8)] = _mm256_add_ps(in0, r0);
+                    CacheOut[((i * TileSize + j) / 8) + 1] = _mm256_add_ps(in1, r1);
+                    CacheOut[((i * TileSize + j) / 8) + 2] = _mm256_add_ps(in2, r2);
+                    CacheOut[((i * TileSize + j) / 8) + 3] = _mm256_add_ps(in3, r3);
                 }
             }
             
@@ -1327,10 +1339,14 @@ void SquareMatrixMulAddR_OP4_AVXx4_MathSimt(float* ALIGNED(32) Out, int Size, co
                     Scalar b2 = Scalar::LoadAligned(B + (k * Size + j + 16));
                     Scalar b3 = Scalar::LoadAligned(B + (k * Size + j + 24));
 
-                    Scalar res0 = in0 + (a * b0);
-                    Scalar res1 = in1 + (a * b1);
-                    Scalar res2 = in2 + (a * b2);
-                    Scalar res3 = in3 + (a * b3);
+                    Scalar res0 = a * b0;
+                    Scalar res1 = a * b1;
+                    Scalar res2 = a * b2;
+                    Scalar res3 = a * b3;
+                    res0 += in0;
+                    res1 += in1;
+                    res2 += in2;
+                    res3 += in3;
                     
                     res0.StoreAligned(Out + (i * Size + j));
                     res1.StoreAligned(Out + (i * Size + j + 8));
@@ -1381,8 +1397,11 @@ void SquareMatrixMulAddR_OP4_AVX512x2_MathSimt(float* ALIGNED(64) Out, int Size,
                     Scalar b0 = Scalar::LoadAligned(B + (k * Size + j));
                     Scalar b1 = Scalar::LoadAligned(B + (k * Size + j + 16));
 
-                    Scalar res0 = in0 + (a * b0);
-                    Scalar res1 = in1 + (a * b1);
+                    Scalar res0 = a * b0;
+                    Scalar res1 = a * b1;
+                    res0 += in0;
+                    res1 += in1;
+                    
                     res0.StoreAligned(Out + (i * Size + j));
                     res1.StoreAligned(Out + (i * Size + j + 16));
                 }
@@ -1552,9 +1571,9 @@ void SquareMatrixMulAddR_OP4_AVX512_MathSimt_Cached(float* ALIGNED(64) Out, int 
 
 void SquareMatrixMulAddR_OP4_AVXx4_MathSimt_Cached(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
-    using Scalar = Scalar<float, 16>;
+    using Scalar = Scalar<float, 8>;
     constexpr int TileSize = 64;
-    /*
+    
 #pragma omp parallel 
     {
         constexpr int CacheSIMDLaneCount = TileSize * TileSize / Scalar::kThreadCount;
@@ -1565,17 +1584,32 @@ void SquareMatrixMulAddR_OP4_AVXx4_MathSimt_Cached(float* ALIGNED(32) Out, int S
         for (int tk = 0; tk < Size; tk+=TileSize)
         for (int tj = 0; tj < Size; tj+=TileSize)
         {            
-            for (int i = 0; i < CacheSIMDLaneCount; i ++) CacheOut[i] = Scalar(); 
+            for (int i = 0; i < CacheSIMDLaneCount; i ++) CacheOut[i].Zero(); 
             
             for (int i = 0; i < (TileSize); i++)
             for (int k = 0; k < (TileSize); k++)
             {
                 Scalar a(A[(i + ti) * Size + (k + tk)]);
-                for (int j = 0; j < (TileSize); j += Scalar::kThreadCount)
-                {                    
-                    Scalar b = Scalar::LoadAligned(B + ((k + tk) * Size + (j + tj)));
+                for (int j = 0; j < (TileSize); j += Scalar::kThreadCount* 4)
+                {
+                    Scalar& in0 = CacheOut[((i * TileSize + j) / Scalar::kThreadCount)];
+                    Scalar& in1 = CacheOut[((i * TileSize + j) / Scalar::kThreadCount) + 1];
+                    Scalar& in2 = CacheOut[((i * TileSize + j) / Scalar::kThreadCount) + 2];
+                    Scalar& in3 = CacheOut[((i * TileSize + j) / Scalar::kThreadCount) + 3];
+                    Scalar b0 = Scalar::LoadAligned(B + ((k + tk) * Size + (j + tj + Scalar::kThreadCount * 0)));
+                    Scalar b1 = Scalar::LoadAligned(B + ((k + tk) * Size + (j + tj + Scalar::kThreadCount * 1)));
+                    Scalar b2 = Scalar::LoadAligned(B + ((k + tk) * Size + (j + tj + Scalar::kThreadCount * 2)));
+                    Scalar b3 = Scalar::LoadAligned(B + ((k + tk) * Size + (j + tj + Scalar::kThreadCount * 3)));
 
-                    CacheOut[(i * TileSize + j) / Scalar::kThreadCount] += a * b;
+                    b0 *= a;
+                    b1 *= a;
+                    b2 *= a;
+                    b3 *= a;
+                    
+                    CacheOut[((i * TileSize + j) / 8)] += b0;
+                    CacheOut[((i * TileSize + j) / 8) + 1] += b1;
+                    CacheOut[((i * TileSize + j) / 8) + 2] += b2;
+                    CacheOut[((i * TileSize + j) / 8) + 3] += b3;
                 }
             }
             
@@ -1584,51 +1618,6 @@ void SquareMatrixMulAddR_OP4_AVXx4_MathSimt_Cached(float* ALIGNED(32) Out, int S
             {
                 Scalar in = Scalar::LoadAligned(Out + ((i + ti) * Size + (j + tj)));
                 (in + CacheOut[(i * TileSize + j) / Scalar::kThreadCount]).StoreAligned(Out + ((i + ti) * Size + (j + tj)));
-            }
-        }
-    */
-#pragma omp parallel 
-    {
-        constexpr int CacheSIMDLaneCount = TileSize * TileSize / 8; /* AVX lane size */
-        __m256 CacheOut[CacheSIMDLaneCount];
-        
-#pragma omp for collapse(3) private(CacheOut)
-        for (int ti = 0; ti < Size; ti+=TileSize)
-        for (int tk = 0; tk < Size; tk+=TileSize)
-        for (int tj = 0; tj < Size; tj+=TileSize)
-        {            
-            for (int i = 0; i < CacheSIMDLaneCount; i ++) CacheOut[i] = _mm256_set1_ps(0); 
-            
-            for (int i = 0; i < (TileSize); i++)
-            for (int k = 0; k < (TileSize); k++)
-            {
-                __m256 a = _mm256_set1_ps(A[(i + ti) * Size + (k + tk)]);
-                for (int j = 0; j < (TileSize); j += 8 * 4 /* AVX lane size */ )
-                {
-                    __m256 in0 = CacheOut[((i * TileSize + j) / 8)];
-                    __m256 in1 = CacheOut[((i * TileSize + j) / 8) + 1];
-                    __m256 in2 = CacheOut[((i * TileSize + j) / 8) + 2];
-                    __m256 in3 = CacheOut[((i * TileSize + j) / 8) + 3];
-                    __m256 b0 = _mm256_load_ps(B + ((k + tk) * Size + (j + tj)));
-                    __m256 b1 = _mm256_load_ps(B + ((k + tk) * Size + (j + tj + 8)));
-                    __m256 b2 = _mm256_load_ps(B + ((k + tk) * Size + (j + tj + 16)));
-                    __m256 b3 = _mm256_load_ps(B + ((k + tk) * Size + (j + tj + 24)));
-
-                    CacheOut[((i * TileSize + j) / 8)] = _mm256_add_ps(in0, _mm256_mul_ps(a, b0));
-                    CacheOut[((i * TileSize + j) / 8) + 1] = _mm256_add_ps(in1, _mm256_mul_ps(a, b1));
-                    CacheOut[((i * TileSize + j) / 8) + 2] = _mm256_add_ps(in2, _mm256_mul_ps(a, b2));
-                    CacheOut[((i * TileSize + j) / 8) + 3] = _mm256_add_ps(in3, _mm256_mul_ps(a, b3));
-                }
-            }
-            
-            for (int i = 0; i < (TileSize); i++)
-            for (int j = 0; j < (TileSize); j += 8 /* AVX lane size */)
-            {
-                __m256 in = _mm256_load_ps(Out + ((i + ti) * Size + (j + tj)));
-                
-                __m256 res = _mm256_add_ps(in, CacheOut[((i * TileSize + j) / 8)]);
-                
-                _mm256_store_ps(Out + ((i + ti) * Size + (j + tj)), res);
             }
         }
     
@@ -1652,63 +1641,64 @@ void SquareMatrixMulAddR_OP4_AVXx4_MathSimt_Cached(float* ALIGNED(32) Out, int S
 
 void SquareMatrixMulAddR_OP4_AVX512x2_MathSimt_Cached(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
+    using Scalar = Scalar<float, 16>;
     constexpr int TileSize = 64;
     
 #pragma omp parallel 
     {        
-        constexpr int CacheSIMDLaneCount = TileSize * TileSize / 16; /* AVX512 lane size */
-        __m512 CacheOut[CacheSIMDLaneCount];
+        constexpr int CacheSIMDLaneCount = TileSize * TileSize / Scalar::kThreadCount;
+        Scalar CacheOut[CacheSIMDLaneCount];
         
 #pragma omp for collapse(3) private(CacheOut)
         for (int ti = 0; ti < Size; ti+=TileSize)
         for (int tk = 0; tk < Size; tk+=TileSize)
         for (int tj = 0; tj < Size; tj+=TileSize)
         {            
-            for (int i = 0; i < CacheSIMDLaneCount; i ++) CacheOut[i] = _mm512_set1_ps(0); 
+            for (int i = 0; i < CacheSIMDLaneCount; i ++) CacheOut[i].Zero(); 
             
             for (int i = 0; i < (TileSize); i++)
             for (int k = 0; k < (TileSize); k++)
             {
-                __m512 a = _mm512_set1_ps(A[(i + ti) * Size + (k + tk)]);
-                for (int j = 0; j < (TileSize); j += (16 * 2) /* AVX512 lane size x 2 */  )
+                Scalar a(A[(i + ti) * Size + (k + tk)]);
+                for (int j = 0; j < (TileSize); j += Scalar::kThreadCount* 2)
                 {
-                    __m512 in0 = CacheOut[((i * TileSize + j) / 16)];
-                    __m512 in1 = CacheOut[((i * TileSize + j) / 16) + 1];
-                    
-                    __m512 b0 = _mm512_load_ps(B + ((k + tk) * Size + (j + tj)));
-                    __m512 b1 = _mm512_load_ps(B + ((k + tk) * Size + (j + tj) + 16));
+                    Scalar& in0 = CacheOut[((i * TileSize + j) / Scalar::kThreadCount)];
+                    Scalar& in1 = CacheOut[((i * TileSize + j) / Scalar::kThreadCount) + 1];
+                    Scalar b0 = Scalar::LoadAligned(B + ((k + tk) * Size + (j + tj + Scalar::kThreadCount * 0)));
+                    Scalar b1 = Scalar::LoadAligned(B + ((k + tk) * Size + (j + tj + Scalar::kThreadCount * 1)));
 
-                    CacheOut[((i * TileSize + j) / 16)] = _mm512_add_ps(in0, _mm512_mul_ps(a, b0));
-                    CacheOut[((i * TileSize + j) / 16) + 1] = _mm512_add_ps(in1, _mm512_mul_ps(a, b1));
+                    b0 *= a;
+                    b1 *= a;
+                    
+                    CacheOut[((i * TileSize + j) / 8)] += b0;
+                    CacheOut[((i * TileSize + j) / 8) + 1] += b1;
                 }
             }
             
             for (int i = 0; i < (TileSize); i++)
-            for (int j = 0; j < (TileSize); j += 16 /* AVX512 lane size */)
+            for (int j = 0; j < (TileSize); j += Scalar::kThreadCount)
             {
-                __m512 in = _mm512_load_ps(Out + ((i + ti) * Size + (j + tj)));
-                
-                __m512 res = _mm512_add_ps(in, CacheOut[((i * TileSize + j) / 16)]);
-                
-                _mm512_store_ps(Out + ((i + ti) * Size + (j + tj)), res);
+                Scalar in = Scalar::LoadAligned(Out + ((i + ti) * Size + (j + tj)));
+                (in + CacheOut[(i * TileSize + j) / Scalar::kThreadCount]).StoreAligned(Out + ((i + ti) * Size + (j + tj)));
             }
         }
     
 #ifdef ENABLE_ADD
 #pragma omp for collapse(2)
         for (int i = 0; i < Size; i++)
-        for (int j = 0; j < Size; j += (16 * 2) /* AVX512 lane size x 2 */  )
+        for (int j = 0; j < Size; j += Scalar::kThreadCount * 2)
         {
-            __m512 in0 = _mm512_load_ps(Out + (i * Size + j));
-            __m512 in1 = _mm512_load_ps(Out + (i * Size + j + 16));
-            __m512 c0 = _mm512_loadu_ps(C + (i * Size + j));
-            __m512 c1 = _mm512_loadu_ps(C + (i * Size + j + 16));
-    
-            __m512 res0 = _mm512_add_ps(in0, c0);
-            __m512 res1 = _mm512_add_ps(in1, c1);
-    
-            _mm512_store_ps(Out + (i * Size + j), res0);
-            _mm512_store_ps(Out + (i * Size + j + 16), res1);
+            Scalar in0 = Scalar::LoadAligned(Out + (i * Size + j));
+            Scalar in1 = Scalar::LoadAligned(Out + (i * Size + j + 16));
+            Scalar c0 = Scalar::LoadAligned(C + (i * Size + j));
+            Scalar c1 = Scalar::LoadAligned(C + (i * Size + j + 16));
+
+            
+            Scalar res0 = in0 + c0;
+            Scalar res1 = in1 + c1;
+            
+            res0.StoreAligned(Out + (i * Size + j));
+            res1.StoreAligned(Out + (i * Size + j) + Scalar::kThreadCount);
         }
 #endif // ENABLE_ADD
     }

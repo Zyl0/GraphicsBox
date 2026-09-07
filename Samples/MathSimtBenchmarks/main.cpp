@@ -2,7 +2,7 @@
 #include <chrono>
 #include <filesystem>
 #include <string_view>
-#include <sciplot/sciplot.hpp>
+#include <fstream>
 
 #include "MatrixMulAdd.h"
 #include "Shared/Logger.h"
