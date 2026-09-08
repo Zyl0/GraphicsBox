@@ -107,7 +107,7 @@ TEMPLATE_TEST_CASE("Mask members and operators", "[Mask]",
         m &= MaskType({2}); // 010
         REQUIRE(m.bits[0] == 2);
         
-        m |= MaskType({4}); // 110
+        m |= {4}; // 110
         REQUIRE(m.bits[0] == 6);
         
         m ^= MaskType({2}); // 100
