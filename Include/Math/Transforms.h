@@ -526,7 +526,7 @@ inline Matrix4t<type> MakeRevFrustumProjection(type FOVy, type s, type n, type f
         float itan = 1 / tan(fieldOfView * 0.5f);
         float id = 1 / (zNear - zFar);
         
-        return static_cast<Transform4t<type>>(
+        return reinterpret_cast<Transform4t<type>>(
             Matrix4t<type>(
                 itan/aspectRatio,   0,      0,                  0,
                 0,                  itan,   0,                  0,
@@ -547,7 +547,7 @@ inline Matrix4t<type> MakeRevFrustumProjection(type FOVy, type s, type n, type f
         type nxnz = x * f.z;
         type nynz = y * f.z;
         
-        return static_cast<Transform4t<type>>(
+        return Transform4t<type>(
             x * f.x + static_cast<type>(1), nxny, nxnz, x * f.w,
             nxny, y * f.y + static_cast<type>(1), nynz, y * f.w,
             nxnz, nynz, z * f.z + static_cast<type>(1), z * f.w

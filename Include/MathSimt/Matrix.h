@@ -155,6 +155,135 @@ namespace Math::Simt
                 static_cast<DataType>(0),   static_cast<DataType>(0),   static_cast<DataType>(1)
             );
         }
+        
+        static Matrix3 RotationX(ScalarType t)
+        {
+            ScalarType c = Coss(t);
+            Scalar s = Sin(t);
+            
+            return Matrix3(
+                ScalarType(1),  ScalarType(0),  ScalarType(0),
+                ScalarType(0),  c,              -s,
+                ScalarType(0),  -s,             c
+            );
+        }
+        
+        static Matrix3 RotationY(ScalarType t)
+        {
+            ScalarType c = Coss(t);
+            Scalar s = Sin(t);
+            
+            return Matrix3(
+                c,              ScalarType(0),  s,
+                ScalarType(0),  ScalarType(1),  ScalarType(0),
+                -s,             ScalarType(0),  c
+            );
+        }
+        
+        static Matrix3 RotationZ(ScalarType t)
+        {
+            ScalarType c = Coss(t);
+            Scalar s = Sin(t);
+            
+            return Matrix3(
+                c,              -s,             ScalarType(0),
+                s,              c,              ScalarType(0),
+                ScalarType(0),  ScalarType(0),  ScalarType(1)
+            );
+        }
+        
+        static Matrix3 Rotation(const Vector3<DataType, ThreadCount>& axis, ScalarType t)
+        {
+            ScalarType c = cos(t);
+            ScalarType s = sin(t);
+            ScalarType d = 1 - c;
+
+            ScalarType x = axis.x * d;
+            ScalarType y = axis.y * d;
+            ScalarType z = axis.z * d;
+
+            ScalarType axay = x * axis.y;
+            ScalarType axaz = x * axis.z;
+            ScalarType ayaz = y * axis.z;
+            
+            
+            return Matrix3(
+                c +  x * axis.x,    axay - s * axis.z,  axaz + s * axis.y,
+                axay + s * axis.z,  c + y * axis.y,     ayaz - s * axis.x,
+                axaz - s * axis.y,  ayaz + s * axis.x,  c + z * axis.x
+            );
+        }
+        
+        static Matrix3 Reflection(const Vector3<DataType, ThreadCount>& axis)
+        {
+            ScalarType x = axis.x * -2;
+            ScalarType y = axis.y * -2;
+            ScalarType z = axis.z * -2;
+
+            ScalarType axay = x * axis.y;
+            ScalarType axaz = x * axis.z;
+            ScalarType ayaz = y * axis.z; 
+            
+            return Matrix3(
+                x * axis.x + 1,     axay,          axaz,
+                axay,            y * axis.y + 1,   ayaz,
+                axaz,            ayaz,          z * axis.z + 1
+            );
+        }
+        
+        static Matrix3 Invocation(const Vector3<DataType, ThreadCount>& axis)
+        {
+            ScalarType x = axis.x * 2;
+            ScalarType y = axis.y * 2;
+            ScalarType z = axis.z * 2;
+
+            ScalarType axay = x * axis.y;
+            ScalarType axaz = x * axis.z;
+            ScalarType ayaz = y * axis.z; 
+            
+            return Matrix3(
+                x * axis.x - 1,    axay,           axaz,
+                axay,           y * axis.y - 1,    ayaz,
+                axaz,           ayaz,           z * axis.z - 1
+            );
+        }
+        
+        static Matrix3 Scale(ScalarType x, ScalarType y, ScalarType z)
+        {            
+            return Matrix3(
+                x,              ScalarType(0),  ScalarType(0),
+                ScalarType(0),  y,              ScalarType(0),
+                ScalarType(0),  ScalarType(0),  z
+            );
+        }
+        
+        static Matrix3 Scale(const Vector3<DataType, ThreadCount>& s)
+        {            
+            return Matrix3(
+                s.x,            ScalarType(0),  ScalarType(0),
+                ScalarType(0),  s.y,            ScalarType(0),
+                ScalarType(0),  ScalarType(0),  s.z
+            );
+        }
+        
+        static Matrix3 Scale(ScalarType s)
+        {
+            return Matrix3(
+                s,              ScalarType(0),  ScalarType(0),
+                ScalarType(0),  s,              ScalarType(0),
+                ScalarType(0),  ScalarType(0),  s
+            );
+        }
+        /*
+        static Matrix3 Scale(ScalarType x, ScalarType y, ScalarType z)
+        {            
+            return Matrix3(
+                ScalarType(1),  ScalarType(0),  ScalarType(0),
+                ScalarType(0),  ScalarType(1),  ScalarType(0),
+                ScalarType(0),  ScalarType(0),  ScalarType(1)
+            );
+        }
+        */
     };
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
@@ -421,8 +550,104 @@ namespace Math::Simt
                 DataType(0),   DataType(0),   DataType(0),   DataType(1)
             );
         }
+        
+        static Matrix4 RotationX(ScalarType t);
+
+        static Matrix4 RotationY(ScalarType t);
+
+        static Matrix4 RotationZ(ScalarType t);
+
+        static Matrix4 Rotation(const Vector3<DataType, ThreadCount>& axis, ScalarType t);
+
+        static Matrix4 Reflection(const Vector3<DataType, ThreadCount>& a);
+
+        static Matrix4 Invocation(const Vector3<DataType, ThreadCount>& a);
+
+        static Matrix4 Scale(ScalarType x, ScalarType y, ScalarType z);
+
+        static Matrix4 Scale(const Vector3<DataType, ThreadCount>& s);
+
+        static Matrix4 Scale(ScalarType s);
+        
+        static Matrix4 FrustumProjection(ScalarType FOVy, ScalarType s, ScalarType n, ScalarType f)
+        {
+            ScalarType g = 1 / Tan(FOVy / 2);
+            ScalarType k = f / (f - n);
+            
+            return Matrix4(
+                g / s,          ScalarType(0),  ScalarType(0),  ScalarType(0),
+                ScalarType(0),  g,              ScalarType(0),  ScalarType(0),
+                ScalarType(0),  ScalarType(0),  k,              -n * k,
+                ScalarType(0),  ScalarType(0),  ScalarType(1),  ScalarType(0)
+            );
+        }
+        
+        static Matrix4 InfiniteProjection(ScalarType FOVy, ScalarType s, ScalarType n, ScalarType e)
+        {
+            ScalarType g = 1 / Tan(FOVy / 2);
+            e = 1 - e;
+            
+            return Matrix4(
+                g / s,          ScalarType(0),  ScalarType(0),  ScalarType(0),
+                ScalarType(0),  g,              ScalarType(0),  ScalarType(0),
+                ScalarType(0),  ScalarType(0),  e,              -n * e,
+                ScalarType(0),  ScalarType(0),  ScalarType(1),  ScalarType(0)
+            );
+        }
+        
+        static Matrix4 RevFrustumProjection(ScalarType FOVy, ScalarType s, ScalarType n, ScalarType f)
+        {
+            ScalarType g = 1 / Tan(FOVy / 2);
+            ScalarType k = f / (n - f);
+            
+            return Matrix4(
+                g / s,          ScalarType(0),  ScalarType(0),  ScalarType(0),
+                ScalarType(0),  g,              ScalarType(0),  ScalarType(0),
+                ScalarType(0),  ScalarType(0),  k,              -f * k,
+                ScalarType(0),  ScalarType(0),  ScalarType(1),  ScalarType(0)
+            );
+        }
+        
+        static Matrix4 RevInfiniteProjection(ScalarType FOVy, ScalarType s, ScalarType n, ScalarType e)
+        {
+            ScalarType g = 1 / Tan(FOVy / 2);
+
+            return Matrix4(
+                g / s,          ScalarType(0),  ScalarType(0),  ScalarType(0),
+                ScalarType(0),  g,              ScalarType(0),  ScalarType(0),
+                ScalarType(0),  ScalarType(0),  e,              n * (1 - e),
+                ScalarType(0),  ScalarType(0),  ScalarType(1),  ScalarType(0)
+            );
+        }
+
+        static Matrix4 OrthoProjection(ScalarType l, ScalarType r, ScalarType t, ScalarType b, ScalarType n, ScalarType f)
+        {
+            ScalarType wInv = 1 / (r - l);
+            ScalarType hInv = 1 / (b - t);
+            ScalarType dInv = 1 / (f - n);
+            
+            return Matrix4(
+                2 * wInv,       ScalarType(0),  ScalarType(0),  -(r + l) * wInv,
+                ScalarType(0),  2 * hInv,       ScalarType(0),  -(b + t) * hInv,
+                ScalarType(0),  ScalarType(0),  dInv,           -n * dInv,
+                ScalarType(0),  ScalarType(0),  ScalarType(0),  ScalarType(1)
+            );
+        }
+        
+        static Matrix4 LookAtView(const Vector3<DataType, ThreadCount>& from, const Vector3<DataType, ThreadCount>& at, const Vector3<DataType, ThreadCount>& up)
+        {
+            Vector3<DataType, ThreadCount> right = Normalize( Cross(at, Normalize(up) ) );
+            Vector3<DataType, ThreadCount> newUp = Normalize( Cross(right, at) );
+            
+            return Inverse(Matrix4(
+                right.x,        newUp.x,        -at.x,          from.x,
+                right.y,        newUp.y,        -at.y,          from.y,
+                right.z,        newUp.z,        -at.z,          from.z,
+                ScalarType(0),  ScalarType(0),  ScalarType(0),  ScalarType(1)
+            ));
+        }
     };
-    
+
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Matrix4<DataType, ThreadCount> operator +(const Matrix4<DataType, ThreadCount>& A, const Matrix4<DataType, ThreadCount>& B)
     {
@@ -537,7 +762,61 @@ namespace Math::Simt
             Matrix(0,0),    Matrix(1,0),    Matrix(2,0),    0,
             Matrix(0,1),    Matrix(1,1),    Matrix(2,1),    0,
             Matrix(0,2),    Matrix(1,2),    Matrix(2,2),    0,
-            0,              0,              0,              1
+            0,                  0,                  0,                  1
         );
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::RotationX(ScalarType t)
+    {
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::RotationX(t));
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::RotationY(ScalarType t)
+    {
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::RotationY(t));
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::RotationZ(ScalarType t)
+    {
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::RotationZ(t));
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::Rotation(const Vector3<DataType, ThreadCount>& axis, ScalarType t)
+    {
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::Rotation(axis, t));
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::Reflection(const Vector3<DataType, ThreadCount>& axis)
+    {
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::Reflection(axis));
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::Invocation(const Vector3<DataType, ThreadCount>& axis)
+    {
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::Invocation(axis));
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::Scale(ScalarType x, ScalarType y, ScalarType z)
+    {
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::Scale(x, y, z)); 
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::Scale(const Vector3<DataType, ThreadCount>& s)
+    {    
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::Scale(s));
+    }
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    Matrix4<DataType, ThreadCount> Matrix4<DataType, ThreadCount>::Scale(ScalarType s)
+    {
+        return ToTransform4D(Matrix3<DataType, ThreadCount>::Scale(s));
     }
 }
