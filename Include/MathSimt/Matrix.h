@@ -102,6 +102,15 @@ namespace Math::Simt
 
         const ScalarType* data() const {return &n[0][0];}
 
+        Matrix3t<Type> Elt(size_t index) const
+        {
+            return {
+                this->operator()(0, 0), this->operator()(0, 1), this->operator()(0, 2),
+                this->operator()(1, 0), this->operator()(1, 1), this->operator()(1, 2),
+                this->operator()(2, 0), this->operator()(2, 1), this->operator()(2, 2)
+            };
+        }
+
         Vector3<DataType, ThreadCount>& operator [](int j)
         {
             return *reinterpret_cast<Vector3<DataType, ThreadCount>*>(n[j]);
@@ -354,6 +363,16 @@ namespace Math::Simt
         }
 
         const ScalarType* data() const {return &n[0][0];}
+
+        Matrix4t<Type> Elt(size_t index) const
+        {
+            return {
+                this->operator()(0, 0), this->operator()(0, 1), this->operator()(0, 1), this->operator()(0, 3),
+                this->operator()(1, 0), this->operator()(1, 1), this->operator()(1, 1), this->operator()(1, 3),
+                this->operator()(2, 0), this->operator()(2, 1), this->operator()(2, 1), this->operator()(2, 3),
+                this->operator()(3, 0), this->operator()(3, 1), this->operator()(3, 1), this->operator()(3, 3)
+            };
+        }
 
         Vector4<DataType, ThreadCount> &operator [](int j)
         {

@@ -360,4 +360,89 @@ MATH_SIMT_SIMDIFY_FOR
         Scalar<DataType, ThreadCount> X3 = X2 * v;
         return static_cast<DataType>(3) * X2 - static_cast<DataType>(2) * X3;
     }
+
+
+    template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> Sin(Scalar<DataType, ThreadCount> v)
+    {
+        MATH_SIMT_SIMDIFY_FOR
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            v.m[i] = std::sin(v.m[i]);
+        }
+
+        return v;
+    }
+
+    template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> ASin(Scalar<DataType, ThreadCount> v)
+    {
+        MATH_SIMT_SIMDIFY_FOR
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            v.m[i] = std::asin(v.m[i]);
+        }
+
+        return v;
+    }
+
+    template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> Cos(Scalar<DataType, ThreadCount> v)
+    {
+        MATH_SIMT_SIMDIFY_FOR
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            v.m[i] = std::cos(v.m[i]);
+        }
+
+        return v;
+    }
+
+    template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> ACos(Scalar<DataType, ThreadCount> v)
+    {
+        MATH_SIMT_SIMDIFY_FOR
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            v.m[i] = std::acos(v.m[i]);
+        }
+
+        return v;
+    }
+
+    template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> Tan(Scalar<DataType, ThreadCount> v)
+    {
+        MATH_SIMT_SIMDIFY_FOR
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            v.m[i] = std::tan(v.m[i]);
+        }
+
+        return v;
+    }
+
+    template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> ATan(Scalar<DataType, ThreadCount> v)
+    {
+        MATH_SIMT_SIMDIFY_FOR
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            v.m[i] = std::atan(v.m[i]);
+        }
+
+        return v;
+    }
+    
+    template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> ATan2(Scalar<DataType, ThreadCount> Y, Scalar<DataType, ThreadCount> X)
+    {
+        MATH_SIMT_SIMDIFY_FOR
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            Y.m[i] = std::atan2(Y.m[i], X.m[i]);
+        }
+
+        return Y;
+    }
 }
