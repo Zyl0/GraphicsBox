@@ -852,14 +852,14 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     snipetPack4TwoBitsIndices = snipetPack4TwoBitsIndices .. "    intrin_indices |= (indices[3] & 3) << (3 * 2);\n"
 
     f:write("// Scalar specialization for " .. ISA.Type .. " x " .. ISA.ElementCount .. " x " .. RegisterCount .. "\n")
-    f:write("template<> struct alignas(" .. ISA.Alignment .. ") " .. snipetsScalarType .. "\n")
+    f:write("template<> struct alignas(" .. ISA.Alignment * RegisterCount.. ") " .. snipetsScalarType .. "\n")
     f:write("{\n")
     f:write("    using Type = ".. ISA.Type ..";\n")
-    f:write("    using MaskType = Mask<".. ISA.ElementCount * RegisterCount ..">;\n")
+    f:write("    using MaskType = Mask<".. ISA.ElementCount.. ", " .. RegisterCount ..">;\n")
     f:write("    using IndexerType = Scalar<int32_t, ".. ISA.ElementCount * RegisterCount ..">;\n")
     f:write("    \n")
     f:write("    static constexpr size_t kThreadCount = ".. ISA.ElementCount * RegisterCount ..";\n")
-    f:write("    static constexpr size_t kAlignment = ".. ISA.Alignment ..";\n")
+    f:write("    static constexpr size_t kAlignment = ".. ISA.Alignment * RegisterCount ..";\n")
     f:write("    \n")
     f:write("    static consteval size_t Size() {return kThreadCount;}\n")
     f:write("    \n")
@@ -928,6 +928,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
         f:write("    {\n")
         f:write("        size_t i = 0;\n")
         f:write("        for (auto v : list) if (i < kThreadCount) m[i++] = v;\n")
+        f:write("        for (; i < kThreadCount; i++) m[i] = Type(0);\n")
         f:write("    }\n")
     f:write("    INLINE constexpr Scalar(const Scalar& other)\n")
         f:write("    {\n")
@@ -952,6 +953,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("    {\n")
     f:write("        size_t i = 0;\n")
     f:write("        for (auto v : list) if (i < kThreadCount) m[i++] = v;\n")
+    f:write("        for (; i < kThreadCount; i++) m[i] = Type(0);\n")
     f:write("        \n")
     f:write("        return *this;\n")
     f:write("    }\n")
@@ -1048,7 +1050,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("        Scalar r;\n")
     if intrinLoadStoreAvailable == true then
         for i = 1, RegisterCount do
-            f:write("        r.reg["..(i-1).."] = " .. intrinFuncLoadUnaligned .. "(ptr + "..(i - 1).." * (kThreadCount / "..RegisterCount.."));\n")
+            f:write("        r.reg["..(i-1).."] = " .. intrinFuncLoadUnaligned .. "(ptr + "..(i-1) * ISA.ElementCount ..");\n")
         end
     else
         f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)\n")
@@ -1063,15 +1065,23 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("    {\n")
     f:write("        Scalar r;\n")
     if intrinMaskedLoadStoreAvailable == true then
-        f:write("        MaskType::Type bitmask = mask.bits[0];\n")
-        f:write(         snipetsPrepareMask)
-        if x86_ISA_Limit == ISAs.x86_AVX_512 then
-            f:write("        r.reg[0] = " .. intrinFuncMaskedLoadUnaligned .. "(r.reg[0], intrin_mask, ptr);\n")
-        elseif intrinLoadStoreRequireInt32Cast == true then
-            f:write("        r.reg[0] = " .. intrinFuncMaskedLoadUnaligned .. "((const int*)(ptr), intrin_mask);\n")
-        else
-            f:write("        r.reg[0] = " .. intrinFuncMaskedLoadUnaligned .. "(ptr, intrin_mask);\n")
+        f:write("        {\n")
+        for i = 1, RegisterCount do
+            f:write("            MaskType::Type bitmask = mask.bits["..(i-1).."];\n")
+            f:write(         snipetsPrepareMask)
+            if x86_ISA_Limit == ISAs.x86_AVX_512 then
+                f:write("            r.reg["..(i-1).."] = " .. intrinFuncMaskedLoadUnaligned .. "(r.reg["..(i-1).."], intrin_mask, ptr + "..(i-1) * ISA.ElementCount ..");\n")
+            elseif intrinLoadStoreRequireInt32Cast == true then
+                f:write("            r.reg["..(i-1).."] = " .. intrinFuncMaskedLoadUnaligned .. "((const int*)(ptr + "..(i-1) * ISA.ElementCount .."), intrin_mask);\n")
+            else
+                f:write("            r.reg["..(i-1).."] = " .. intrinFuncMaskedLoadUnaligned .. "(ptr + "..(i-1) * ISA.ElementCount ..", intrin_mask);\n")
+            end
+            if i < RegisterCount then
+                f:write("        }\n")
+                f:write("        {\n")
+            end
         end
+        f:write("        }\n")
     else
         f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
@@ -1086,7 +1096,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("        Scalar r;\n")
     if intrinLoadStoreAvailable then
         for i = 1, RegisterCount do
-            f:write("        r.reg["..(i-1).."] = " .. intrinFuncLoadAligned .. "(ptr + "..(i - 1).." * (kThreadCount / "..RegisterCount.."));\n")
+            f:write("        r.reg["..(i-1).."] = " .. intrinFuncLoadAligned .. "(ptr  + "..(i-1) * ISA.ElementCount ..");\n")
         end
     else
         f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
@@ -1101,15 +1111,23 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("    {\n")
     f:write("        Scalar r;\n")
     if intrinMaskedLoadStoreAvailable then
-        f:write("        MaskType::Type bitmask = mask.bits[0];\n")
-        f:write(         snipetsPrepareMask)
-        if x86_ISA_Limit == ISAs.x86_AVX_512 then
-            f:write("        r.reg[0] = " .. intrinFuncMaskedLoadAligned .. "(r.reg[0], intrin_mask, ptr);\n")
-        elseif intrinLoadStoreRequireInt32Cast == true then
-            f:write("        r.reg[0] = " .. intrinFuncMaskedLoadAligned .. "((const int*)(ptr), intrin_mask);\n")
-        else
-            f:write("        r.reg[0] = " .. intrinFuncMaskedLoadAligned .. "(ptr, intrin_mask);\n")
+        f:write("        {\n")
+        for i = 1, RegisterCount do
+            f:write("            MaskType::Type bitmask = mask.bits["..(i-1).."];\n")
+            f:write(         snipetsPrepareMask)
+            if x86_ISA_Limit == ISAs.x86_AVX_512 then
+                f:write("            r.reg["..(i-1).."] = " .. intrinFuncMaskedLoadAligned .. "(r.reg["..(i-1).."], intrin_mask, ptr + "..(i-1) * ISA.ElementCount ..");\n")
+            elseif intrinLoadStoreRequireInt32Cast == true then
+                f:write("            r.reg["..(i-1).."] = " .. intrinFuncMaskedLoadAligned .. "((const int*)(ptr + "..(i-1) * ISA.ElementCount .."), intrin_mask);\n")
+            else
+                f:write("            r.reg["..(i-1).."] = " .. intrinFuncMaskedLoadAligned .. "(ptr + "..(i-1) * ISA.ElementCount ..", intrin_mask);\n")
+            end
+            if i < RegisterCount then
+                f:write("        }\n")
+                f:write("        {\n")
+            end
         end
+        f:write("        }\n")
     else
         f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
@@ -1124,7 +1142,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("    {\n")
     if intrinLoadStoreAvailable then
         for i = 1, RegisterCount do
-            f:write("        " .. intrinFuncStoreUnaligned .. "(ptr + "..(i - 1).." * (kThreadCount / "..RegisterCount.."), reg["..(i-1).."]);\n")
+            f:write("        " .. intrinFuncStoreUnaligned .. "(ptr + "..(i-1) * ISA.ElementCount ..", reg["..(i-1).."]);\n")
         end
     else
         f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)\n")
@@ -1137,15 +1155,23 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("    INLINE void Store(Type* ptr, const MaskType& mask)\n")
     f:write("    {\n")
     if intrinMaskedLoadStoreAvailable then
-        f:write("        MaskType::Type bitmask = mask.bits[0];\n")
-        f:write(         snipetsPrepareMask)
-        if x86_ISA_Limit == ISAs.x86_AVX_512 then
-            f:write("        " .. intrinFuncMaskedStoreUnaligned .. "(ptr, intrin_mask, reg[0]);\n")
-        elseif intrinLoadStoreRequireInt32Cast == true then
-            f:write("        " .. intrinFuncMaskedStoreUnaligned .. "((int*)(ptr), intrin_mask, reg[0]);\n")
-        else
-            f:write("        " .. intrinFuncMaskedStoreUnaligned .. "(ptr, intrin_mask, reg[0]);\n")
+        f:write("        {\n")
+        for i = 1, RegisterCount do
+            f:write("            MaskType::Type bitmask = mask.bits["..(i-1).."];\n")
+            f:write(         snipetsPrepareMask)
+            if x86_ISA_Limit == ISAs.x86_AVX_512 then
+                f:write("        " .. intrinFuncMaskedStoreUnaligned .. "(ptr + "..(i-1) * ISA.ElementCount ..", intrin_mask, reg["..(i-1).."]);\n")
+            elseif intrinLoadStoreRequireInt32Cast == true then
+                f:write("        " .. intrinFuncMaskedStoreUnaligned .. "((int*)(ptr + "..(i-1) * ISA.ElementCount .."), intrin_mask, reg["..(i-1).."]);\n")
+            else
+                f:write("        " .. intrinFuncMaskedStoreUnaligned .. "(ptr + "..(i-1) * ISA.ElementCount ..", intrin_mask, reg["..(i-1).."]);\n")
+            end
+            if i < RegisterCount then
+                f:write("        }\n")
+                f:write("        {\n")
+            end
         end
+        f:write("        }\n")
     else
         f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
@@ -1158,7 +1184,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("    {\n")
     if intrinLoadStoreAvailable then
         for i = 1, RegisterCount do
-            f:write("        " .. intrinFuncStoreAligned .. "(ptr + "..(i - 1).." * (kThreadCount / "..RegisterCount.."), reg["..(i-1).."]);\n")
+            f:write("        " .. intrinFuncStoreAligned .. "(ptr + "..(i-1) * ISA.ElementCount ..", reg["..(i-1).."]);\n")
         end
     else
         f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
@@ -1171,15 +1197,23 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f:write("    INLINE void StoreAligned(Type* ptr, const MaskType& mask)\n")
     f:write("    {\n")
     if intrinMaskedLoadStoreAvailable then
-        f:write("        MaskType::Type bitmask = mask.bits[0];\n")
-        f:write(         snipetsPrepareMask)
-        if x86_ISA_Limit == ISAs.x86_AVX_512 then
-            f:write("        " .. intrinFuncMaskedStoreAligned .. "(ptr, intrin_mask, reg[0]);\n")
-        elseif intrinLoadStoreRequireInt32Cast == true then
-            f:write("        " .. intrinFuncMaskedStoreAligned .. "((int*)(ptr), intrin_mask, reg[0]);\n")
-        else
-            f:write("        " .. intrinFuncMaskedStoreAligned .. "(ptr, intrin_mask, reg[0]);\n")
+        f:write("        {\n")
+        for i = 1, RegisterCount do
+            f:write("            MaskType::Type bitmask = mask.bits["..(i-1).."];\n")
+            f:write(         snipetsPrepareMask)
+            if x86_ISA_Limit == ISAs.x86_AVX_512 then
+                f:write("        " .. intrinFuncMaskedStoreAligned .. "(ptr + "..(i-1) * ISA.ElementCount ..", intrin_mask, reg["..(i-1).."]);\n")
+            elseif intrinLoadStoreRequireInt32Cast == true then
+                f:write("        " .. intrinFuncMaskedStoreAligned .. "((int*)(ptr), intrin_mask, reg["..(i-1).."]);\n")
+            else
+                f:write("        " .. intrinFuncMaskedStoreAligned .. "(ptr + "..(i-1) * ISA.ElementCount ..", intrin_mask, reg["..(i-1).."]);\n")
+            end
+            if i < RegisterCount then
+                f:write("        }\n")
+                f:write("        {\n")
+            end
         end
+        f:write("        }\n")
     else
         f:write("        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)\n")
         f:write("        for (size_t i = 0; i < kThreadCount; i++)\n")
@@ -1313,7 +1347,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f2:write("    " .. snipetsScalarType .."::MaskType::Type ")
     if x86_ISA_Limit == ISAs.x86_AVX_512 then 
         for i = 1, RegisterCount do
-            f2:write("    bitmask = mask.bits["..i.."];\n")
+            f2:write("    bitmask = mask.bits["..(i-1).."];\n")
             f2:write("    {\n")
             f2:write(     snipetsPrepareMask)
             f2:write("        r.reg["..(i-1).."] =  " .. intrinFuncBlend .. "(intrin_mask, B.reg["..(i-1).."], A.reg["..(i-1).."]);\n")
@@ -1322,7 +1356,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
         f2:write("    return r;\n")
     else
         for i = 1, RegisterCount do
-            f2:write("    bitmask = mask.bits["..i.."];\n")
+            f2:write("    bitmask = mask.bits["..(i-1).."];\n")
             f2:write("    {;\n")
             if intrinIs32bitInteger == true then
                 f2:write(     snipetsPrepareMaskBypass)

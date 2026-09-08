@@ -7,6 +7,10 @@
 #include "Memory/Functions.h"
 #include "Shared/Annotations.h"
 
+#ifdef CONFIG_DEBUG
+#include "Shared/Assertion.h"
+#endif // CONFIG_DEBUG
+
 #ifdef USE_OPENMP
 #include <omp.h>
 #define MATH_SIMT_SIMDIFY_FOR #pragma omp simd
@@ -35,7 +39,7 @@ namespace Math::Simt
 
         static consteval size_t Size() {return ThreadCount;}
 
-        Type bits[Scale];
+        Type bits[Scale] {};
         
         Mask() = default;
         // constexpr Mask(Type b) : bits(b) {}
@@ -52,7 +56,7 @@ namespace Math::Simt
 
         constexpr bool operator[](size_t i) const
         {
-            return (bits[i / Scale] >> (i % Scale)) & 1;
+            return (bits[i / ThreadCount] >> (i % ThreadCount)) & 1;
         }
 
         struct Proxy
@@ -61,10 +65,13 @@ namespace Math::Simt
             size_t i;
             Proxy& operator=(bool v)
             {
-                m.bits[i / Scale] = SetBoolAt(m.bits[i / Scale], i % Scale, v);
+#ifdef CONFIG_DEBUG
+                AssertOrError(i < kThreadCount && (i / ThreadCount) < Scale, "Index out of range")
+#endif // CONFIG_DEBUG
+                m.bits[i / ThreadCount] = SetBoolAt(m.bits[i / ThreadCount], (i % ThreadCount), v);
                 return *this;
             }
-            operator bool() const { return (m.bits[i / Scale] >> (i % Scale)) & 1; }
+            operator bool() const { return (m.bits[i / ThreadCount] >> (i % ThreadCount)) & 1; }
         };
     
         Proxy operator[](size_t i) { return {*this, i}; }
@@ -94,14 +101,14 @@ namespace Math::Simt
         {
             Mask r;
             for (size_t i = 0; i < Scale; ++i)
-                r.bits[i] = bits[i] ^ FullBitMask();
+                r.bits[i] =  ~(bits[i]);
             return r;
         }
         constexpr Mask operator!() const
         {
             Mask r;
             for (size_t i = 0; i < Scale; ++i)
-                r.bits[i] = bits[i] & FullBitMask();
+                r.bits[i] = ~(bits[i]);
             return r;
         }
 

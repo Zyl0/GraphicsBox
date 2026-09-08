@@ -15,6 +15,7 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
     (uint8_t, 64), (int32_t, 64), (uint32_t, 64), (float, 64))
 {
     using ScalarType = Scalar<T, N>;
+    using MaskType = ScalarType::MaskType;
     constexpr size_t ThreadCount = N;
 
     SECTION("Constants")
@@ -41,7 +42,8 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
             ScalarType s3{T(1), T(2)};
             REQUIRE(s3[0] == T(1));
             REQUIRE(s3[1] == T(2));
-            for (size_t i = 2; i < N; ++i) REQUIRE(s3[i] == T(0));
+            for (size_t i = 2; i < N; ++i) 
+                REQUIRE(s3[i] == T(0));
             
             ScalarType s4;
             s4 = {T(3), T(4)};
@@ -141,37 +143,37 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
             }
         }
 
-        Mask<N> eq = (a == b);
+        MaskType eq = (a == b);
         for (size_t i = 0; i < N; ++i) {
             REQUIRE(eq[i] == (i % 3 == 2));
         }
 
-        Mask<N> neq = (a != b);
+        MaskType neq = (a != b);
         for (size_t i = 0; i < N; ++i) {
             REQUIRE(neq[i] == (i % 3 != 2));
         }
 
-        Mask<N> lt = (a < b);
+        MaskType lt = (a < b);
         for (size_t i = 0; i < N; ++i) {
             REQUIRE(lt[i] == (i % 3 == 0));
         }
 
-        Mask<N> le = (a <= b);
+        MaskType le = (a <= b);
         for (size_t i = 0; i < N; ++i) {
             REQUIRE(le[i] == (i % 3 == 0 || i % 3 == 2));
         }
 
-        Mask<N> gt = (a > b);
+        MaskType gt = (a > b);
         for (size_t i = 0; i < N; ++i) {
             REQUIRE(gt[i] == (i % 3 == 1));
         }
 
-        Mask<N> ge = (a >= b);
+        MaskType ge = (a >= b);
         for (size_t i = 0; i < N; ++i) {
             REQUIRE(ge[i] == (i % 3 == 1 || i % 3 == 2));
         }
         
-        Mask<N> eq_c = (a == c);
+        MaskType eq_c = (a == c);
         for (size_t i = 0; i < N; ++i) {
             REQUIRE(eq_c[i] == true);
         }
@@ -218,7 +220,7 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
         ScalarType s_aligned = ScalarType::LoadAligned(buffer + N);
         for (size_t i = 0; i < N; ++i) REQUIRE(s_aligned[i] == T(i + N + 1));
 
-        Mask<N> m;
+        MaskType m;
         for (size_t i = 0; i < N; ++i) m[i] = (i % 2 == 0);
         
         ScalarType s_mask = ScalarType::Load(buffer, m);
@@ -245,8 +247,9 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
     {
         ScalarType a(T(1));
         ScalarType b(T(2));
-        Mask<N> mask;
-        for (size_t i = 0; i < N; ++i) mask[i] = (i % 2 == 0);
+        MaskType mask;
+        for (size_t i = 0; i < N; ++i) 
+            mask[i] = (i % 2 == 0);
 
         ScalarType sel = Select(a, b, mask);
         for (size_t i = 0; i < N; ++i) {
