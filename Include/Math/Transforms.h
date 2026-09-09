@@ -281,7 +281,7 @@ inline Matrix4t<type> MakeRevFrustumProjection(type FOVy, type s, type n, type f
             return *reinterpret_cast<const Vector3t<type>*>(this->n[j]);
         }
 
-        const Point3t<type> &GetTranslation()
+        const Point3t<type> &GetTranslation() const
         {
             return *reinterpret_cast<const Point3t<type>*>(this->n[3]);
         }
@@ -526,7 +526,7 @@ inline Matrix4t<type> MakeRevFrustumProjection(type FOVy, type s, type n, type f
         float itan = 1 / tan(fieldOfView * 0.5f);
         float id = 1 / (zNear - zFar);
         
-        return reinterpret_cast<Transform4t<type>>(
+        return Transform4t<type>(
             Matrix4t<type>(
                 itan/aspectRatio,   0,      0,                  0,
                 0,                  itan,   0,                  0,
