@@ -24,7 +24,11 @@ namespace Math::Simt
         ScalarType x, y;
 
         constexpr Vector2() = default;
+        constexpr Vector2(Type a) : x(a), y(a) {}
         constexpr Vector2(ScalarType a) : x(a), y(a) {}
+        constexpr Vector2(Type a, Type b) : x(a), y(b) {}
+        constexpr Vector2(Type a, ScalarType b) : x(a), y(b) {}
+        constexpr Vector2(ScalarType a, Type b) : x(a), y(b) {}
         constexpr Vector2(ScalarType a, ScalarType b) : x(a), y(b) {}
         constexpr Vector2(const Vector2t<Type>& v) : x(v.a), y(v.b) {}
         constexpr Vector2(const Vector2& rhs) = default;
@@ -248,8 +252,16 @@ namespace Math::Simt
         ScalarType x, y, z;
 
         constexpr Vector3() = default;
-        constexpr Vector3(ScalarType a) : x(a), y(a), z(a) {}
-        constexpr Vector3(ScalarType a, ScalarType b, ScalarType c) : x(a), y(b), z(c) {}
+        constexpr Vector3(Type a) : x(a), y(a), z(a) {}
+        constexpr Vector3(const ScalarType& a) : x(a), y(a), z(a) {}
+        constexpr Vector3(Type a, Type b, Type c) : x(a), y(b), z(c) {}
+        constexpr Vector3(Type a, Type b, const ScalarType& c) : x(a), y(b), z(c) {}
+        constexpr Vector3(Type a, const ScalarType& b, Type c) : x(a), y(b), z(c) {}
+        constexpr Vector3(Type a, const ScalarType& b, const ScalarType& c) : x(a), y(b), z(c) {}
+        constexpr Vector3(const ScalarType& a, Type b, Type c) : x(a), y(b), z(c) {}
+        constexpr Vector3(const ScalarType& a, Type b, const ScalarType& c) : x(a), y(b), z(c) {}
+        constexpr Vector3(const ScalarType& a, const ScalarType& b, Type c) : x(a), y(b), z(c) {}
+        constexpr Vector3(const ScalarType& a, const ScalarType& b, const ScalarType& c) : x(a), y(b), z(c) {}
         constexpr Vector3(const Vector3t<Type>& v) : x(v.x), y(v.y), z(v.z) {}
         constexpr Vector3(const Vector3& rhs) = default;
         constexpr Vector3(const Vector3 a, const Vector3 b) : x(b.x - a.x), y(b.y - a.y), z(b.z - a.z) {}

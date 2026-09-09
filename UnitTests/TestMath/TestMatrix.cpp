@@ -21,7 +21,7 @@ TEST_CASE("Matrix3 - Constructors and Elements")
     Vector3f v2(7.0f, 8.0f, 9.0f);
     Matrix3f m3(v0, v1, v2);
 
-    REQUIRE(m3 == m2);
+    REQUIRE(m3 == Transpose(m2));
     REQUIRE(m3[0].x == 1.0f);
     
     Matrix3f ident = MakeIdentity<float>();

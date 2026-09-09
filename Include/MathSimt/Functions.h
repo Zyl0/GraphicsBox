@@ -344,6 +344,25 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> BiLinearInterpolate(
+        const Scalar<DataType, ThreadCount>& p00,
+        const Scalar<DataType, ThreadCount>& p10,
+        const Scalar<DataType, ThreadCount>& p01,
+        const Scalar<DataType, ThreadCount>& p11,
+        const Scalar<DataType, ThreadCount>& u,
+        const Scalar<DataType, ThreadCount>& v)
+    {
+        // Interpolate along the v direction
+        Scalar<DataType, ThreadCount> p0 = LinearInterpolate(p00, p10, v);
+        Scalar<DataType, ThreadCount> p1 = LinearInterpolate(p01, p11, v);
+
+        // Interpolate along the u direction
+        Scalar<DataType, ThreadCount> result = LinearInterpolate(p0, p1, u);
+
+        return result;
+    }
+
+    template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> SmoothStep(Scalar<DataType, ThreadCount> v)
     {
         Scalar<DataType, ThreadCount> X2 = v * v;

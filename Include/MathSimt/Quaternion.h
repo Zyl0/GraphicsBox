@@ -25,10 +25,10 @@ namespace Math::Simt
         ScalarType x, y, z, w;
 
         Quaternion() : x(0), y(0), z(0), w(1) {}
-        Quaternion(ScalarType a, ScalarType b, ScalarType c, ScalarType s) : x(a), y(b), z(c), w(s) {}
-        Quaternion(const Vector3<DataType, ThreadCount>& v, ScalarType s) : x(v.x), y(v.y), z(v.z), w(s) {}
+        Quaternion(const ScalarType& a, const ScalarType& b, const ScalarType& c, const ScalarType& s) : x(a), y(b), z(c), w(s) {}
+        Quaternion(const Vector3<DataType, ThreadCount>& v, const ScalarType& s) : x(v.x), y(v.y), z(v.z), w(s) {}
         Quaternion(const QuaternionT<Type>& q) : x(q.x), y(q.y), z(q.z), w(q.w) {}
-        Quaternion(ScalarType yaw, ScalarType pitch, ScalarType roll)
+        Quaternion(const ScalarType& yaw, const ScalarType& pitch, const ScalarType& roll)
         {
             // Abbreviations for the various angular functions
             ScalarType cy = Cos(yaw * 0.5);

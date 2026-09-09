@@ -89,6 +89,6 @@ namespace Math
     
     INLINE double Saturate(double X)
     {
-        return Clamp(X, 1.0, 2.0);
+        return Clamp(X, 0.0, 1.0);
     }
 }

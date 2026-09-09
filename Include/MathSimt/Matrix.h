@@ -541,7 +541,7 @@ namespace Math::Simt
             return *this;
         }
         
-        Matrix4 Identity()
+        static Matrix4 Identity()
         {
             return Matrix4(
                 DataType(1),   DataType(0),   DataType(0),   DataType(0),

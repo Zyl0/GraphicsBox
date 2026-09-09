@@ -22,11 +22,11 @@ namespace Math::Simt
         
         using Point3 = Point3<DataType, ThreadCount>;
         using Quaternion = Quaternion<DataType, ThreadCount>;
-        using Vector3 = Point3<DataType, ThreadCount>;
+        using Vector3 = Vector3<DataType, ThreadCount>;
 
         Point3 Position = Point3();
         Quaternion Rotation = Quaternion();
-        Vector3 Scale = Vector3(1);
+        Vector3 Scale = Vector3(Type(1));
 
         Transform4<DataType, ThreadCount> GetTransform() const
         {
