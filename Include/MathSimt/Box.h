@@ -21,10 +21,10 @@ namespace Math::Simt
         Point a, b;
 
         Box3() : a(0), b(0) {}
-        Box3(ScalarType HalfRadius) : a(-HalfRadius), b(HalfRadius) {}
-        Box3(ScalarType X, ScalarType Y, ScalarType Z) : a(Point(-X/2, -Y/2, -Z/2)), b(Point(X/2, Y/2, Z/2)) {}
-        Box3(Point Center, Type HalfRadius) : a(Center - HalfRadius), b(Center + HalfRadius) {}
-        Box3(Point A, Point B) : a(A), b(B) {}
+        Box3(const ScalarType& HalfRadius) : a(-HalfRadius), b(HalfRadius) {}
+        Box3(const ScalarType& X, const ScalarType& Y, const ScalarType& Z) : a(Point(-X/2, -Y/2, -Z/2)), b(Point(X/2, Y/2, Z/2)) {}
+        Box3(const Point& Center, const ScalarType& HalfRadius) : a(Center - HalfRadius), b(Center + HalfRadius) {}
+        Box3(const Point& A, const Point& B) : a(A), b(B) {}
         Box3(const Box3T<Type>& box) : a(box.a), b(box.b) {}
         Box3(const Box3& A, const Box3& B) : a(Min(A.a, B.a)), b(Max(A.b, B.b)) {}
 
@@ -96,7 +96,7 @@ namespace Math::Simt
             b += t;
         }
         
-        void Scale(ScalarType s)
+        void Scale(const ScalarType& s)
         {
             a *= s;
             b *= s;

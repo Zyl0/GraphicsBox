@@ -22,12 +22,12 @@ namespace Math::Simt
         ScalarType x, y, z, w;
 
         Plane(Type nx, Type ny, Type nz, Type d) : x(nx), y(ny), z(nz), w(d) {}
-        Plane(ScalarType nx, ScalarType ny, ScalarType nz, ScalarType d) : x(nx), y(ny), z(nz), w(d) {}
+        Plane(const ScalarType& nx, const ScalarType& ny, const ScalarType& nz, const ScalarType& d) : x(nx), y(ny), z(nz), w(d) {}
 
         Plane(const Vector3t<DataType> &n, Type d) : x(n.x), y(n.y), z(n.z), w(d) {}
-        Plane(const Vector3t<DataType> &n, ScalarType d) : x(n.x), y(n.y), z(n.z), w(d) {}
+        Plane(const Vector3t<DataType> &n, const ScalarType& d) : x(n.x), y(n.y), z(n.z), w(d) {}
         Plane(const Vector3<DataType, ThreadCount> &n, Type d) : x(n.x), y(n.y), z(n.z), w(d) {}
-        Plane(const Vector3<DataType, ThreadCount> &n, ScalarType d) : x(n.x), y(n.y), z(n.z), w(d) {}
+        Plane(const Vector3<DataType, ThreadCount> &n, const ScalarType& d) : x(n.x), y(n.y), z(n.z), w(d) {}
 
         INLINE const Vector3<DataType, ThreadCount> &GetNormal() const
         {

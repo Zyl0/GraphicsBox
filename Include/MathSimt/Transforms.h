@@ -26,9 +26,9 @@ namespace Math::Simt
         {}
         
         Transform4(
-                Scalar<DataType, ThreadCount> n00, Scalar<DataType, ThreadCount> n01, Scalar<DataType, ThreadCount> n02, Scalar<DataType, ThreadCount> n03,
-                Scalar<DataType, ThreadCount> n10, Scalar<DataType, ThreadCount> n11, Scalar<DataType, ThreadCount> n12, Scalar<DataType, ThreadCount> n13,
-                Scalar<DataType, ThreadCount> n20, Scalar<DataType, ThreadCount> n21, Scalar<DataType, ThreadCount> n22, Scalar<DataType, ThreadCount> n23) :
+                const Scalar<DataType, ThreadCount>& n00, const Scalar<DataType, ThreadCount>& n01, const Scalar<DataType, ThreadCount>& n02, const Scalar<DataType, ThreadCount>& n03,
+                const Scalar<DataType, ThreadCount>& n10, const Scalar<DataType, ThreadCount>& n11, const Scalar<DataType, ThreadCount>& n12, const Scalar<DataType, ThreadCount>& n13,
+                const Scalar<DataType, ThreadCount>& n20, const Scalar<DataType, ThreadCount>& n21, const Scalar<DataType, ThreadCount>& n22, const Scalar<DataType, ThreadCount>& n23) :
             Matrix4<DataType, ThreadCount>(
                     n00,    n01,	n02,	n03,
                     n10,	n11,	n12,	n13,
@@ -133,7 +133,7 @@ namespace Math::Simt
             this->n[3][2] = p.z;
         }
         
-        INLINE static Transform4 Translation(Scalar<DataType, ThreadCount> tx, Scalar<DataType, ThreadCount> ty, Scalar<DataType, ThreadCount> tz)
+        INLINE static Transform4 Translation(const Scalar<DataType, ThreadCount>& tx, const Scalar<DataType, ThreadCount>& ty, const Scalar<DataType, ThreadCount>& tz)
         {            
             return Transform4(
                 1,      0,      0,      tx,
@@ -142,7 +142,7 @@ namespace Math::Simt
             );
         }
         
-        INLINE static Transform4 Translation(Vector3<DataType, ThreadCount> t)
+        INLINE static Transform4 Translation(const Vector3<DataType, ThreadCount>& t)
         {            
             return Transform4(
                 1,      0,      0,      t.x,
@@ -151,7 +151,7 @@ namespace Math::Simt
             );
         }
         
-        INLINE static Transform4 RotationX(Scalar<DataType, ThreadCount> t)
+        INLINE static Transform4 RotationX(const Scalar<DataType, ThreadCount>& t)
         {
             Scalar<DataType, ThreadCount> c = Cos(t);
             Scalar<DataType, ThreadCount> s = Sin(t);
@@ -163,7 +163,7 @@ namespace Math::Simt
             );
         }
         
-        INLINE static Transform4 RotationY(Scalar<DataType, ThreadCount> t)
+        INLINE static Transform4 RotationY(const Scalar<DataType, ThreadCount>& t)
         {
             Scalar<DataType, ThreadCount> c = Cos(t);
             Scalar<DataType, ThreadCount> s = Sin(t);
@@ -175,7 +175,7 @@ namespace Math::Simt
             );
         }
         
-        INLINE static Transform4 RotationZ(Scalar<DataType, ThreadCount> t)
+        INLINE static Transform4 RotationZ(const Scalar<DataType, ThreadCount>& t)
         {
             Scalar<DataType, ThreadCount> c = Cos(t);
             Scalar<DataType, ThreadCount> s = Sin(t);
@@ -187,7 +187,7 @@ namespace Math::Simt
             );
         }
         
-        INLINE static Transform4 Rotation(const Vector3<DataType, ThreadCount>& axis, Scalar<DataType, ThreadCount> t)
+        INLINE static Transform4 Rotation(const Vector3<DataType, ThreadCount>& axis, const Scalar<DataType, ThreadCount>& t)
         {        
             Scalar<DataType, ThreadCount> c = Cos(t);
             Scalar<DataType, ThreadCount> s = Sin(t);
@@ -208,7 +208,7 @@ namespace Math::Simt
             );
         }
         
-        INLINE static Transform4 Reflection(Scalar<DataType, ThreadCount> axis)
+        INLINE static Transform4 Reflection(const Vector3<DataType, ThreadCount>& axis)
         {
             Scalar<DataType, ThreadCount> x = axis.x * -2;
             Scalar<DataType, ThreadCount> y = axis.y * -2;
@@ -242,7 +242,7 @@ namespace Math::Simt
             );
         }
         
-        INLINE static Transform4 Invocation(Scalar<DataType, ThreadCount> axis)
+        INLINE static Transform4 Invocation(const Scalar<DataType, ThreadCount>& axis)
         {
             Scalar<DataType, ThreadCount> x = axis.x * 2;
             Scalar<DataType, ThreadCount> y = axis.y * 2;
@@ -259,7 +259,7 @@ namespace Math::Simt
             );
         }
         
-        INLINE static Transform4 Perspective(Scalar<DataType, ThreadCount> fieldOfView, Scalar<DataType, ThreadCount> aspectRatio, Scalar<DataType, ThreadCount> zNear, Scalar<DataType, ThreadCount> zFar)
+        INLINE static Transform4 Perspective(const Scalar<DataType, ThreadCount>& fieldOfView, const Scalar<DataType, ThreadCount>& aspectRatio, const Scalar<DataType, ThreadCount>& zNear, const Scalar<DataType, ThreadCount>& zFar)
         {
             Scalar<DataType, ThreadCount> itan = 1 / Tan(fieldOfView * 0.5);
             Scalar<DataType, ThreadCount> id = 1 / (zNear - zFar);
@@ -275,7 +275,7 @@ namespace Math::Simt
     };
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE Transform4<DataType, ThreadCount> Inverse(const Transform4<DataType, ThreadCount> &H)
+    INLINE Transform4<DataType, ThreadCount> Inverse(const Transform4<DataType, ThreadCount>& H)
     {
         const Vector3<DataType, ThreadCount> &a = H[0];
         const Vector3<DataType, ThreadCount> &b = H[1];

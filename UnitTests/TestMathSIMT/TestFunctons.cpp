@@ -31,8 +31,8 @@ TEMPLATE_TEST_CASE_SIG("Functions", "[Scalar]",
     
     SECTION("Functons - Abs")
     {
-        REQUIRE((Abs(ScalarType(-5)) == 5).All() == true);
-        REQUIRE((Abs(ScalarType(5)) == 5).All() == true);
+        REQUIRE((Abs(ScalarType(-5)) == T(5)).All() == true);
+        REQUIRE((Abs(ScalarType(5)) == T(5)).All() == true);
     }
 
     SECTION("Functons - Radians & Degrees")

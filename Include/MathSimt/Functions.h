@@ -66,56 +66,9 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Saturate(Scalar<DataType, ThreadCount> v);
 
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b, Scalar<DataType, ThreadCount> alpha);
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, Scalar<DataType, ThreadCount> b, Scalar<DataType, ThreadCount> alpha);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(Scalar<DataType, ThreadCount> a, DataType b, Scalar<DataType, ThreadCount> alpha);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, DataType b, Scalar<DataType, ThreadCount> alpha);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b, DataType alpha);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, Scalar<DataType, ThreadCount> b, DataType alpha);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(Scalar<DataType, ThreadCount> a, DataType b, DataType alpha);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b, Scalar<DataType, ThreadCount> value);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, Scalar<DataType, ThreadCount> b, Scalar<DataType, ThreadCount> value);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(Scalar<DataType, ThreadCount> a, DataType b, Scalar<DataType, ThreadCount> value);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, DataType b, Scalar<DataType, ThreadCount> value);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b, DataType value);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, Scalar<DataType, ThreadCount> b, DataType value);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(Scalar<DataType, ThreadCount> a, DataType b, DataType value);
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> SmoothStep(Scalar<DataType, ThreadCount> v);
-
-
-
-
-    template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> Abs(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> Abs(const Scalar<DataType, ThreadCount>& v)
     {
         typename Scalar<DataType, ThreadCount>::MaskType mask = v < 0;
         return Select(-v, v, mask);
@@ -260,85 +213,85 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b, Scalar<DataType, ThreadCount> alpha)
+    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(const Scalar<DataType, ThreadCount>& a, const Scalar<DataType, ThreadCount>& b, const Scalar<DataType, ThreadCount>& alpha)
     {
         return alpha * b + (1 - alpha) * a;
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, Scalar<DataType, ThreadCount> b, Scalar<DataType, ThreadCount> alpha)
+    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, const Scalar<DataType, ThreadCount>& b, const Scalar<DataType, ThreadCount>& alpha)
     {
         return alpha * b + (1 - alpha) * a;
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(Scalar<DataType, ThreadCount> a, DataType b, Scalar<DataType, ThreadCount> alpha)
+    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(const Scalar<DataType, ThreadCount>& a, DataType b, const Scalar<DataType, ThreadCount>& alpha)
     {
         return alpha * b + (1 - alpha) * a;
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, DataType b, Scalar<DataType, ThreadCount> alpha)
+    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, DataType b, const Scalar<DataType, ThreadCount>& alpha)
     {
         return alpha * b + (1 - alpha) * a;
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b, DataType alpha)
+    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(const Scalar<DataType, ThreadCount>& a, const Scalar<DataType, ThreadCount>& b, DataType alpha)
     {
         return alpha * b + (1 - alpha) * a;
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, Scalar<DataType, ThreadCount> b, DataType alpha)
+    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(DataType a, const Scalar<DataType, ThreadCount>& b, DataType alpha)
     {
         return alpha * b + (1 - alpha) * a;
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(Scalar<DataType, ThreadCount> a, DataType b, DataType alpha)
+    INLINE Scalar<DataType, ThreadCount> LinearInterpolate(const Scalar<DataType, ThreadCount>& a, DataType b, DataType alpha)
     {
         return alpha * b + (1 - alpha) * a;
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b, Scalar<DataType, ThreadCount> value)
+    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(const Scalar<DataType, ThreadCount>& a, const Scalar<DataType, ThreadCount>& b, const Scalar<DataType, ThreadCount>& value)
     {
         return (value - a) / (b - a);
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, Scalar<DataType, ThreadCount> b, Scalar<DataType, ThreadCount> value)
+    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, const Scalar<DataType, ThreadCount>& b, const Scalar<DataType, ThreadCount>& value)
     {
         return (value - a) / (b - a);
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(Scalar<DataType, ThreadCount> a, DataType b, Scalar<DataType, ThreadCount> value)
+    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(const Scalar<DataType, ThreadCount>& a, DataType b, const Scalar<DataType, ThreadCount>& value)
     {
         return (value - a) / (b - a);
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, DataType b, Scalar<DataType, ThreadCount> value)
+    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, DataType b, const Scalar<DataType, ThreadCount>& value)
     {
         return (value - a) / (b - a);
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(Scalar<DataType, ThreadCount> a, Scalar<DataType, ThreadCount> b, DataType value)
+    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(const Scalar<DataType, ThreadCount>& a, const Scalar<DataType, ThreadCount>& b, DataType value)
     {
         return (value - a) / (b - a);
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, Scalar<DataType, ThreadCount> b, DataType value)
+    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(DataType a, const Scalar<DataType, ThreadCount>& b, DataType value)
     {
         return (value - a) / (b - a);
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(Scalar<DataType, ThreadCount> a, DataType b, DataType value)
+    INLINE Scalar<DataType, ThreadCount> InverseLinearInterpolate(const Scalar<DataType, ThreadCount>& a, DataType b, DataType value)
     {
         return (value - a) / (b - a);
     }
@@ -363,7 +316,7 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> SmoothStep(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> SmoothStep(const Scalar<DataType, ThreadCount>& v)
     {
         Scalar<DataType, ThreadCount> X2 = v * v;
         Scalar<DataType, ThreadCount> X3 = X2 * v;
@@ -371,7 +324,7 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> SmoothStepClamped(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> SmoothStepClamped(const Scalar<DataType, ThreadCount>& v)
     {
         v = Saturate(v);
 
@@ -382,7 +335,7 @@ MATH_SIMT_SIMDIFY_FOR
 
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> Sin(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> Sin(const Scalar<DataType, ThreadCount>& v)
     {
         MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
@@ -394,7 +347,7 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> ASin(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> ASin(const Scalar<DataType, ThreadCount>& v)
     {
         MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
@@ -406,7 +359,7 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> Cos(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> Cos(const Scalar<DataType, ThreadCount>& v)
     {
         MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
@@ -418,7 +371,7 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> ACos(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> ACos(const Scalar<DataType, ThreadCount>& v)
     {
         MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
@@ -430,7 +383,7 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> Tan(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> Tan(const Scalar<DataType, ThreadCount>& v)
     {
         MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
@@ -442,7 +395,7 @@ MATH_SIMT_SIMDIFY_FOR
     }
 
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> ATan(Scalar<DataType, ThreadCount> v)
+    INLINE Scalar<DataType, ThreadCount> ATan(const Scalar<DataType, ThreadCount>& v)
     {
         MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)
@@ -454,7 +407,7 @@ MATH_SIMT_SIMDIFY_FOR
     }
     
     template<typename DataType, size_t ThreadCount>
-    INLINE Scalar<DataType, ThreadCount> ATan2(Scalar<DataType, ThreadCount> Y, Scalar<DataType, ThreadCount> X)
+    INLINE Scalar<DataType, ThreadCount> ATan2(const Scalar<DataType, ThreadCount>& Y, const Scalar<DataType, ThreadCount>& X)
     {
         MATH_SIMT_SIMDIFY_FOR
         for (size_t i = 0; i < ThreadCount; ++i)

@@ -24,7 +24,7 @@ namespace Math::Simt
 
         Line() = default;
 
-        Line(ScalarType vx, ScalarType vy, ScalarType vz, ScalarType mx, ScalarType my, ScalarType mz) :
+        Line(const ScalarType& vx, const ScalarType& vy, const ScalarType& vz, const ScalarType& mx, const ScalarType& my, const ScalarType& mz) :
             direction(vx, vy, vz), moment(mx, my, mz)
         {}
 
