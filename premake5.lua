@@ -56,7 +56,8 @@ SampleProjects = {
 
 -- Unit test projects
 UnitTestProjects = {
-    "TestMathSIMT"
+    "TestMathSIMT",
+    "TestMath"
 }
 
 if os.isfile("premake-config.lua") then
