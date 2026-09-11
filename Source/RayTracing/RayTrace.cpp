@@ -31,6 +31,45 @@ Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray)
     return Hit(t, u, v, Face.FirstVertex());
 }
 
+HitWave<TriangleWave::kThreadCount> IntersectTriangle(const TriangleWave& Face, const Ray& Ray)
+{
+    using Vector3 = Simt::Vector3<float, TriangleWave::kThreadCount>;
+    using Vector2 = Simt::Vector2<float, TriangleWave::kThreadCount>;
+    using Mask = Simt::Scalar<float, TriangleWave::kThreadCount>::MaskType;
+    using Float = Simt::Scalar<float, TriangleWave::kThreadCount>;
+
+    HitWave<TriangleWave::kThreadCount> HitWave{};
+    Mask mask = Face.Validity;
+    if (mask.None()) return HitWave;
+    
+    const Vector3& a = Face.A, &b = Face.B, &c = Face.C;
+    Vector3 e1(a, b), e2(a, c);
+    const Vector3 direction = Vector3(Ray.direction);
+    
+    Vector3 pvec = Cross(direction, e2);
+    Float det = Dot(e1, pvec);
+        
+    Float inv_det = Float(1) / det;
+    Vector3 tvec(a, Ray.origin);
+
+    Vector2 uv;
+    uv.x = Dot(tvec, pvec) * inv_det;
+    mask &= (uv.x < Float(0) || uv.x > Float(1));
+        
+    Vector3 qvec = Cross(tvec, e1);
+    uv.y = Dot(direction, qvec) * inv_det;
+    mask &= (uv.y < 0 || uv.x + uv.y > 1);
+        
+    Float t = Dot(e2, qvec) * inv_det;
+    mask &= (t < 0 || t > Ray.distance);
+
+    HitWave.uv = Select(uv, HitWave.uv, mask);
+    HitWave.t = Select(t, HitWave.t, mask);
+    HitWave.face = Select(Face.Faces, HitWave.face, mask);
+
+    return HitWave;
+}
+
 float VertexInterpolateTriangle(const Hit& Hit, float a, float b, float c)
 {
     return (1 - Hit.u - Hit.v) * a + Hit.u * b + Hit.v * c;
@@ -258,6 +297,39 @@ BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize)
 
     blas.LeafSize = LeafSize;
     blas.Rebuild();
+
+    // enable simd
+    // when enabled the tree now points to wave elements instead of regular element list
+    blas.Meta.Waves.clear();
+    if (LeafSize == TriangleWave::kThreadCount)
+    {        
+        std::stack<uint32_t> IterationStack;
+        IterationStack.push(blas.LeafSize);
+        
+        while (!IterationStack.empty())
+        {
+            uint32_t NodeIndex = IterationStack.top();
+            IterationStack.pop();
+            
+            if (blas.Tree[NodeIndex].IsNode())
+            {
+                IterationStack.push(blas.Tree[NodeIndex].LeftIndex());
+                IterationStack.push(blas.Tree[NodeIndex].RightIndex());
+            }
+            else // if (m_Blas->Tree[NodeIndex].IsLeaf())
+            {
+                // collect triangles in bucket
+                std::span<BLASElement> View = {blas.Elements.begin() + blas.Tree[NodeIndex].LeftIndex(), blas.Elements.begin() + blas.Tree[NodeIndex].RightIndex()};
+                
+                
+                
+                uint32_t bucketIndex = blas.Meta.Waves.size(); 
+                TriangleWave& wave = blas.Meta.Waves.emplace_back();
+
+                
+            }
+        }
+    }
 
     return blas;
 }

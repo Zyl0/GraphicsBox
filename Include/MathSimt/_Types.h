@@ -84,6 +84,24 @@ namespace Math::Simt
             return *this;
         }
 
+        Mask(const Mask& other)
+        {
+            for (size_t i = 0; i < Scale; ++i)
+            {
+                bits[i] = other.bits[i];
+            }
+        }
+
+        Mask& operator = (const Mask& other)
+        {
+            for (size_t i = 0; i < Scale; ++i)
+            {
+                bits[i] = other.bits[i];
+            }
+            
+            return *this;
+        }
+
         constexpr bool operator[](size_t i) const
         {
             return (bits[i / ThreadCount] >> (i % ThreadCount)) & 1;

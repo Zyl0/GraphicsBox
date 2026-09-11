@@ -2,10 +2,10 @@
 
 #include <stack>
 
-#include "RayTrace.h"
 #include "Types.h"
 #include "Math/Box.h"
 #include "Math/Transforms.h"
+#include "MathSimt/RMath.h"
 #include "Memory/Functions.h"
 #include "Modeling/Mesh.h"
 #include "Shared/Assertion.h"
@@ -26,6 +26,53 @@ struct Hit
 };
 
 Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray);
+
+struct TriangleWave
+{
+    static constexpr size_t kThreadCount = 32;
+
+    Math::Simt::Vector3<uint32_t, kThreadCount> Faces;
+    
+    Math::Simt::Vector3<float, kThreadCount> A;
+    Math::Simt::Vector3<float, kThreadCount> B;
+    Math::Simt::Vector3<float, kThreadCount> C;
+    // Math::Simt::Vector3<float, kThreadCount> D; // <- todo for quads
+    
+    Math::Simt::Scalar<float, kThreadCount>::MaskType Validity;
+};
+
+template<size_t ThreadCount>
+struct HitWave
+{
+    using Type = float;
+    using ScalarType =  Math::Simt::Scalar<float, ThreadCount>;
+    using MaskType = Math::Simt::Scalar<float, ThreadCount>::MaskType;
+    using IndexerType = Math::Simt::Scalar<float, ThreadCount>::IndexerType;
+    using Vector2 = Math::Simt::Vector2<float, ThreadCount>;
+    
+    static constexpr size_t kThreadCount = 32;
+    
+    HitWave() :  uv(), t(), face(std::numeric_limits<uint32_t>::max()) {}
+    HitWave(const ScalarType& T, const ScalarType& U, const ScalarType& V, const ScalarType& Face) : uv(U, V), t(T), face(Face) {}
+    HitWave(const ScalarType& T,  const Vector2& UV, const ScalarType& Face) : uv(UV), t(T), face(Face) {}
+    
+    Vector2<float, ThreadCount> uv;
+    ScalarType<float, ThreadCount> t;
+    ScalarType<uint32_t, ThreadCount> face;
+    
+    INLINE MaskType IsValid() const {return face != std::numeric_limits<uint32_t>::max();}
+    INLINE operator MaskType () const {return face != std::numeric_limits<uint32_t>::max();}
+    INLINE MaskType operator==(const HitWave& outer) const {return ((IsValid() && outer.IsValid()) || (!IsValid() && !outer.IsValid())) && (!IsValid() || (t == outer.t && uv.x == outer.uv.x && uv.y == outer.uv.y));}
+    INLINE MaskType operator!=(const HitWave& outer) const {return ((IsValid() && !outer.IsValid()) || (!IsValid() && outer.IsValid())) || (IsValid() && (t == outer.t || uv.x == outer.uv.x || uv.y == outer.uv.y));}
+
+    Hit Elt(size_t index) const
+    {
+        return {t[index], uv[index].x, uv[index].y, face};
+    }
+
+};
+
+HitWave<TriangleWave::kThreadCount> IntersectTriangle(const TriangleWave& Face, const Ray& Ray);
 
 float VertexInterpolateTriangle(const Hit& Hit, float a, float b, float c);
 Math::Vector2f VertexInterpolateTriangle(const Hit& Hit, Math::Vector2f a, Math::Vector2f b, Math::Vector2f c);
@@ -83,6 +130,7 @@ struct BoxHit
 
 BoxHit IntersectBox(const Math::Box3f& Box, const Ray& Ray);
 BoxHit IntersectBox(const Math::Box3f& Box, const Ray& Ray, Math::Vector3f InverseDirection);
+
 
 template <
     typename T,
@@ -255,6 +303,11 @@ struct BLASDesc
     Mesh::VertexGroup VertexGroup;
     Mesh::VertexType VertexType;
     const Mesh* MeshRef;
+
+    // SIMT blas
+    // when enabled the tree now points to wave elements instead of regular element list
+    std::vector<TriangleWave> Waves;
+    bool IsSIMD() const {return !Waves.empty();}
 };
 
 // Face index
@@ -268,7 +321,7 @@ Math::Vector3f BLASElementGetCenter(const BLASElement& Element, const BLASDesc& 
 // Bottom layer is the layer of the geometry itself
 using BLAS = BVHT<BLASElement, BLASDesc, BLASElementGetBounds, BLASElementGetCenter>;
 
-BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize = 2);
+BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize = TriangleWave::kThreadCount);
 
 struct BVHHit
 {
