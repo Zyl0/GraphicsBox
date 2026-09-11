@@ -27,19 +27,20 @@ namespace Math::Simt
         Scalar<DataType, ThreadCount> det = v1v2 * v1v2 - v12 * v22;
 
         constexpr DataType min = std::is_floating_point_v<DataType> ? std::numeric_limits<DataType>::min() : DataType(0);
-        if(Abs(det) > min)
-        {
-            Scalar<DataType, ThreadCount> dpv1 = Dot(dp, v1);
-            Scalar<DataType, ThreadCount> dpv2 = Dot(dp, v2);
-            Scalar<DataType, ThreadCount> t1 = (v1v2 * dpv2 -  v22 * dpv1) * det;
-            Scalar<DataType, ThreadCount> t2 = (v12  * dpv2 - v1v2 * dpv1) * det;
+        typename Scalar<DataType, ThreadCount>::MaskType mask = Abs(det) > min;
 
-            return Magnitude(dp + v2 * t2 - v1 * t1);
-        }
-        
-        // The lines are nearly parallel
+        // det == 0;
+        Scalar<DataType, ThreadCount> dpv1 = Dot(dp, v1);
+        Scalar<DataType, ThreadCount> dpv2 = Dot(dp, v2);
+        Scalar<DataType, ThreadCount> t1 = (v1v2 * dpv2 -  v22 * dpv1) * det;
+        Scalar<DataType, ThreadCount> t2 = (v12  * dpv2 - v1v2 * dpv1) * det;
+        Scalar<DataType, ThreadCount> r1 = Magnitude(dp + v2 * t2 - v1 * t1);
+
+        // det > 0, The lines are nearly parallel
         Vector3<DataType, ThreadCount> a = Cross(dp, v1);
-        return Sqrt(SquareMagnitude(a) / SquareMagnitude(v12)); 
+        Scalar<DataType, ThreadCount> r2 = Sqrt(SquareMagnitude(a) / v12); 
+
+        return Select(r1, r2, mask);
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)

@@ -35,6 +35,20 @@ namespace Math::Simt
         }
     };
 
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Plane<DataType, ThreadCount> Select(
+        const Plane<DataType, ThreadCount>& A,
+        const Plane<DataType, ThreadCount>& B,
+        const typename Plane<DataType, ThreadCount>::MaskType& mask)
+    {
+        Plane<DataType, ThreadCount> r;
+        r.x = Select(A.x, B.x, mask);
+        r.y = Select(A.y, B.y, mask);
+        r.z = Select(A.z, B.z, mask);
+        r.w = Select(A.w, B.w, mask);
+        return r;
+    }
+
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Plane<DataType, ThreadCount>::ScalarType Dot(const Plane<DataType, ThreadCount> &f, const Vector3<DataType, ThreadCount> &v)
     {

@@ -42,7 +42,14 @@ namespace Math::Simt
         Type bits[Scale] {};
         
         Mask() = default;
-        // constexpr Mask(Type b) : bits(b) {}
+        constexpr Mask(bool b)
+        {
+            for (size_t i = 0; i < Scale; ++i)
+            {
+                bits[i] = b ? FullBitMask() : 0;
+            }
+        }
+        
         constexpr Mask(std::initializer_list<Type> b)
         {
             size_t chnk = 0;
@@ -63,6 +70,16 @@ namespace Math::Simt
             }
 
             for (; chnk < Scale; ++chnk) bits[chnk] = 0;
+
+            return *this;
+        }
+
+        constexpr Mask& operator = (bool b)
+        {
+            for (size_t i = 0; i < Scale; ++i)
+            {
+                bits[i] = b ? std::numeric_limits<Type>::max() & FullBitMask() : 0;
+            }
 
             return *this;
         }
@@ -96,7 +113,21 @@ namespace Math::Simt
                 r.bits[i] = bits[i] & o.bits[i];
             return r;
         }
+        constexpr Mask operator&&(Mask o) const
+        {
+            Mask r;
+            for (size_t i = 0; i < Scale; ++i)
+                r.bits[i] = bits[i] & o.bits[i];
+            return r;
+        }
         constexpr Mask operator|(Mask o) const
+        {
+            Mask r;
+            for (size_t i = 0; i < Scale; ++i)
+                r.bits[i] = bits[i] | o.bits[i];
+            return r;
+        }
+        constexpr Mask operator||(Mask o) const
         {
             Mask r;
             for (size_t i = 0; i < Scale; ++i)
@@ -146,7 +177,7 @@ namespace Math::Simt
 
         static constexpr Type FullBitMask()
         {
-            if constexpr (ThreadCount == sizeof(Type))
+            if constexpr (ThreadCount == (sizeof(Type) * 8))
                 return ~Type(0);
             else
                 return (Type(1) << ThreadCount) - 1;

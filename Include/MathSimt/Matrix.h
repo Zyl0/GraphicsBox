@@ -285,6 +285,21 @@ namespace Math::Simt
         }
         */
     };
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Matrix3<DataType, ThreadCount> Select(
+        const Matrix3<DataType, ThreadCount>& A,
+        const Matrix3<DataType, ThreadCount>& B,
+        const typename Matrix3<DataType, ThreadCount>::MaskType& mask)
+    {
+        Matrix3<DataType, ThreadCount> r;
+
+        for (size_t i = 0; i < Matrix3<DataType, ThreadCount>::kRowCount; ++i)
+        for (size_t j = 0; j < Matrix3<DataType, ThreadCount>::kColumnCount; ++j)
+            r(j, i) = Select(A(j, i), B(j, i), mask);
+
+        return r;
+    }
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Matrix3<DataType, ThreadCount> operator +(const Matrix3<DataType, ThreadCount>& A, const Matrix3<DataType, ThreadCount>& B)
@@ -571,7 +586,7 @@ namespace Math::Simt
         
         static Matrix4 FrustumProjection(const ScalarType& FOVy, const ScalarType& s, const ScalarType& n, const ScalarType& f)
         {
-            ScalarType g = 1 / Tan(FOVy / 2);
+            ScalarType g = DataType(1) / Tan(FOVy / DataType(2));
             ScalarType k = f / (f - n);
             
             return Matrix4(
@@ -584,7 +599,7 @@ namespace Math::Simt
         
         static Matrix4 InfiniteProjection(const ScalarType& FOVy, const ScalarType& s, const ScalarType& n, const ScalarType& e)
         {
-            ScalarType g = 1 / Tan(FOVy / 2);
+            ScalarType g = DataType(1) / Tan(FOVy / DataType(2));
             e = 1 - e;
             
             return Matrix4(
@@ -597,7 +612,7 @@ namespace Math::Simt
         
         static Matrix4 RevFrustumProjection(const ScalarType& FOVy, const ScalarType& s, const ScalarType& n, const ScalarType& f)
         {
-            ScalarType g = 1 / Tan(FOVy / 2);
+            ScalarType g = DataType(1) / Tan(FOVy / DataType(2));
             ScalarType k = f / (n - f);
             
             return Matrix4(
@@ -610,7 +625,7 @@ namespace Math::Simt
         
         static Matrix4 RevInfiniteProjection(const ScalarType& FOVy, const ScalarType& s, const ScalarType& n, const ScalarType& e)
         {
-            ScalarType g = 1 / Tan(FOVy / 2);
+            ScalarType g = DataType(1) / Tan(FOVy / DataType(2));
 
             return Matrix4(
                 g / s,          ScalarType(0),  ScalarType(0),  ScalarType(0),
@@ -622,15 +637,15 @@ namespace Math::Simt
 
         static Matrix4 OrthoProjection(const ScalarType& l, const ScalarType& r, const ScalarType& t, const ScalarType& b, const ScalarType& n, const ScalarType& f)
         {
-            ScalarType wInv = 1 / (r - l);
-            ScalarType hInv = 1 / (b - t);
-            ScalarType dInv = 1 / (f - n);
+            ScalarType wInv = DataType(1) / (r - l);
+            ScalarType hInv = DataType(1) / (b - t);
+            ScalarType dInv = DataType(1) / (f - n);
             
             return Matrix4(
-                2 * wInv,       ScalarType(0),  ScalarType(0),  -(r + l) * wInv,
-                ScalarType(0),  2 * hInv,       ScalarType(0),  -(b + t) * hInv,
-                ScalarType(0),  ScalarType(0),  dInv,           -n * dInv,
-                ScalarType(0),  ScalarType(0),  ScalarType(0),  ScalarType(1)
+                DataType(2) * wInv,     ScalarType(0),      ScalarType(0),  -(r + l) * wInv,
+                ScalarType(0),          DataType(2) * hInv, ScalarType(0),  -(b + t) * hInv,
+                ScalarType(0),          ScalarType(0),      dInv,           -n * dInv,
+                ScalarType(0),          ScalarType(0),      ScalarType(0),  ScalarType(1)
             );
         }
         
@@ -648,6 +663,21 @@ namespace Math::Simt
         }
     };
 
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Matrix4<DataType, ThreadCount> Select(
+        const Matrix4<DataType, ThreadCount>& A,
+        const Matrix4<DataType, ThreadCount>& B,
+        const typename Matrix4<DataType, ThreadCount>::MaskType& mask)
+    {
+        Matrix4<DataType, ThreadCount> r;
+
+        for (size_t i = 0; i < Matrix4<DataType, ThreadCount>::kRowCount; ++i)
+        for (size_t j = 0; j < Matrix4<DataType, ThreadCount>::kColumnCount; ++j)
+            r(j, i) = Select(A(j, i), B(j, i), mask);
+
+        return r;
+    }
+    
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Matrix4<DataType, ThreadCount> operator +(const Matrix4<DataType, ThreadCount>& A, const Matrix4<DataType, ThreadCount>& B)
     {
@@ -671,7 +701,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Matrix4<DataType, ThreadCount> operator *(const Matrix4<DataType, ThreadCount>& A, const Matrix4<DataType, ThreadCount>& B)
     {
-        Matrix3<DataType, ThreadCount> res{};
+        Matrix4<DataType, ThreadCount> res{};
         
         // Only apply loop interchange optimization since matrix is too small for tiling and beyond
         // Loop interchange is done to account for the column major nature of the matrix versus the preference of row majors for cpu's memory (first index is row)

@@ -60,28 +60,28 @@ namespace Math::Simt
             return *this;
         }
 
-        Vector2& operator *=(ScalarType s)
+        Vector2& operator *=(const ScalarType& s)
         {
             x *= s;
             y *= s;
             return *this;
         }
 
-        Vector2& operator /=(ScalarType s)
+        Vector2& operator /=(const ScalarType& s)
         {
             x /= s;
             y /= s;
             return *this;
         }
 
-        Vector2& operator +=(ScalarType s)
+        Vector2& operator +=(const ScalarType& s)
         {
             x += s;
             y += s;
             return *this;
         }
 
-        Vector2& operator -=(ScalarType s)
+        Vector2& operator -=(const ScalarType& s)
         {
             x -= s;
             y -= s;
@@ -117,26 +117,74 @@ namespace Math::Simt
         }
     };
 
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> Select(
+        const Vector2<DataType, ThreadCount>& A,
+        const Vector2<DataType, ThreadCount>& B,
+        const typename Vector2<DataType, ThreadCount>::MaskType& mask)
+    {
+        Vector2<DataType, ThreadCount> r;
+        r.x = Select(A.x, B.x, mask);
+        r.y = Select(A.y, B.y, mask);
+        return r;
+    }
+
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE Vector2<DataType, ThreadCount> operator +(const Vector2<DataType, ThreadCount>& v, float s)
+    INLINE Vector2<DataType, ThreadCount>::MaskType operator==(const Vector2<DataType, ThreadCount>& A, const Vector2<DataType, ThreadCount>& B)
+    {
+        return (A.x == B.x) && (A.y == B.y);
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount>::MaskType operator!=(const Vector2<DataType, ThreadCount>& A, const Vector2<DataType, ThreadCount>& B)
+    {
+        return (A.x != B.x) || (A.y != B.y);
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator +(const Vector2<DataType, ThreadCount>& v, const Scalar<DataType, ThreadCount>& s)
     {
         return Vector2(v.x + s, v.y + s);
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE Vector2<DataType, ThreadCount> operator -(const Vector2<DataType, ThreadCount>& v, float s)
+    INLINE Vector2<DataType, ThreadCount> operator -(const Vector2<DataType, ThreadCount>& v, const Scalar<DataType, ThreadCount>& s)
     {
         return Vector2(v.x - s, v.y - s);
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE Vector2<DataType, ThreadCount> operator *(const Vector2<DataType, ThreadCount>& v, float s)
+    INLINE Vector2<DataType, ThreadCount> operator *(const Vector2<DataType, ThreadCount>& v, const Scalar<DataType, ThreadCount>& s)
     {
         return Vector2(v.x * s, v.y * s);
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE Vector2<DataType, ThreadCount> operator /(const Vector2<DataType, ThreadCount>& v, float s)
+    INLINE Vector2<DataType, ThreadCount> operator /(const Vector2<DataType, ThreadCount>& v, const Scalar<DataType, ThreadCount>& s)
+    {
+        return Vector2(v.x / s, v.y / s);
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator +(const Vector2<DataType, ThreadCount>& v, DataType s)
+    {
+        return Vector2(v.x + s, v.y + s);
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator -(const Vector2<DataType, ThreadCount>& v, DataType s)
+    {
+        return Vector2(v.x - s, v.y - s);
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator *(const Vector2<DataType, ThreadCount>& v, DataType s)
+    {
+        return Vector2(v.x * s, v.y * s);
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator /(const Vector2<DataType, ThreadCount>& v, DataType s)
     {
         return Vector2(v.x / s, v.y / s);
     }
@@ -166,20 +214,44 @@ namespace Math::Simt
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator +(const Scalar<DataType, ThreadCount>& s, const Vector2<DataType, ThreadCount>& a)
+    {
+        return Vector2(s + a.x, s + a.y);
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator -(const Scalar<DataType, ThreadCount>& s, const Vector2<DataType, ThreadCount>& a)
+    {
+        return Vector2(s - a.x, s - a.y);
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator *(const Scalar<DataType, ThreadCount>& s, const Vector2<DataType, ThreadCount>& a)
+    {
+        return Vector2(s * a.x, s * a.y);
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> operator /(const Scalar<DataType, ThreadCount>& s, const Vector2<DataType, ThreadCount>& a)
+    {
+        return Vector2(s / a.x, s / a.y);
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Vector2<DataType, ThreadCount> operator -(const Vector2<DataType, ThreadCount>& v)
     {
         return Vector2(-v.x, -v.y);
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE typename Vector2<DataType, ThreadCount>::ScalarType SquareMagnitude(const Vector2<DataType, ThreadCount>& v)
+    INLINE Scalar<DataType, ThreadCount> SquareMagnitude(const Vector2<DataType, ThreadCount>& v)
     {
         return v.x * v.x + v.y * v.y;
     }
 
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE typename Vector2<DataType, ThreadCount>::ScalarType Magnitude(const Vector2<DataType, ThreadCount>& v)
+    INLINE Scalar<DataType, ThreadCount>Magnitude(const Vector2<DataType, ThreadCount>& v)
     {
         typename Vector2<DataType, ThreadCount>::ScalarType r = SquareMagnitude(v);
         
@@ -222,13 +294,13 @@ namespace Math::Simt
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE typename Vector2<DataType, ThreadCount>::ScalarType Dot(const Vector2<DataType, ThreadCount> a, const Vector2<DataType, ThreadCount> b)
+    INLINE typename Vector2<DataType, ThreadCount>::ScalarType Dot(const Vector2<DataType, ThreadCount>& a, const Vector2<DataType, ThreadCount>& b)
     {
         return a.x * b.x + a.y * b.y;
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    typename Vector2<DataType, ThreadCount>::ScalarType CosTheta(const Vector2<DataType, ThreadCount> a, const Vector2<DataType, ThreadCount> b)
+    typename Vector2<DataType, ThreadCount>::ScalarType CosTheta(const Vector2<DataType, ThreadCount>& a, const Vector2<DataType, ThreadCount>& b)
     {
         Vector2<DataType, ThreadCount> aNormalized = Normalize(a);
         Vector2<DataType, ThreadCount> bNormalized = Normalize(b);
@@ -358,6 +430,31 @@ namespace Math::Simt
             return *this;
         }
     };
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Vector3<DataType, ThreadCount> Select(
+        const Vector3<DataType, ThreadCount>& A,
+        const Vector3<DataType, ThreadCount>& B,
+        const typename Vector3<DataType, ThreadCount>::MaskType& mask)
+    {
+        Vector3<DataType, ThreadCount> r;
+        r.x = Select(A.x, B.x, mask);
+        r.y = Select(A.y, B.y, mask);
+        r.z = Select(A.z, B.z, mask);
+        return r;
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector3<DataType, ThreadCount>::MaskType operator==(const Vector3<DataType, ThreadCount>& A, const Vector3<DataType, ThreadCount>& B)
+    {
+        return (A.x == B.x) && (A.y == B.y) && (A.z == B.z);
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector3<DataType, ThreadCount>::MaskType operator!=(const Vector3<DataType, ThreadCount>& A, const Vector3<DataType, ThreadCount>& B)
+    {
+        return (A.x != B.x) || (A.y != B.y) || (A.z != B.z);
+    }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Vector3<DataType, ThreadCount> operator *(const Vector3<DataType, ThreadCount>& v, const typename Vector3<DataType, ThreadCount>::ScalarType& s)
@@ -506,6 +603,9 @@ namespace Math::Simt
     struct Point3 : Vector3<DataType, ThreadCount>
     {        
         constexpr Point3() = default;
+        constexpr Point3(const DataType& a) :
+            Vector3<DataType, ThreadCount>::Vector3(a)
+        {}
         constexpr Point3(const typename Vector3<DataType, ThreadCount>::ScalarType& a) :
             Vector3<DataType, ThreadCount>::Vector3(a)
         {}
@@ -553,6 +653,31 @@ namespace Math::Simt
         }
     };
 
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Point3<DataType, ThreadCount> Select(
+        const Point3<DataType, ThreadCount>& A,
+        const Point3<DataType, ThreadCount>& B,
+        const typename Point3<DataType, ThreadCount>::MaskType& mask)
+    {
+        Point3<DataType, ThreadCount> r;
+        r.x = Select(A.x, B.x, mask);
+        r.y = Select(A.y, B.y, mask);
+        r.z = Select(A.z, B.z, mask);
+        return r;
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Point3<DataType, ThreadCount>::MaskType operator==(const Point3<DataType, ThreadCount>& A, const Point3<DataType, ThreadCount>& B)
+    {
+        return (A.x == B.x) && (A.y == B.y) && (A.z == B.z);
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Point3<DataType, ThreadCount>::MaskType operator!=(const Point3<DataType, ThreadCount>& A, const Point3<DataType, ThreadCount>& B)
+    {
+        return (A.x != B.x) || (A.y != B.y) || (A.z != B.z);
+    }
+
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Point3<DataType, ThreadCount> operator +(const Point3<DataType, ThreadCount> &a, const Point3<DataType, ThreadCount> &b)
     {
@@ -592,7 +717,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Point3<DataType, ThreadCount> Center( const Point3<DataType, ThreadCount>& a, const Point3<DataType, ThreadCount>& b )
     {
-        return Point3<DataType, ThreadCount>((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+        return Point3<DataType, ThreadCount>((a.x + b.x) / DataType(2), (a.y + b.y) / DataType(2), (a.z + b.z) / DataType(2));
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
@@ -626,6 +751,7 @@ namespace Math::Simt
 
         Vector4() = default;
 
+        Vector4(const Type& s) : x(s), y(s), z(s), w(s) {}
         Vector4(const ScalarType& s) : x(s), y(s), z(s), w(s) {}
         Vector4(const Vector4t<Type>& v) : x(v.x), y(v.y), z(v.z), w(v.w) {}
 
@@ -650,12 +776,12 @@ namespace Math::Simt
             return *reinterpret_cast<const Vector3<DataType, ThreadCount>*>(this);
         }
 
-        DataType& operator[](const int i) {return (&x)[i];}
-        const DataType& operator[](const int i) const {return (&x)[i];}
-        DataType& operator[](const size_t i) {return (&x)[i];}
-        const DataType& operator[](const size_t i) const {return (&x)[i];}
-        const DataType* data() const  {return &x;}
-        DataType* data() {return &x;}
+        ScalarType& operator[](const int i) {return (&x)[i];}
+        const ScalarType& operator[](const int i) const {return (&x)[i];}
+        ScalarType& operator[](const size_t i) {return (&x)[i];}
+        const ScalarType& operator[](const size_t i) const {return (&x)[i];}
+        const ScalarType* data() const  {return &x;}
+        ScalarType* data() {return &x;}
         
         Vector4& operator =(const Vector4t<Type>& v)
         {
@@ -769,6 +895,32 @@ namespace Math::Simt
         INLINE Vector3<DataType, ThreadCount> YZZ() const {return Vector3<DataType, ThreadCount>(y, z, z);}
         INLINE Vector3<DataType, ThreadCount> ZZZ() const {return Vector3<DataType, ThreadCount>(z, z, z);}
     };
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Vector4<DataType, ThreadCount> Select(
+        const Vector4<DataType, ThreadCount>& A,
+        const Vector4<DataType, ThreadCount>& B,
+        const typename Vector4<DataType, ThreadCount>::MaskType& mask)
+    {
+        Vector4<DataType, ThreadCount> r;
+        r.x = Select(A.x, B.x, mask);
+        r.y = Select(A.y, B.y, mask);
+        r.z = Select(A.z, B.z, mask);
+        r.w = Select(A.w, B.w, mask);
+        return r;
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector4<DataType, ThreadCount>::MaskType operator==(const Vector4<DataType, ThreadCount>& A, const Vector4<DataType, ThreadCount>& B)
+    {
+        return (A.x == B.x) && (A.y == B.y) && (A.z == B.z) && (A.w == B.w);
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector4<DataType, ThreadCount>::MaskType operator!=(const Vector4<DataType, ThreadCount>& A, const Vector4<DataType, ThreadCount>& B)
+    {
+        return (A.x != B.x) || (A.y != B.y) || (A.z != B.z) || (A.w != B.w);
+    }
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Vector4<DataType, ThreadCount> operator +(const Vector4<DataType, ThreadCount>& v, DataType s)
@@ -874,13 +1026,13 @@ namespace Math::Simt
     }
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE typename Vector4<DataType, ThreadCount>::ScalarType Dot(const Vector4<DataType, ThreadCount> a, const Vector4<DataType, ThreadCount> b)
+    INLINE typename Vector4<DataType, ThreadCount>::ScalarType Dot(const Vector4<DataType, ThreadCount>& a, const Vector4<DataType, ThreadCount>& b)
     {
         return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
     }
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
-    INLINE typename Vector4<DataType, ThreadCount>::ScalarType CosTheta(const Vector4<DataType, ThreadCount> a, const Vector4<DataType, ThreadCount> b)
+    INLINE typename Vector4<DataType, ThreadCount>::ScalarType CosTheta(const Vector4<DataType, ThreadCount>& a, const Vector4<DataType, ThreadCount>& b)
     {
         Vector4<DataType, ThreadCount> aNormalized = Normalize(a);
         Vector4<DataType, ThreadCount> bNormalized = Normalize(b);

@@ -20,10 +20,18 @@ namespace Math::Simt
         
         Point a, b;
 
-        Box3() : a(0), b(0) {}
+        Box3() : a(DataType(0)), b(DataType(0)) {}
         Box3(const ScalarType& HalfRadius) : a(-HalfRadius), b(HalfRadius) {}
-        Box3(const ScalarType& X, const ScalarType& Y, const ScalarType& Z) : a(Point(-X/2, -Y/2, -Z/2)), b(Point(X/2, Y/2, Z/2)) {}
+        Box3(const DataType& X, const DataType& Y, const DataType& Z) : a(Point(-X/DataType(2), -Y/DataType(2), -Z/DataType(2))), b(Point(X/DataType(2), Y/DataType(2), Z/DataType(2))) {}
+        Box3(const DataType& X, const DataType& Y, const ScalarType& Z) : a(Point(-X/DataType(2), -Y/DataType(2), -Z/DataType(2))), b(Point(X/DataType(2), Y/DataType(2), Z/DataType(2))) {}
+        Box3(const DataType& X, const ScalarType& Y, const DataType& Z) : a(Point(-X/DataType(2), -Y/DataType(2), -Z/DataType(2))), b(Point(X/DataType(2), Y/DataType(2), Z/DataType(2))) {}
+        Box3(const DataType& X, const ScalarType& Y, const ScalarType& Z) : a(Point(-X/DataType(2), -Y/DataType(2), -Z/DataType(2))), b(Point(X/DataType(2), Y/DataType(2), Z/DataType(2))) {}
+        Box3(const ScalarType& X, const DataType& Y, const DataType& Z) : a(Point(-X/DataType(2), -Y/DataType(2), -Z/DataType(2))), b(Point(X/DataType(2), Y/DataType(2), Z/DataType(2))) {}
+        Box3(const ScalarType& X, const DataType& Y, const ScalarType& Z) : a(Point(-X/DataType(2), -Y/DataType(2), -Z/DataType(2))), b(Point(X/DataType(2), Y/DataType(2), Z/DataType(2))) {}
+        Box3(const ScalarType& X, const ScalarType& Y, const DataType& Z) : a(Point(-X/DataType(2), -Y/DataType(2), -Z/DataType(2))), b(Point(X/DataType(2), Y/DataType(2), Z/DataType(2))) {}
+        Box3(const ScalarType& X, const ScalarType& Y, const ScalarType& Z) : a(Point(-X/DataType(2), -Y/DataType(2), -Z/DataType(2))), b(Point(X/DataType(2), Y/DataType(2), Z/DataType(2))) {}
         Box3(const Point& Center, const ScalarType& HalfRadius) : a(Center - HalfRadius), b(Center + HalfRadius) {}
+        Box3(const Point& Center, const DataType& HalfRadius) : a(Center - HalfRadius), b(Center + HalfRadius) {}
         Box3(const Point& A, const Point& B) : a(A), b(B) {}
         Box3(const Box3T<Type>& box) : a(box.a), b(box.b) {}
         Box3(const Box3& A, const Box3& B) : a(Min(A.a, B.a)), b(Max(A.b, B.b)) {}
@@ -44,7 +52,7 @@ namespace Math::Simt
         }
         
         INLINE Point Center() const {return (a + b) * 0.5f;}
-        INLINE ScalarType Center(size_t Index) const {return (a[Index] + b[Index]) * 0.5;}
+        INLINE ScalarType Center(size_t Index) const {return (a[Index] + b[Index]) * DataType(0.5);}
         INLINE Vector Diagonal() const {return b - a;}
         INLINE Vector Size() const {return Diagonal();}
         INLINE ScalarType Radius() const {return Magnitude(Diagonal());}
@@ -121,11 +129,23 @@ namespace Math::Simt
         {
             Point c = Center();
             return Box3(
-                Point(Select(c[0], a[0], Index & 1), Select(c[1], a[1], Index & 2), Select(c[2], a[2], Index & 4)),
-                Point(Select(b[0], c[0], Index & 1), Select(b[1], c[1], Index & 2), Select(b[2], c[2], Index & 4))
+                Point(Select(c[0], a[0], MaskType(Index & 1)), Select(c[1], a[1], MaskType(Index & 2)), Select(c[2], a[2], MaskType(Index & 4))),
+                Point(Select(b[0], c[0], MaskType(Index & 1)), Select(b[1], c[1], MaskType(Index & 2)), Select(b[2], c[2], MaskType(Index & 4)))
                 );
         }
     };
+
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Box3<DataType, ThreadCount> Select(
+        const Box3<DataType, ThreadCount>& A,
+        const Box3<DataType, ThreadCount>& B,
+        const typename Box3<DataType, ThreadCount>::MaskType& mask)
+    {
+        Box3<DataType, ThreadCount> r;
+        r.a = Select(A.a, B.a, mask);
+        r.b = Select(A.b, B.b, mask);
+        return r;
+    }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Box3<DataType, ThreadCount>::MaskType operator==(const Box3<DataType, ThreadCount>& A, const Box3<DataType, ThreadCount>& B)

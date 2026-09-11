@@ -31,12 +31,12 @@ namespace Math::Simt
         Quaternion(const ScalarType& yaw, const ScalarType& pitch, const ScalarType& roll)
         {
             // Abbreviations for the various angular functions
-            ScalarType cy = Cos(yaw * 0.5);
-            ScalarType sy = Sin(yaw * 0.5);
-            ScalarType cp = Cos(pitch * 0.5);
-            ScalarType sp = Sin(pitch * 0.5);
-            ScalarType cr = Cos(roll * 0.5);
-            ScalarType sr = Sin(roll * 0.5);
+            ScalarType cy = Cos(yaw * DataType(0.5));
+            ScalarType sy = Sin(yaw * DataType(0.5));
+            ScalarType cp = Cos(pitch * DataType(0.5));
+            ScalarType sp = Sin(pitch * DataType(0.5));
+            ScalarType cr = Cos(roll * DataType(0.5));
+            ScalarType sr = Sin(roll * DataType(0.5));
         
             w = cy * cp * cr + sy * sp * sr;
             x = cy * cp * sr - sy * sp * cr;
@@ -44,9 +44,9 @@ namespace Math::Simt
             z = sy * cp * cr - cy * sp * sr;
         }
 
-        INLINE Vector3<DataType, ThreadCount> &GetVectorPart() const
+        INLINE const Vector3<DataType, ThreadCount>& GetVectorPart() const
         {
-            return reinterpret_cast<const Vector3<DataType, ThreadCount>&>(x);
+            return reinterpret_cast<const Vector3<DataType, ThreadCount>&>(*(this));
         }
 
         INLINE Matrix3<DataType, ThreadCount> GetRotationMatrix() const
@@ -80,9 +80,9 @@ namespace Math::Simt
         {
             Vector3<DataType, ThreadCount> retVector;
 
-            retVector[2] = ATan2(2.0 * (y * z + w * x), w * w - x * x - y * y + z * z);
-            retVector[1] = ASin(-2.0 * (x * z - w * y));
-            retVector[0] = ATan2(2.0 * (x * y + w * z), w * w + x * x - y * y - z * z);
+            retVector[2] = ATan2(DataType(2) * (y * z + w * x), w * w - x * x - y * y + z * z);
+            retVector[1] = ASin(DataType(-2) * (x * z - w * y));
+            retVector[0] = ATan2(DataType(2) * (x * y + w * z), w * w + x * x - y * y - z * z);
 
             return retVector;
         }
@@ -155,6 +155,20 @@ namespace Math::Simt
         }
     };
 
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Quaternion<DataType, ThreadCount> Select(
+        const Quaternion<DataType, ThreadCount>& A,
+        const Quaternion<DataType, ThreadCount>& B,
+        const typename Quaternion<DataType, ThreadCount>::MaskType& mask)
+    {
+        Quaternion<DataType, ThreadCount> r;
+        r.x = Select(A.x, B.x, mask);
+        r.y = Select(A.y, B.y, mask);
+        r.z = Select(A.z, B.z, mask);
+        r.w = Select(A.w, B.w, mask);
+        return r;
+    }
+    
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Quaternion<DataType, ThreadCount> operator +(const Quaternion<DataType, ThreadCount> &q1, const Quaternion<DataType, ThreadCount> &q2)
     {
