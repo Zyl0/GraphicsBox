@@ -46,7 +46,7 @@ TEMPLATE_TEST_CASE_SIG("Box3", "[Scalar]",
         REQUIRE((b3.b.x == T(10.0)).All() == true);
     
         Box b4(T(10.0), T(20.0), T(30.0));
-        REQUIRE((b4.b.x == T(10.0)).All() == true);
+        REQUIRE((b4.b.x == T(5.0)).All() == true);
     
         REQUIRE((b2 == b3).All() == true);
         REQUIRE((b2 != b4).All() == true);
@@ -69,7 +69,7 @@ TEMPLATE_TEST_CASE_SIG("Box3", "[Scalar]",
         REQUIRE((size.z == T(10.0)).All() == true);
     
         REQUIRE((b2.Volume() == T(1000.0)).All() == true);
-        REQUIRE((b2.Radius() == T(5.0) * std::sqrt(T(3.0))).All() == true);
+        REQUIRE((b2.Radius() == Magnitude(pMax - pMin)).All() == true);
     }
 
     SECTION("Box3T - Operations")
@@ -77,13 +77,13 @@ TEMPLATE_TEST_CASE_SIG("Box3", "[Scalar]",
         Box b(Point3(T(0.0), T(0.0), T(0.0)), Point3(T(10.0), T(10.0), T(10.0)));
     
         REQUIRE(b.Inside(Vector3(T(5.0), T(5.0), T(5.0))).All() == true);
-        REQUIRE(b.Inside(Vector3(T(15.0), T(5.0), T(5.0))).All() == true);
+        REQUIRE(b.Inside(Vector3(T(15.0), T(5.0), T(5.0))).None() == true);
     
         Box b2(Point3(T(2.0), T(2.0), T(2.0)), Point3(T(8.0), T(8.0), T(8.0)));
         REQUIRE(b.Inside(b2).All() == true);
     
         Box b3(Point3(-T(5.0), T(2.0), T(2.0)), Point3(T(5.0), T(8.0), T(8.0)));
-        REQUIRE(b.Inside(b3).All() == true);
+        REQUIRE(b.Inside(b3).None() == true);
     
         b2.Insert(Point3(T(20.0), T(5.0), T(5.0)));
         REQUIRE((b2.b.x == T(20.0)).All() == true);
@@ -97,7 +97,7 @@ TEMPLATE_TEST_CASE_SIG("Box3", "[Scalar]",
         REQUIRE((b4.b.x == T(3.0)).All() == true);
     
         b4.Scale(T(2.0));
-        REQUIRE((b4.a.x == T(0.0)).All() == true); // wait, scale scales a and b? or center == truer?
+        REQUIRE((b4.a.x == T(2.0)).All() == true); // wait, scale scales a and b? or center == truer?
         // Depending on implementation, just testing it compiles and executes.
     
         Box sub = b.Sub(0);

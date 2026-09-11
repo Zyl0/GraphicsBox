@@ -62,14 +62,14 @@ namespace Math::Simt
         
         INLINE MaskType Inside(const Box3& other) const
         {
-            return ((b.x < other.b.x) && (b.y < other.b.y) && (b.z < other.b.z)) && 
-                    (a.y > other.a.x) && (a.y > other.a.y) && (a.z > other.a.z);
+            return ((other.b.x < b.x) && (other.b.y < b.y) && (other.b.z < b.z)) && 
+                    (other.a.x > a.y) && (other.a.y > a.y) && (other.a.z > a.z);
         }
         
         INLINE MaskType Inside(const Point& point) const
         {
-            return ((b.x < point.x) && (b.y < point.y) && (b.z < point.z)) && 
-                    (a.y > point.x) && (a.y > point.y) && (a.z > point.z);
+            return ((point.x < b.x) && (point.y < b.y) && (point.z < b.z)) && 
+                    (point.x > a.y) && (point.y > a.y) && (point.z > a.z);
         }
         
         Box3& Insert( const Point& p )
