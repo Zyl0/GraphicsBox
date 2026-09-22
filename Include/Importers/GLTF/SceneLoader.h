@@ -69,7 +69,8 @@ namespace GLTF
             // Color_diff = diffuse.rgb * (1 - max(specular.x, specular.y, specular.z))
             // F0 = specular
             // alpha = roughness ^ 2
-            UseSpecularGlossinessPBRExt =      1 << 8,
+            UseSpecularGlossinessPBRExt =       1 << 8,
+            Emissive =                          1 << 0,
         } flags = None;
 
         Texture colorTexture = UINT64_MAX;

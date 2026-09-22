@@ -88,12 +88,12 @@ namespace GLTF
         const auto& bufferView = model->buffer_views[accessor.buffer_view];
         const auto& buffer = model->buffers[bufferView.buffer];
 
-        const uint8_t* rawBuffer = buffer.data.data + bufferView.byte_offset;
-        const size_t rawBufferSize = bufferView.byte_length;
         const size_t byteStride = tg3_component_size(accessor.component_type) * tg3_num_components(accessor.type);
+        const uint8_t* rawBuffer = buffer.data.data + bufferView.byte_offset + accessor.byte_offset;
+        const size_t rawBufferSize = accessor.count * byteStride;
         
         OutView = std::span<const uint8_t>(rawBuffer, rawBuffer + rawBufferSize);
-        OutElementCount = rawBufferSize / byteStride;
+        OutElementCount = accessor.count;
 
         return true;
     }
@@ -363,14 +363,20 @@ namespace GLTF
                 {
                     MaterialObject.colorTexture = material.pbr_metallic_roughness.base_color_texture.index;
                 }
+                
                 MaterialObject.emissive = Math::Vector4f(
                     static_cast<float>(material.emissive_factor[0]),
                     static_cast<float>(material.emissive_factor[1]),
                     static_cast<float>(material.emissive_factor[2]),
                     1.0f
                 );
+                if (Magnitude(MaterialObject.emissive) > 0)
+                {
+                    MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
+                }
                 if(material.emissive_texture.index >= 0)
                 {
+                    MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
                     MaterialObject.emissiveTexture = material.emissive_texture.index;
                 }
 
@@ -419,26 +425,32 @@ namespace GLTF
                 {
                     MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularExt;
 
-                    if (const tg3_value* specularFactor = FindValueInObject(extension->value, "specularFactor"); specularFactor != nullptr && specularFactor->type == TG3_VALUE_REAL || specularFactor->type == TG3_VALUE_INT)
+                    if (const tg3_value* specularFactor = FindValueInObject(extension->value, "specularFactor"); specularFactor != nullptr)
                     {
+                        if (specularFactor->type == TG3_VALUE_REAL || specularFactor->type == TG3_VALUE_INT)
                         MaterialObject.specular = ValueAsFloat(*specularFactor);
                     }
 
-                    if (const tg3_value* specularTex = FindValueInObject(extension->value, "specularTexture"); specularTex != nullptr && specularTex->type == TG3_VALUE_INT && specularTex->int_val >= 0)
+                    if (const tg3_value* specularTex = FindValueInObject(extension->value, "specularTexture"); specularTex != nullptr)
                     {
+                        if (specularTex->type == TG3_VALUE_INT && specularTex->int_val >= 0)
                         MaterialObject.specularTexture = static_cast<uint32_t>(specularTex->int_val); 
                     }
 
-                    if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorFactor"); specularColorTex != nullptr && specularColorTex->type == TG3_VALUE_ARRAY && specularColorTex->array_count == 3)
+                    if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorFactor"); specularColorTex != nullptr)
                     {
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[1]);
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[2]);
-                        MaterialObject.specularColor.w = 1.0f;
+                        if (specularColorTex->type == TG3_VALUE_ARRAY && specularColorTex->array_count == 3)
+                        {
+                            MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
+                            MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[1]);
+                            MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[2]);
+                            MaterialObject.specularColor.w = 1.0f;
+                        }
                     }
 
-                    if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorTexture"); specularColorTex != nullptr && specularColorTex->type == TG3_VALUE_INT && specularColorTex->int_val >= 0)
+                    if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorTexture"); specularColorTex != nullptr)
                     {
+                        if (specularColorTex->type == TG3_VALUE_INT && specularColorTex->int_val >= 0)
                         MaterialObject.specularColorTexture = static_cast<uint32_t>(specularColorTex->int_val); 
                     }
                 }
@@ -448,13 +460,15 @@ namespace GLTF
                 {
                     MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseTransmissionExt;
 
-                    if (const tg3_value* transmission = FindValueInObject(extension->value, "transmissionFactor"); transmission != nullptr && transmission->type == TG3_VALUE_REAL || transmission->type == TG3_VALUE_INT)
+                    if (const tg3_value* transmission = FindValueInObject(extension->value, "transmissionFactor"); transmission != nullptr)
                     {
+                        if (transmission->type == TG3_VALUE_REAL || transmission->type == TG3_VALUE_INT)
                         MaterialObject.transmission = ValueAsFloat(*transmission);
                     }
 
-                    if (const tg3_value* transmissionTex = FindValueInObject(extension->value, "transmissionTexture"); transmissionTex != nullptr && transmissionTex->type == TG3_VALUE_INT && transmissionTex->int_val >= 0)
+                    if (const tg3_value* transmissionTex = FindValueInObject(extension->value, "transmissionTexture"); transmissionTex != nullptr)
                     {
+                        if (transmissionTex->type == TG3_VALUE_INT && transmissionTex->int_val >= 0)
                         MaterialObject.specularColorTexture = static_cast<uint32_t>(transmissionTex->int_val); 
                     }
                 }
@@ -464,34 +478,43 @@ namespace GLTF
                 {
                     MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularGlossinessPBRExt;
                     
-                    if (const tg3_value* diffuseTex = FindValueInObject(extension->value, "diffuseTexture"); diffuseTex != nullptr && diffuseTex->type == TG3_VALUE_INT && diffuseTex->int_val >= 0)
+                    if (const tg3_value* diffuseTex = FindValueInObject(extension->value, "diffuseTexture"); diffuseTex != nullptr)
                     {
+                        if (diffuseTex->type == TG3_VALUE_INT && diffuseTex->int_val >= 0)
                         MaterialObject.colorTexture = static_cast<uint32_t>(diffuseTex->int_val); 
                     }
 
-                    if (const tg3_value* diffuseColor = FindValueInObject(extension->value, "diffuseFactor"); diffuseColor != nullptr && diffuseColor->type == TG3_VALUE_ARRAY && diffuseColor->array_count == 4)
+                    if (const tg3_value* diffuseColor = FindValueInObject(extension->value, "diffuseFactor"); diffuseColor != nullptr)
                     {
-                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
-                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[1]);
-                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[2]);
-                        MaterialObject.color.w = ValueAsFloat(diffuseColor->array_data[3]);
+                        if (diffuseColor->type == TG3_VALUE_ARRAY && diffuseColor->array_count == 4)
+                        {
+                            MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
+                            MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[1]);
+                            MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[2]);
+                            MaterialObject.color.w = ValueAsFloat(diffuseColor->array_data[3]);
+                        }
                     }
 
-                    if (const tg3_value* specularColor = FindValueInObject(extension->value, "specularFactor"); specularColor != nullptr && specularColor->type == TG3_VALUE_ARRAY && specularColor->array_count == 3)
+                    if (const tg3_value* specularColor = FindValueInObject(extension->value, "specularFactor"); specularColor != nullptr)
                     {
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[1]);
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[2]);
-                        MaterialObject.specularColor.w = 1.0f;
+                        if (specularColor->type == TG3_VALUE_ARRAY && specularColor->array_count == 3)
+                        {
+                            MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
+                            MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[1]);
+                            MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[2]);
+                            MaterialObject.specularColor.w = 1.0f;
+                        }
                     }
 
-                    if (const tg3_value* glossinessFactor = FindValueInObject(extension->value, "glossinessFactor"); glossinessFactor != nullptr && glossinessFactor->type == TG3_VALUE_REAL || glossinessFactor->type == TG3_VALUE_INT)
+                    if (const tg3_value* glossinessFactor = FindValueInObject(extension->value, "glossinessFactor"); glossinessFactor != nullptr)
                     {
+                        if (glossinessFactor->type == TG3_VALUE_REAL || glossinessFactor->type == TG3_VALUE_INT)
                         MaterialObject.roughness = 1.f - ValueAsFloat(*glossinessFactor);
                     }
 
-                    if (const tg3_value* specularGlossinessTex = FindValueInObject(extension->value, "specularGlossinessTexture"); specularGlossinessTex != nullptr && specularGlossinessTex->type == TG3_VALUE_INT && specularGlossinessTex->int_val >= 0)
+                    if (const tg3_value* specularGlossinessTex = FindValueInObject(extension->value, "specularGlossinessTexture"); specularGlossinessTex != nullptr)
                     {
+                        if (specularGlossinessTex->type == TG3_VALUE_INT && specularGlossinessTex->int_val >= 0)
                         MaterialObject.specularTexture = static_cast<uint32_t>(specularGlossinessTex->int_val); 
                     }
                 }
@@ -640,7 +663,8 @@ namespace GLTF
                     }
                     
                     // todo vertex color
-                    MeshObject.AddVertexGroup((unsigned int)PreviousVertexCount, (unsigned int)CurrentVertexCount - (unsigned int)PreviousVertexCount);
+                    MeshObject.AddVertexGroup((unsigned int)(PreviousVertexCount), (unsigned int)CurrentVertexCount);
+                    PreviousVertexCount += CurrentVertexCount;
                 }
                 
                 if (!Indexes.empty())
@@ -649,69 +673,90 @@ namespace GLTF
                     {
                     case TG3_COMPONENT_TYPE_BYTE:
                         {
-                            for (const auto& view : Indexes)
+                            size_t VertexBufferCumulatedCount = 0;
+                            for (size_t v = 0; v < Indexes.size(); v++)
                             {
+                                const auto& view = Indexes[v];
                                 for (size_t i = 0; i < view.Count; i++)
                                 {
-                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int8_t*)(view.View.data()))[i] ));
+                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int8_t*)(view.View.data()))[i] ) + VertexBufferCumulatedCount);
                                 }
+                                VertexBufferCumulatedCount += Positions[v].Count;
                             }
                         }
                         break;
                         
                     case TG3_COMPONENT_TYPE_UNSIGNED_BYTE:
                         {
-                            for (const auto& view : Indexes)
+                            size_t VertexBufferCumulatedCount = 0;
+                            for (size_t v = 0; v < Indexes.size(); v++)
                             {
+                                const auto& view = Indexes[v];
                                 for (size_t i = 0; i < view.Count; i++)
                                 {
-                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((uint8_t*)(view.View.data()))[i] ));
+                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((uint8_t*)(view.View.data()))[i] ) + VertexBufferCumulatedCount);
                                 }
+                                VertexBufferCumulatedCount += Positions[v].Count;
                             }
                         }
                         break;
                         
                     case TG3_COMPONENT_TYPE_SHORT:
                         {
-                            for (const auto& view : Indexes)
+                            size_t VertexBufferCumulatedCount = 0;
+                            for (size_t v = 0; v < Indexes.size(); v++)
                             {
+                                const auto& view = Indexes[v];
                                 for (size_t i = 0; i < view.Count; i++)
                                 {
-                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int16_t*)(view.View.data()))[i] ));
+                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int16_t*)(view.View.data()))[i] ) + VertexBufferCumulatedCount);
                                 }
+                                VertexBufferCumulatedCount += Positions[v].Count;
                             }
                         }
                         break;
                         
                     case TG3_COMPONENT_TYPE_UNSIGNED_SHORT:
                         {
-                            for (const auto& view : Indexes)
+                            size_t VertexBufferCumulatedCount = 0;
+                            for (size_t v = 0; v < Indexes.size(); v++)
                             {
+                                const auto& view = Indexes[v];
                                 for (size_t i = 0; i < view.Count; i++)
                                 {
-                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((uint16_t*)(view.View.data()))[i] ));
+                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((uint16_t*)(view.View.data()))[i] ) + VertexBufferCumulatedCount);
                                 }
+                                VertexBufferCumulatedCount += Positions[v].Count;
                             }
                         }
                         break;
                         
                     case TG3_COMPONENT_TYPE_INT:
                         {
-                            for (const auto& view : Indexes)
+                            size_t VertexBufferCumulatedCount = 0;
+                            for (size_t v = 0; v < Indexes.size(); v++)
                             {
+                                const auto& view = Indexes[v];
                                 for (size_t i = 0; i < view.Count; i++)
                                 {
-                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int32_t*)(view.View.data()))[i] ));
+                                    MeshObject.AddVertexPolygonIndex(static_cast<uint32_t>( ((int32_t*)(view.View.data()))[i] ) + VertexBufferCumulatedCount);
                                 }
+                                VertexBufferCumulatedCount += Positions[v].Count;
                             }
                         }
                         break;
                         
                     case TG3_COMPONENT_TYPE_UNSIGNED_INT:
                         {
-                            for (const auto& view : Indexes)
+                            size_t VertexBufferCumulatedCount = 0;
+                            for (size_t v = 0; v < Indexes.size(); v++)
                             {
-                                MeshObject.AddVertexPolygonIndexes({(const uint32_t*)(view.View.data()), view.Count });
+                                const auto& view = Indexes[v];
+                                for (size_t i = 0; i < view.Count; i++)
+                                {
+                                    MeshObject.AddVertexPolygonIndex( ((uint32_t*)(view.View.data()))[i] + VertexBufferCumulatedCount);
+                                }
+                                VertexBufferCumulatedCount += Positions[v].Count;
                             }
                         }
                         break;
@@ -1075,8 +1120,13 @@ namespace GLTF
                     static_cast<float>(material.emissive_factor[2]),
                     1.0f
                 );
+                if (Magnitude(MaterialObject.emissive) > 0)
+                {
+                    MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
+                }
                 if(material.emissive_texture.index >= 0)
                 {
+                    MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
                     MaterialObject.emissiveTexture = material.emissive_texture.index;
                 }
 
@@ -1347,7 +1397,8 @@ namespace GLTF
                     }
                     
                     // todo vertex color
-                    MeshObject.AddVertexGroup({(unsigned int)PreviousVertexCount, (unsigned int)CurrentVertexCount - (unsigned int)PreviousVertexCount, Min, Max});
+                    MeshObject.AddVertexGroup({(unsigned int)PreviousVertexCount, (unsigned int)CurrentVertexCount, Min, Max});
+                    PreviousVertexCount += CurrentVertexCount;
                 }
                 
                 if (!Indexes.empty())
@@ -1368,6 +1419,7 @@ namespace GLTF
                     
                     size_t Size = 0;
                     
+                    // TODO like for CPU version, merge the indices by adding the vertex count of previous groups 
                     for (const auto& view : Indexes)
                     {
                         Size += view.View.size();
