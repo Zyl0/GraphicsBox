@@ -267,6 +267,24 @@ namespace Math::Simt
     {
         return v / Magnitude(v);
     }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> Sqrt(const Vector2<DataType, ThreadCount>& v)
+    {
+        Vector2<DataType, ThreadCount> result;
+        result.x = Sqrt(v.x);
+        result.y = Sqrt(v.y);
+        return result;
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector2<DataType, ThreadCount> InverseSqrt(const Vector2<DataType, ThreadCount>& v)
+    {
+        Vector2<DataType, ThreadCount> result;
+        result.x = DataType(1) / Sqrt(v.x);
+        result.y = DataType(1) / Sqrt(v.y);
+        return result;
+    }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Vector2<DataType, ThreadCount> operator +(const Vector2<DataType, ThreadCount>& a, const Vector2<DataType, ThreadCount>& b)
@@ -514,6 +532,26 @@ namespace Math::Simt
     INLINE Vector3<DataType, ThreadCount> Abs(const Vector3<DataType, ThreadCount>& v)
     {
         return Vector3<DataType, ThreadCount>(Abs(v.x), Abs(v.y), Abs(v.z));
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector3<DataType, ThreadCount> Sqrt(const Vector3<DataType, ThreadCount>& v)
+    {
+        Vector3<DataType, ThreadCount> result;
+        result.x = Sqrt(v.x);
+        result.y = Sqrt(v.y);
+        result.z = Sqrt(v.z);
+        return result;
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector3<DataType, ThreadCount> InverseSqrt(const Vector3<DataType, ThreadCount>& v)
+    {
+        Vector3<DataType, ThreadCount> result;
+        result.x = DataType(1) / Sqrt(v.x);
+        result.y = DataType(1) / Sqrt(v.y);
+        result.z = DataType(1) / Sqrt(v.z);
+        return result;
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
@@ -998,6 +1036,28 @@ namespace Math::Simt
     INLINE Vector4<DataType, ThreadCount> Normalize(const Vector4<DataType, ThreadCount>& v)
     {
         return v / Magnitude(v);
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector4<DataType, ThreadCount> Sqrt(const Vector4<DataType, ThreadCount>& v)
+    {
+        Vector4<DataType, ThreadCount> result;
+        result.x = Sqrt(v.x);
+        result.y = Sqrt(v.y);
+        result.z = Sqrt(v.z);
+        result.w = Sqrt(v.w);
+        return result;
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector4<DataType, ThreadCount> InverseSqrt(const Vector4<DataType, ThreadCount>& v)
+    {
+        Vector4<DataType, ThreadCount> result;
+        result.x = DataType(1) / Sqrt(v.x);
+        result.y = DataType(1) / Sqrt(v.y);
+        result.z = DataType(1) / Sqrt(v.z);
+        result.w = DataType(1) / Sqrt(v.w);
+        return result;
     }
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
