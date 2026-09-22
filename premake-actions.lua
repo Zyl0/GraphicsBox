@@ -1504,7 +1504,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
             f2:write("            intrin_indices.v[i/"..RegisterCount.."][i%"..RegisterCount.."] = indices[i];\n")
             f2:write("#else // defined(__GNUC__) || defined(__clang__)\n")
                 
-            f2:write("    intrin_indices.Load(indices.m));\n")
+            f2:write("    intrin_indices.Load(indices.m);\n")
             
             f2:write("#endif // !defined(__GNUC__) || defined(__clang__)\n")    
         else
@@ -1542,7 +1542,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
             f2:write("            intrin_indices.v[i/"..RegisterCount.."][i%"..RegisterCount.."] = indices[i];\n")
             f2:write("#else // defined(__GNUC__) || defined(__clang__)\n")
                 
-            f2:write("    intrin_indices.Load(indices.m));\n")
+            f2:write("    intrin_indices.Load(indices.m);\n")
             
             f2:write("#endif // !defined(__GNUC__) || defined(__clang__)\n")
         else
