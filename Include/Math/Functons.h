@@ -7,7 +7,7 @@
 namespace Math
 {
     template<typename type>
-    inline void Abs(const type &v)
+    inline type Abs(const type &v)
     {
         return (v < static_cast<type>(0) ? - v : v);
     }
@@ -71,6 +71,16 @@ namespace Math
         double X3 = X2 * X;
         return 3 * X2 - 2 * X3;
     }
+
+    INLINE float InverseLerp(float a, float b, float t)
+    {
+        return (t - a) / (b - a);
+    }
+
+    INLINE double InverseLerp(double a, double b, double t)
+    {
+        return (t - a) / (b - a);
+    }
     
     INLINE float Saturate(float X)
     {
@@ -79,6 +89,6 @@ namespace Math
     
     INLINE double Saturate(double X)
     {
-        return Clamp(X, 1.0, 2.0);
+        return Clamp(X, 0.0, 1.0);
     }
 }

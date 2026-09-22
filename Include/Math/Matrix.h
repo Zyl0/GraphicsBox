@@ -3,9 +3,14 @@
 
 namespace Math
 {
+    // Column major 3 by 3 matrix
     template<typename type>
     struct Matrix3t
     {
+        using Type = type;
+        static constexpr size_t kRowCount = 3;
+        static constexpr size_t kColumnCount = 3;
+        
     private:
         type n[3][3]{};
 
@@ -193,7 +198,10 @@ namespace Math
 
     template<typename type>
     struct Matrix4t
-    {
+    {        
+        using Type = type;
+        static constexpr size_t kRowCount = 4;
+        static constexpr size_t kColumnCount = 4;
     protected:
         type n[4][4]{};
 

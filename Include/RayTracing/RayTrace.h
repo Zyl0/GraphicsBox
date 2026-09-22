@@ -2,10 +2,10 @@
 
 #include <stack>
 
-#include "RayTrace.h"
 #include "Types.h"
 #include "Math/Box.h"
 #include "Math/Transforms.h"
+#include "MathSimt/RMath.h"
 #include "Memory/Functions.h"
 #include "Modeling/Mesh.h"
 #include "Shared/Assertion.h"
@@ -26,6 +26,57 @@ struct Hit
 };
 
 Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray);
+
+struct TriangleWave
+{
+    static constexpr size_t kThreadCount = 32;
+
+    Math::Simt::Scalar<uint32_t, kThreadCount> Faces;
+    
+    Math::Simt::Vector3<float, kThreadCount> A;
+    Math::Simt::Vector3<float, kThreadCount> B;
+    Math::Simt::Vector3<float, kThreadCount> C;
+    // Math::Simt::Vector3<float, kThreadCount> D; // <- todo for quads
+    
+    Math::Simt::Scalar<float, kThreadCount>::MaskType Validity = false;
+    
+    uint32_t BucketBegin, BucketEnd;
+};
+
+template<size_t ThreadCount>
+struct HitWave
+{
+    using Type = float;
+    using ScalarType =  Math::Simt::Scalar<float, ThreadCount>;
+    using IndexScalarType =  Math::Simt::Scalar<uint32_t, ThreadCount>;
+    using MaskType = Math::Simt::Scalar<float, ThreadCount>::MaskType;
+    using IndexerType = Math::Simt::Scalar<float, ThreadCount>::IndexerType;
+    using Vector2 = Math::Simt::Vector2<float, ThreadCount>;
+    
+    static constexpr size_t kThreadCount = 32;
+    
+    HitWave() :  uv(), t(std::numeric_limits<float>::max()), face(std::numeric_limits<uint32_t>::max()) {}
+    HitWave(const ScalarType& T, const ScalarType& U, const ScalarType& V, const IndexScalarType& Face) : uv(U, V), t(T), face(Face) {}
+    HitWave(const ScalarType& T,  const Vector2& UV, const ScalarType& Face) : uv(UV), t(T), face(Face) {}
+    
+    Vector2 uv;
+    ScalarType t;
+    IndexScalarType face;
+    
+    INLINE MaskType IsValid() const {return face != std::numeric_limits<uint32_t>::max();}
+    INLINE operator MaskType () const {return face != std::numeric_limits<uint32_t>::max();}
+    INLINE MaskType operator==(const HitWave& outer) const {return ((IsValid() && outer.IsValid()) || (!IsValid() && !outer.IsValid())) && (!IsValid() || (t == outer.t && uv.x == outer.uv.x && uv.y == outer.uv.y));}
+    INLINE MaskType operator!=(const HitWave& outer) const {return ((IsValid() && !outer.IsValid()) || (!IsValid() && outer.IsValid())) || (IsValid() && (t == outer.t || uv.x == outer.uv.x || uv.y == outer.uv.y));}
+
+    Hit Elt(size_t index) const
+    {
+        Math::Vector2f hit_uv = uv.Elt(index);
+        return Hit(t[index], hit_uv.x, hit_uv.y, face[index]);
+    }
+
+};
+
+HitWave<TriangleWave::kThreadCount> IntersectTriangle(const TriangleWave& Face, const Ray& Ray);
 
 float VertexInterpolateTriangle(const Hit& Hit, float a, float b, float c);
 Math::Vector2f VertexInterpolateTriangle(const Hit& Hit, Math::Vector2f a, Math::Vector2f b, Math::Vector2f c);
@@ -83,6 +134,7 @@ struct BoxHit
 
 BoxHit IntersectBox(const Math::Box3f& Box, const Ray& Ray);
 BoxHit IntersectBox(const Math::Box3f& Box, const Ray& Ray, Math::Vector3f InverseDirection);
+
 
 template <
     typename T,
@@ -255,6 +307,11 @@ struct BLASDesc
     Mesh::VertexGroup VertexGroup;
     Mesh::VertexType VertexType;
     const Mesh* MeshRef;
+
+    // SIMT blas
+    // when enabled the tree now points to wave elements instead of regular element list
+    std::vector<TriangleWave> Waves;
+    bool IsSIMD() const {return !Waves.empty();}
 };
 
 // Face index
@@ -268,7 +325,7 @@ Math::Vector3f BLASElementGetCenter(const BLASElement& Element, const BLASDesc& 
 // Bottom layer is the layer of the geometry itself
 using BLAS = BVHT<BLASElement, BLASDesc, BLASElementGetBounds, BLASElementGetCenter>;
 
-BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize = 2);
+BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize = TriangleWave::kThreadCount);
 
 struct BVHHit
 {
@@ -313,6 +370,8 @@ public:
     iterator end() const {return iterator();}
     
 private:
+    HitWave<TriangleWave::kThreadCount> m_SIMDHits;
+    // uint32_t m_SIMDHitIndex = std::numeric_limits<uint32_t>::max();
     const BLAS* m_Blas;
     std::stack<uint32_t> m_IterationStack;
     BVHHit m_CurrentBVHHit;
@@ -320,6 +379,7 @@ private:
     uint32_t m_CurrentElementIndex;
     float m_tmax;
     Ray m_Ray;
+    Math::Matrix4f ModelToWorld;
 };
 
 // struct MLASElement

@@ -75,7 +75,7 @@ vec3 SampleGGX(vec3 v, float alpha_x, float alpha_y, float U1, float U2)
     //vec3 l = vec3( cos(phi) * sinTheta, cosTheta, sinTheta * sin(phi) );
 
     float phi = 2.0 * M_PI * U2;
-    float cosTheta = sqrt( (1.0 - U1) / (1.0 + (alpha_x * alpha_x - 1.0) * U2) );
+    float cosTheta = sqrt( (1.0 - U1) / (1.0 + (alpha_x * alpha_y - 1.0) * U2) );
     float sinTheta = sqrt( 1.0 - cosTheta * cosTheta );
     // todo use alpha_y
 

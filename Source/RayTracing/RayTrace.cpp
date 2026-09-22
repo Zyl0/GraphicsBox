@@ -31,6 +31,45 @@ Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray)
     return Hit(t, u, v, Face.FirstVertex());
 }
 
+HitWave<TriangleWave::kThreadCount> IntersectTriangle(const TriangleWave& Face, const Ray& Ray)
+{
+    using Vector3 = Simt::Vector3<float, TriangleWave::kThreadCount>;
+    using Vector2 = Simt::Vector2<float, TriangleWave::kThreadCount>;
+    using Mask = Simt::Scalar<float, TriangleWave::kThreadCount>::MaskType;
+    using Float = Simt::Scalar<float, TriangleWave::kThreadCount>;
+
+    HitWave<TriangleWave::kThreadCount> HitWave{};
+    Mask mask = Face.Validity;
+    [[unlikely]] if (mask.None()) return HitWave;
+    
+    const Vector3& a = Face.A, &b = Face.B, &c = Face.C;
+    Vector3 e1(a, b), e2(a, c);
+    const Vector3 direction = Vector3(Ray.direction);
+    
+    Vector3 pvec = Cross(direction, e2);
+    Float det = Dot(e1, pvec);
+        
+    Float inv_det = Float(1) / det;
+    Vector3 tvec(a, Ray.origin);
+
+    Vector2 uv;
+    uv.x = Dot(tvec, pvec) * inv_det;
+    mask &= (uv.x >= Float(0) && uv.x <= Float(1));
+        
+    Vector3 qvec = Cross(tvec, e1);
+    uv.y = Dot(direction, qvec) * inv_det;
+    mask &= (uv.y >= 0) && (uv.x + uv.y <= 1);
+        
+    Float t = Dot(e2, qvec) * inv_det;
+    mask &= (t >= 0) && t <= (Ray.distance);
+
+    HitWave.uv = Select(uv, HitWave.uv, mask);
+    HitWave.t = Select(t, HitWave.t, mask);
+    HitWave.face = Select(Face.Faces, HitWave.face, mask);
+
+    return HitWave;
+}
+
 float VertexInterpolateTriangle(const Hit& Hit, float a, float b, float c)
 {
     return (1 - Hit.u - Hit.v) * a + Hit.u * b + Hit.v * c;
@@ -259,16 +298,95 @@ BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize)
     blas.LeafSize = LeafSize;
     blas.Rebuild();
 
+    // enable simd
+    // when enabled the tree now points to wave elements instead of regular element list
+    blas.Meta.Waves.clear();
+    switch (blas.Meta.VertexType)
+    {            
+    case Mesh::TRIANGLE_STRIP_ADJACENCY:
+    case Mesh::TRIANGLES_ADJACENCY:
+    case Mesh::TRIANGLE_STRIP:
+    case Mesh::TRIANGLE_FAN:
+    case Mesh::TRIANGLES:
+        if (LeafSize == TriangleWave::kThreadCount)
+        {
+            Mesh::ConstFaces Faces(Mesh);
+            std::stack<uint32_t> IterationStack;
+            IterationStack.push(blas.Head);
+            
+            while (!IterationStack.empty())
+            {
+                uint32_t NodeIndex = IterationStack.top();
+                IterationStack.pop();
+                
+                if (blas.Tree[NodeIndex].IsNode())
+                {
+                    IterationStack.push(blas.Tree[NodeIndex].LeftIndex());
+                    IterationStack.push(blas.Tree[NodeIndex].RightIndex());
+                }
+                else // if (m_Blas->Tree[NodeIndex].IsLeaf())
+                {
+                    // collect triangles in bucket
+                    std::span<BLASElement> View = {blas.Elements.begin() + blas.Tree[NodeIndex].LeftIndex(), blas.Elements.begin() + blas.Tree[NodeIndex].RightIndex()};
+                    
+                    uint32_t bucketIndex = blas.Meta.Waves.size(); 
+                    TriangleWave& wave = blas.Meta.Waves.emplace_back();
+                    
+                    // replace tree with
+                    wave.BucketBegin = blas.Tree[NodeIndex].LeftIndex();
+                    wave.BucketEnd = blas.Tree[NodeIndex].RightIndex();
+                    blas.Tree[NodeIndex].SetLeafBegin(bucketIndex);
+                    blas.Tree[NodeIndex].SetLeafEnd(bucketIndex + 1);
+                    
+                    // fill bucket data
+                    for (size_t i = 0; i < View.size(); i++)
+                    {
+                        Mesh::ConstFace Face = Faces[View[i]];
+                        
+                        wave.A.x[i] = Face.Position(0).x;
+                        wave.A.y[i] = Face.Position(0).y;
+                        wave.A.z[i] = Face.Position(0).z;
+                        
+                        wave.B.x[i] = Face.Position(1).x;
+                        wave.B.y[i] = Face.Position(1).y;
+                        wave.B.z[i] = Face.Position(1).z;
+                        
+                        wave.C.x[i] = Face.Position(2).x;
+                        wave.C.y[i] = Face.Position(2).y;
+                        wave.C.z[i] = Face.Position(2).z;
+                        
+                        wave.Faces[i] = Face.FirstVertex();
+                        wave.Validity[i] = true;
+                    }
+                    
+                }
+            }
+        }
+        break;
+            
+    case Mesh::POINTS:
+    case Mesh::LINE_STRIP:
+    case Mesh::LINE_LOOP:
+    case Mesh::LINES:
+    case Mesh::LINE_STRIP_ADJACENCY:
+    case Mesh::LINES_ADJACENCY:
+    case Mesh::PATCHES:
+    case Mesh::QUAD_STRIP:
+    case Mesh::QUADS:
+    case Mesh::_Count:
+    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported face type for ray tracing")
+    }
     return blas;
 }
 
 TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel):
     m_Blas(&Mesh),
-    m_Ray(Ray),
     m_IterationStack(),
     m_CurrentBVHHit(),
     m_ClosestHit(),
-    m_CurrentElementIndex(std::numeric_limits<uint32_t>::max())
+    m_CurrentElementIndex(std::numeric_limits<uint32_t>::max()),
+    m_Ray(Ray),
+    ModelToWorld(Inverse(WorldToModel))
 {
     Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
 
@@ -314,12 +432,10 @@ explore_bvh:
 trace_leaf:
     if (m_CurrentBVHHit)
     {
-        uint32_t BLASFaceEnd = m_Blas->Tree[m_CurrentBVHHit.NodeIndex].RightIndex();
-        Mesh::ConstFaces Faces(*(m_Blas->Meta.MeshRef));
-        for (uint32_t ElementIndex = m_CurrentElementIndex; ElementIndex < BLASFaceEnd; ElementIndex++)
+        // if SIMD mode
+        if (!m_Blas->Meta.Waves.empty())
         {
-            Mesh::ConstFace Face = Faces[m_Blas->Elements[ElementIndex]];
-            
+            // if (m_SIMDHitIndex == std::numeric_limits<uint32_t>::max())
             switch (m_Blas->Meta.VertexType)
             {            
             case Mesh::TRIANGLE_STRIP_ADJACENCY:
@@ -327,18 +443,9 @@ trace_leaf:
             case Mesh::TRIANGLE_STRIP:
             case Mesh::TRIANGLE_FAN:
             case Mesh::TRIANGLES:
-                if (Hit hit = IntersectTriangle(Face, m_Ray); hit)
-                {
-                    if (!m_ClosestHit || m_ClosestHit.t > hit.t)
-                    {
-                        m_ClosestHit = hit;
-                        m_tmax = std::min(m_tmax, hit.t);
-                        m_CurrentElementIndex = ElementIndex + 1;
-                        return hit;
-                    }
-                }
+                m_SIMDHits = IntersectTriangle(m_Blas->Meta.Waves[m_CurrentElementIndex], m_Ray);
                 break;
-            
+        
             case Mesh::POINTS:
             case Mesh::LINE_STRIP:
             case Mesh::LINE_LOOP:
@@ -350,6 +457,71 @@ trace_leaf:
             case Mesh::QUADS:
             case Mesh::_Count:
             SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported face type for ray tracing")
+            }
+            
+            if (m_SIMDHits.IsValid().None())
+            {
+                m_CurrentBVHHit = {};
+                m_CurrentElementIndex = std::numeric_limits<uint32_t>::max();
+                goto explore_bvh;
+            }
+            
+            uint32_t SIMDHitIndex = IndexOf(m_SIMDHits.t, Lowest(m_SIMDHits.t));
+            m_ClosestHit = m_SIMDHits.Elt(SIMDHitIndex);
+            m_tmax = std::min(m_tmax, m_ClosestHit.t);
+            
+            Vector4f originWorld = ModelToWorld * Vector4f(m_Ray.origin, 1.0f); originWorld.xyz() /= originWorld.w;
+            Vector4f tWorld = ModelToWorld * Vector4f(m_Ray.origin + m_ClosestHit.t * m_Ray.direction, 1.0f); tWorld.xyz() /= tWorld.w;
+            m_ClosestHit.t = Magnitude(tWorld - originWorld);
+            
+            m_CurrentBVHHit = {};
+            m_CurrentElementIndex = std::numeric_limits<uint32_t>::max();
+            return m_ClosestHit;
+        }
+        else
+        {
+            uint32_t BLASFaceEnd = m_Blas->Tree[m_CurrentBVHHit.NodeIndex].RightIndex();
+            Mesh::ConstFaces Faces(*(m_Blas->Meta.MeshRef));
+            for (uint32_t ElementIndex = m_CurrentElementIndex; ElementIndex < BLASFaceEnd; ElementIndex++)
+            {
+                Mesh::ConstFace Face = Faces[m_Blas->Elements[ElementIndex]];
+            
+                switch (m_Blas->Meta.VertexType)
+                {            
+                case Mesh::TRIANGLE_STRIP_ADJACENCY:
+                case Mesh::TRIANGLES_ADJACENCY:
+                case Mesh::TRIANGLE_STRIP:
+                case Mesh::TRIANGLE_FAN:
+                case Mesh::TRIANGLES:
+                    if (Hit hit = IntersectTriangle(Face, m_Ray); hit)
+                    {
+                        if (!m_ClosestHit || m_ClosestHit.t > hit.t)
+                        {
+                            m_ClosestHit = hit;
+                            
+                            Vector4f originWorld = ModelToWorld * Vector4f(m_Ray.origin, 1.0f); originWorld.xyz() /= originWorld.w;
+                            Vector4f tWorld = ModelToWorld * Vector4f(m_Ray.origin + m_ClosestHit.t * m_Ray.direction, 1.0f); tWorld.xyz() /= tWorld.w;
+                            m_ClosestHit.t = Magnitude(tWorld - originWorld);
+                            
+                            m_tmax = std::min(m_tmax, hit.t);
+                            m_CurrentElementIndex = ElementIndex + 1;
+                            return m_ClosestHit;
+                        }
+                    }
+                    break;
+            
+                case Mesh::POINTS:
+                case Mesh::LINE_STRIP:
+                case Mesh::LINE_LOOP:
+                case Mesh::LINES:
+                case Mesh::LINE_STRIP_ADJACENCY:
+                case Mesh::LINES_ADJACENCY:
+                case Mesh::PATCHES:
+                case Mesh::QUAD_STRIP:
+                case Mesh::QUADS:
+                case Mesh::_Count:
+                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported face type for ray tracing")
+                }
             }
         }
         

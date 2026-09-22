@@ -4,6 +4,8 @@
 #include <optional>
 
 // TODO not sure if we want to have the complete Rendering lib as a dependency of the window module, maybe move to raw GL objects
+#include <optional>
+
 #include "Rendering/Textures.h"
 #include "Rendering/FrameBuffers.h"
 

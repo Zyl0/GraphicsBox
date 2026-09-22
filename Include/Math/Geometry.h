@@ -79,7 +79,7 @@ namespace Math
         
         // The lines are nearly parallel
         Vector3t<type> a = Cross(dp, v1);
-        return sqrt(SquareMagnitude(a) / SquareMagnitude(v12)); 
+        return sqrt(SquareMagnitude(a) / v12); 
     }
 
     template<typename type>

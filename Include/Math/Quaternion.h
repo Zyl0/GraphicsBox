@@ -24,7 +24,7 @@ namespace Math
 
         Matrix3t<type> GetRotationMatrix() const;
 
-        const Vector3t<type> &GetAngles() const;
+        Vector3t<type> GetAngles() const;
 
         void SetRotationMatrix(const Matrix3t<type> &m);
 
@@ -120,7 +120,7 @@ namespace Math
     }
 
     template <typename type>
-    const Vector3t<type>& QuaternionT<type>::GetAngles() const
+    Vector3t<type> QuaternionT<type>::GetAngles() const
     {
         Vector3t<type> retVector;
 

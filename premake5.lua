@@ -6,7 +6,7 @@ gb_msvc_c_version =        "c11"
 -- Linux/GCC or CLang
 gb_gnuc_cpp_version =      "gnu++20"
 gb_gnuc_c_version =        "gnu11"
-gb_linux_toolset =         "gcc"
+gb_linux_toolset =         "clang"
 
 -- Pathes
 gb_SolutionDir =               path.getabsolute(".")
@@ -20,6 +20,7 @@ gb_OutputDir =                 path.join(gb_SolutionDir, "Binaries")
 gb_IncludeDir =                path.join(gb_SolutionDir, "Include")
 gb_SrcDir =                    path.join(gb_SolutionDir, "Source")
     gb_LibsImplementDir =      path.join(gb_SrcDir, "Libs")
+gb_UnitTestsDir =              path.join(gb_SolutionDir, "UnitTests")
 gb_SamplesDir =                path.join(gb_SolutionDir, "Samples")
 gb_TempDir =                   path.join(gb_SolutionDir, "Temp")
 gb_SolutionProjectDir =        path.join(gb_SolutionDir, "Solution")
@@ -34,6 +35,29 @@ SampleScencesRepos = {
         name = "RTXDI-Assets",
         url = "https://github.com/NVIDIA-RTX/RTXDI-Assets.git"
     },
+}
+
+-- Sample projects
+SampleProjects = {
+    "AntiAliasing",
+    "GLTFViewer",
+    "MathSimtBenchmarks",
+    "MiniEngineCooker",
+    "MiniEngineSample",
+    "PBR",
+    "RayTracingBase",
+    "RayTracingBVH",
+    "RayTracingCompute",
+    "RayTracingComputeBVH",
+    "SpectralRendering",
+    "SignedDistanceField",
+    "ShadowMapping"
+}
+
+-- Unit test projects
+UnitTestProjects = {
+    "TestMathSIMT",
+    "TestMath"
 }
 
 if os.isfile("premake-config.lua") then
@@ -76,6 +100,63 @@ solution "GraphicsBox"
 
     -- CPU Architecture
     architecture "x86_64"
+    filter "configurations:Debug"
+    filter "configurations:Development"
+        if gbUseSIMD_X86_AVX512 == true then
+            -- Not yet available in latest release of premake
+            -- vectorextensions "AVX512"
+            filter { "system:linux" , "configurations:Development" }
+                buildoptions { "-mavx512f -mavx512vl" }
+                linkoptions { "-mavx512f -mavx512vl" }
+
+            filter { "system:windows" , "configurations:Development" }
+                vectorextensions "AVX2" 
+                buildoptions { "/arch:AVX512" }
+            
+            filter "configurations:Development"
+
+        elseif gbUseSIMD_X86_AVX == true then
+            vectorextensions "AVX2" 
+        elseif gbUseSIMD_X86_SSE == true then
+            vectorextensions "SSE4.2"
+        end
+        if gbUseSIMD_X86_SSE == true then
+            defines("USE_SSE")
+        end
+        if gbUseSIMD_X86_AVX == true then
+            defines("USE_AVX")
+        end
+        if gbUseSIMD_X86_AVX512 == true then
+            defines("USE_AVX512")
+        end
+    filter "configurations:Release"
+        if gbUseSIMD_X86_AVX512 == true then
+            -- Not yet available in latest release of premake
+            -- vectorextensions "AVX512"
+            filter { "system:linux" , "configurations:Release" }
+                buildoptions { "-mavx512f -mavx512vl" }
+                linkoptions { "-mavx512f -mavx512vl" }
+       
+            filter { "system:windows" , "configurations:Release" }
+                vectorextensions "AVX2" 
+                buildoptions { "/arch:AVX512" }
+
+            filter "configurations:Release"
+        elseif gbUseSIMD_X86_AVX == true then
+            vectorextensions "AVX2" 
+        elseif gbUseSIMD_X86_SSE == true then
+            vectorextensions "SSE4.2"
+        end
+        if gbUseSIMD_X86_SSE == true then
+            defines("USE_SSE")
+        end
+        if gbUseSIMD_X86_AVX == true then
+            defines("USE_AVX")
+        end
+        if gbUseSIMD_X86_AVX512 == true then
+            defines("USE_AVX512")
+        end
+    filter {}
     
     -- Debug settings
     if gbUseBreakpoints then
@@ -86,6 +167,9 @@ solution "GraphicsBox"
     
     flags { "NoPCH" }
 
+    -- generated code
+    includedirs(path.join(gb_IntermediatesDir, "generated"))
+
      -- Platforms specific setup
     filter "system:linux"
         toolset (gb_linux_toolset)
@@ -95,19 +179,28 @@ solution "GraphicsBox"
         defines ("PLATFORM_LINUX")
 
         buildoptions { "-mtune=native -march=native" }
-        buildoptions { "-W -Wall -Wextra -Wsign-compare -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable", "-pipe" }
+        buildoptions { "-W -Wall -Wextra -Wsign-compare -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable -fveclib=SVML", "-pipe" }
         
         filter { "system:linux" , "configurations:Debug" }
             buildoptions { "-g", "-O0" } 
             linkoptions { "-g"}
 
         filter { "system:linux" , "configurations:Development" }
-            buildoptions { "-g", "-O3", "-mavx" } 
+            buildoptions { "-g", "-O3" }
             linkoptions { "-g"}
+            if gbUseSIMD_X86_AVX512 == true then
+                buildoptions { "-mavx512vl" }
+                linkoptions { "-mavx512vl" }
+            end
        
         filter { "system:linux" , "configurations:Release" }
-            buildoptions { "-fopenmp -O3 -mavx" } -- TODO evaluate -flto optimisation
-            linkoptions { "-fopenmp -O3 -mavx" }  -- TODO evaluate -flto optimisation
+            buildoptions { "-O3 -fopenmp" } -- TODO evaluate -flto optimisation
+            linkoptions { "-O3 -fopenmp" }  -- TODO evaluate -flto optimisation
+            if gbUseSIMD_X86_AVX512 == true then
+                buildoptions { "-mavx512vl" }
+                linkoptions { "-mavx512vl" }
+            end
+            defines("USE_OPENMP")
         
         filter {"system:linux", "action:cmake"}
             staticruntime "On"
@@ -130,11 +223,11 @@ solution "GraphicsBox"
 
         filter { "system:windows" , "configurations:Development" }
             runtime "Debug"
-            buildoptions { "/O2 /Oi /arch:AVX2" }
+            buildoptions { "/O2 /Oi " }
 
         filter { "system:windows" , "configurations:Release" }
             runtime "Release"
-            buildoptions { "/O2 /Oi /arch:AVX2 /openmp:experimental" }
+            buildoptions { "/O2 /Oi /openmp:experimental" }
             -- ADD to not generate debugging symbols
 
         filter { "system:windows" , "action:vs*" }
@@ -194,6 +287,31 @@ group "Dependencies"
             path.join(gb_LibsImplementDir, "bcdec.cpp")
         }
 
+if gbUseUnitTests then
+    project "Catch2"
+        language "C++"
+        kind "StaticLib"
+
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+
+        -- Project includes
+        includedirs {
+            path.join(gb_SourceDependencyDir, "Catch2", "src"),
+            path.join(gb_IntermediatesDir, "generated", "Catch2")
+        }
+
+        -- Project files
+        files {
+            path.join(gb_SourceDependencyDir, "Catch2", "src", "**.hpp"),
+            path.join(gb_SourceDependencyDir, "Catch2", "src", "**.cpp"),
+        }
+    
+        removefiles {
+            path.join(gb_SourceDependencyDir, "Catch2", "src", "catch2", "internal", "catch_main.cpp")
+        }
+end
+
 if _ACTION ~= "cmake" then
     project "CTTI"
         language "C++"
@@ -249,7 +367,7 @@ end
 
         -- Project files    
         files {
-            path.join(gb_SourceDependencyDir, "TinyGLTF", "tinyexr.h"),
+            path.join(gb_SourceDependencyDir, "TinyEXR", "tinyexr.h"),
             path.join(gb_LibsImplementDir, "tiny_exr.cpp")
         }
     
@@ -401,6 +519,46 @@ group "Utilites"
             path.join(gb_SrcDir, "Math", "**.cpp"),
         }
 
+
+    project "MathSimt"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Utilites"))
+
+        -- Project includes
+        includedirs {
+            gb_IncludeDir,
+            path.join(gb_IncludeDir, "MathSimt")
+        }
+
+        -- Project files
+        files {
+            path.join(gb_IncludeDir, "MathSimt", "**.h"),
+            path.join(gb_IncludeDir, "MathSimt", "**.hpp"),
+            path.join(gb_SrcDir, "MathSimt", "**.h"),
+            path.join(gb_SrcDir, "MathSimt", "**.hpp"),
+            path.join(gb_SrcDir, "MathSimt", "**.c"),
+            path.join(gb_SrcDir, "MathSimt", "**.cpp"),
+
+        }
+
+        if gbUseSIMD_X86_SSE == true then
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_SSE.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_SSE_Functions.h"))
+        end
+
+        if gbUseSIMD_X86_AVX == true then
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX_Functions.h"))
+        end
+
+        if gbUseSIMD_X86_AVX512 == true then
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX512.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX512_Functions.h"))
+        end
+
     project "Modeling"
         language "C++"
         kind "StaticLib"
@@ -494,17 +652,19 @@ group "Utilites"
             path.join(gb_SrcDir, "Importers", "**.cpp"),
         }
     
-        defines {"USE_TINY_GLTF"}
-        -- defines {"USE_TINY_GLTF_3"}
+        -- defines {"USE_TINY_GLTF"}
+        defines {"USE_TINY_GLTF_3"}
 
         -- Dependencies
         dependson {
             "Image",
-            "TinyGLTF", -- "TinyGLTF3"
+            -- "TinyGLTF", 
+            "TinyGLTF3",
         }
         links {
             "Image",
-            "TinyGLTF", -- "TinyGLTF3"
+            -- "TinyGLTF", 
+            "TinyGLTF3"
         }
 
     project "Files"
@@ -651,6 +811,10 @@ group "Utilites"
             -- Linking GLFW and GLEW libraries
             links { "opengl32", "glew32" }
 
+if gbUseUnitTests then
+include("premake-unit-tests.lua")
+end
+
 if gbUseSamples then
 group "Samples"    
     project "MiniEngine"
@@ -690,11 +854,12 @@ group "Samples"
             "Image",
             "Importers",
             "Math",
+            "MathSimt",
             "Memory",
             "Modeling",
             "RayTracing",
             "Rendering",
-            "TinyGLTF",
+            "TinyGLTF3",
             "ImGUI"
         }
 
@@ -705,11 +870,12 @@ group "Samples"
             "Image",
             "Importers",
             "Math",
+            "MathSimt",
             "Memory",
             "Modeling",
             "RayTracing",
             "Rendering",
-            "TinyGLTF",
+            "TinyGLTF3",
             "ImGUI"
         }
 
@@ -781,21 +947,6 @@ group "Samples"
                 links { "SDL3" }
         end
     filter { "" }
-
-    SampleProjects = {
-        "AntiAliasing",
-        "GLTFViewer",
-        "MiniEngineCooker",
-        "MiniEngineSample",
-        "PBR",
-        "RayTracingBase",
-        "RayTracingBVH",
-        "RayTracingCompute",
-        "RayTracingComputeBVH",
-        "SpectralRendering",
-        "SignedDistanceField",
-        "ShadowMapping"
-    }
 
     if not os.isdir(gb_TempDir) then
         os.mkdir(gb_TempDir)
@@ -889,7 +1040,7 @@ group "Samples"
                     "Modeling",
                     "RayTracing",
                     "Rendering",
-                    "TinyGLTF",
+                    "TinyGLTF3",
                     "ImGUI", 
                     "stb_image",
                     "stb_image_write"

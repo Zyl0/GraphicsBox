@@ -123,10 +123,32 @@ namespace Math
     template<typename type>
     inline type Magnitude(const Vector2t<type>& v)
         {return std::sqrt(v.x * v.x + v.y * v.y);}
+    
+    template<typename type>
+    inline type SquareMagnitude(const Vector2t<type>& v)
+        {return v.x * v.x + v.y * v.y;}
 
     template<typename type>
     inline Vector2t<type> Normalize(const Vector2t<type>& v)
         {return v / Magnitude(v);}
+    
+    template<typename type>
+    INLINE Vector2t<type> Sqrt(const Vector2t<type>& v)
+    {
+        Vector2t<type> result;
+        result.x = std::sqrt(v.x);
+        result.y = std::sqrt(v.y);
+        return result;
+    }
+    
+    template<typename type>
+    INLINE Vector2t<type> InverseSqrt(const Vector2t<type>& v)
+    {
+        Vector2t<type> result;
+        result.x = type(1) / std::sqrt(v.x);
+        result.y = type(1) / std::sqrt(v.y);
+        return result;
+    }
 
     template<typename type>
     inline Vector2t<type> operator +(const Vector2t<type>& a, const Vector2t<type>& b)
@@ -303,6 +325,26 @@ namespace Math
     template<typename type>
     inline Vector3t<type> Abs(const Vector3t<type>& v)
         {return Vector3t<type>(abs(v.x), abs(v.y), abs(v.z));}
+    
+    template<typename type>
+    INLINE Vector3t<type> Sqrt(const Vector3t<type>& v)
+    {
+        Vector3t<type> result;
+        result.x = std::sqrt(v.x);
+        result.y = std::sqrt(v.y);
+        result.z = std::sqrt(v.z);
+        return result;
+    }
+    
+    template<typename type>
+    INLINE Vector3t<type> InverseSqrt(const Vector3t<type>& v)
+    {
+        Vector3t<type> result;
+        result.x = type(1) / std::sqrt(v.x);
+        result.y = type(1) / std::sqrt(v.y);
+        result.z = type(1) / std::sqrt(v.z);
+        return result;
+    }
 
     template<typename type>
     inline Vector3t<type> operator +(const Vector3t<type>& a,  type s)
@@ -630,6 +672,10 @@ namespace Math
     template<typename type>
     inline Vector4t<type> operator -(const Vector4t<type>& v)
         {return Vector4t(-v.x, -v.y, -v.z, -v.w);}
+    
+    template<typename type>
+    inline type SquareMagnitude(const Vector4t<type>& v)
+        {return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w;}
 
     template<typename type>
     inline type Magnitude(const Vector4t<type>& v)
@@ -638,6 +684,28 @@ namespace Math
     template<typename type>
     inline Vector4t<type> Normalize(const Vector4t<type>& v)
         {return v / Magnitude(v);}
+    
+    template<typename type>
+    INLINE Vector4t<type> Sqrt(const Vector4t<type>& v)
+    {
+        Vector4t<type> result;
+        result.x = std::sqrt(v.x);
+        result.y = std::sqrt(v.y);
+        result.z = std::sqrt(v.z);
+        result.w = std::sqrt(v.w);
+        return result;
+    }
+    
+    template<typename type>
+    INLINE Vector4t<type> InverseSqrt(const Vector4t<type>& v)
+    {
+        Vector4t<type> result;
+        result.x = type(1) / std::sqrt(v.x);
+        result.y = type(1) / std::sqrt(v.y);
+        result.z = type(1) / std::sqrt(v.z);
+        result.w = type(1) / std::sqrt(v.w);
+        return result;
+    }
 
     template<typename type>
     inline Vector4t<type> operator +(const Vector4t<type>& a, const Vector4t<type>& b)

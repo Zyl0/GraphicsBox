@@ -45,10 +45,19 @@ namespace Math
         INLINE Type Radius() const {return Magnitude(Diagonal());}
         
         INLINE Point Vertex(size_t k) const {return  ((k & 1) ? b[0] : a[0], (k & 2) ? b[1] : a[1], (k & 4) ? b[2] : a[2]);}
-        INLINE Type Volume() const {Vector Size = Size(); return Size.x * Size.y * Size.z;}
+        INLINE Type Volume() const {Vector size = Size(); return size.x * size.y * size.z;}
         
-        INLINE bool Inside(const Box3T& other) const {return ((a < other.a) && (b > other.b));}
-        INLINE bool Inside(const Vector& point) const {return (b < point.a) && (a > point.b);}
+        INLINE bool Inside(const Box3T& other) const
+        {
+            return ((other.b.x < b.x) && (other.b.y < b.y) && (other.b.z < b.z)) && 
+                    (other.a.x > a.x) && (other.a.y > a.y) && (other.a.z > a.z);
+        }
+        
+        INLINE bool Inside(const Point& point) const
+        {
+            return ((point.x < b.x) && (point.y < b.y) && (point.z< b.z)) && 
+                    (point.x > a.x) && (point.y > a.y) && (point.z> a.z);
+        }
         
         Box3T& Insert( const Point& p )
         {
