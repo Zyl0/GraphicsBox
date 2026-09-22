@@ -25,6 +25,19 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
 
         return v;
     }
+    
+    template<typename DataType, size_t ThreadCount>
+    INLINE Scalar<DataType, ThreadCount> InverseSqrt(const Scalar<DataType, ThreadCount>& v)
+    {
+        Scalar<DataType, ThreadCount> r;
+MATH_SIMT_OMP_SIMDIFY_FOR()
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            r.m[i] = DataType(1) / std::sqrt(v.m[i]);
+        }
+
+        return v;
+    }
 
     template<typename DataType, size_t ThreadCount>
     INLINE Scalar<DataType, ThreadCount> Pow(const Scalar<DataType, ThreadCount>&v, const Scalar<DataType, ThreadCount>&exp)
