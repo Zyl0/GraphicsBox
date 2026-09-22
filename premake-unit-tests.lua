@@ -21,7 +21,7 @@ group "Unit Tests"
             end
             
             -- Solution file
-            location (path.join(gb_SolutionProjectDir, "Unit Tests"))
+            location (path.join(gb_SolutionProjectDir, "UnitTests"))
     
             -- Project includes
             includedirs {

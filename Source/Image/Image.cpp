@@ -1604,7 +1604,7 @@ bool ImageStore(const std::filesystem::path& OutputPath, const Image& Image, Ima
     }
 }
 
-static struct stbi_out_buffer
+struct stbi_out_buffer
 {
     uint8_t** OutBuffer; size_t* Size;
 };

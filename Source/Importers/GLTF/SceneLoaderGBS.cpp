@@ -95,7 +95,7 @@ namespace GBS
         {
             GeneralRegion region;
             ifs.read(reinterpret_cast<char*>(&region), sizeof(GeneralRegion));
-            AssertOrError(region == Textures)
+            AssertOrError(region == Textures, "GBS Section missmatch")
             
             std::vector<uint8_t> ReadCompressedBuffer;
             
@@ -264,7 +264,7 @@ namespace GBS
         {
             GeneralRegion region;
             ifs.read(reinterpret_cast<char*>(&region), sizeof(GeneralRegion));
-            AssertOrError(region == Meshes)
+            AssertOrError(region == Meshes, "GBS Section missmatch")
             
             ListHeader meshListHeader;
             ifs.read(reinterpret_cast<char*>(&meshListHeader), sizeof(ListHeader));
@@ -339,7 +339,7 @@ namespace GBS
         {
             GeneralRegion region;
             ifs.read(reinterpret_cast<char*>(&region), sizeof(GeneralRegion));
-            AssertOrError(region == Materials)
+            AssertOrError(region == Materials, "GBS Section missmatch")
             
             // Unified Uniform buffer of materials
             if (scene.Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
@@ -382,7 +382,7 @@ namespace GBS
         {
             GeneralRegion region;
             ifs.read(reinterpret_cast<char*>(&region), sizeof(GeneralRegion));
-            AssertOrError(region == Transforms)
+            AssertOrError(region == Transforms, "GBS Section missmatch")
             
             ArrayHeader transformsArrayHeader;
             ifs.read(reinterpret_cast<char*>(&transformsArrayHeader), sizeof(ArrayHeader));
@@ -395,7 +395,7 @@ namespace GBS
         {
             GeneralRegion region;
             ifs.read(reinterpret_cast<char*>(&region), sizeof(GeneralRegion));
-            AssertOrError(region == Instances)
+            AssertOrError(region == Instances, "GBS Section missmatch")
             
             ArrayHeader instancesHeader;
             ifs.read(reinterpret_cast<char*>(&instancesHeader), sizeof(ArrayHeader));

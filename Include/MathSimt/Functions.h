@@ -17,7 +17,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> Sqrt(const Scalar<DataType, ThreadCount>& v)
     {
         Scalar<DataType, ThreadCount> r;
-MATH_SIMT_SIMDIFY_FOR
+MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::sqrt(v.m[i]);
@@ -30,7 +30,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> Pow(const Scalar<DataType, ThreadCount>&v, const Scalar<DataType, ThreadCount>&exp)
     {
         Scalar<DataType, ThreadCount> r;
-MATH_SIMT_SIMDIFY_FOR
+MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::pow(v.m[i], exp.m[i]);
@@ -43,7 +43,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> Pow(const Scalar<DataType, ThreadCount>&v, DataType exp)
     {
         Scalar<DataType, ThreadCount> r;
-MATH_SIMT_SIMDIFY_FOR
+MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::pow(v.m[i], exp);
@@ -62,7 +62,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> Log(const Scalar<DataType, ThreadCount>&v)
     {
         Scalar<DataType, ThreadCount> r;
-MATH_SIMT_SIMDIFY_FOR
+MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::log(v.m[i]);
@@ -75,7 +75,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> Exp(const Scalar<DataType, ThreadCount>&v)
     {
         Scalar<DataType, ThreadCount> r;
-MATH_SIMT_SIMDIFY_FOR
+MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::exp(v.m[i]);
@@ -282,7 +282,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> Sin(const Scalar<DataType, ThreadCount>& v)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR
+        MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::sin(v.m[i]);
@@ -295,7 +295,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> ASin(const Scalar<DataType, ThreadCount>& v)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR
+        MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::asin(v.m[i]);
@@ -308,7 +308,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> Cos(const Scalar<DataType, ThreadCount>& v)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR
+        MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::cos(v.m[i]);
@@ -321,7 +321,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> ACos(const Scalar<DataType, ThreadCount>& v)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR
+        MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::acos(v.m[i]);
@@ -334,7 +334,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> Tan(const Scalar<DataType, ThreadCount>& v)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR
+        MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::tan(v.m[i]);
@@ -347,7 +347,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> ATan(const Scalar<DataType, ThreadCount>& v)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR
+        MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::atan(v.m[i]);
@@ -360,7 +360,7 @@ MATH_SIMT_SIMDIFY_FOR
     INLINE Scalar<DataType, ThreadCount> ATan2(const Scalar<DataType, ThreadCount>& Y, const Scalar<DataType, ThreadCount>& X)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR
+        MATH_SIMT_OMP_SIMDIFY_FOR()
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = std::atan2(Y.m[i], X.m[i]);

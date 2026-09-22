@@ -336,7 +336,7 @@ namespace GLTF
                     continue;
                 }
                 
-                AssertOrErrorCallF(false,,"Unsupported image. Could not find a way to import")
+                AssertOrErrorCall(false,,"Unsupported image. Could not find a way to import")
                      
             on_failed_to_load_image:
                 Image emptyImage(1, 1, Image::UnsignedByte, Image::R);
@@ -1042,7 +1042,7 @@ namespace GLTF
                     continue;
                 }
                 
-                AssertOrErrorCallF(false,,"Unsupported image. Could not find a way to import")
+                AssertOrErrorCall(false,,"Unsupported image. Could not find a way to import")
                      
             on_failed_to_load_image:
                 Image emptyImage(1, 1, Image::UnsignedByte, Image::R);

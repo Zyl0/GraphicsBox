@@ -628,6 +628,7 @@ void SquareMatrixMulAddR_OP2_Cached_DynamicSchedule(float* Out, int Size, const 
     }
 }
 
+#ifdef USE_SSE
 void SquareMatrixMulAddR_OP3_SSE(float* ALIGNED(16) Out, int Size, const float* ALIGNED(16) A, const float* ALIGNED(16) B, const float* ALIGNED(16) C)
 {
     constexpr int TileSize = 64;
@@ -669,7 +670,9 @@ void SquareMatrixMulAddR_OP3_SSE(float* ALIGNED(16) Out, int Size, const float* 
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX
 void SquareMatrixMulAddR_OP3_AVX(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
     constexpr int TileSize = 64;
@@ -711,7 +714,9 @@ void SquareMatrixMulAddR_OP3_AVX(float* ALIGNED(32) Out, int Size, const float* 
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX512
 void SquareMatrixMulAddR_OP3_AVX512(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
     constexpr int TileSize = 64;
@@ -753,7 +758,9 @@ void SquareMatrixMulAddR_OP3_AVX512(float* ALIGNED(64) Out, int Size, const floa
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX
 void SquareMatrixMulAddR_OP3_AVXx4(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
     constexpr int TileSize = 64;
@@ -824,7 +831,9 @@ void SquareMatrixMulAddR_OP3_AVXx4(float* ALIGNED(32) Out, int Size, const float
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX512
 void SquareMatrixMulAddR_OP3_AVX512x2(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
     constexpr int TileSize = 64;
@@ -877,7 +886,9 @@ void SquareMatrixMulAddR_OP3_AVX512x2(float* ALIGNED(64) Out, int Size, const fl
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_SSE
 void SquareMatrixMulAddR_OP3_SSE_Cached(float* ALIGNED(16) Out, int Size, const float* ALIGNED(16) A, const float* ALIGNED(16) B, const float* ALIGNED(16) C)
 {
     constexpr int TileSize = 64;
@@ -934,7 +945,9 @@ void SquareMatrixMulAddR_OP3_SSE_Cached(float* ALIGNED(16) Out, int Size, const 
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX
 void SquareMatrixMulAddR_OP3_AVX_Cached(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
     constexpr int TileSize = 64;
@@ -991,7 +1004,9 @@ void SquareMatrixMulAddR_OP3_AVX_Cached(float* ALIGNED(32) Out, int Size, const 
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX512
 void SquareMatrixMulAddR_OP3_AVX512_Cached(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
     constexpr int TileSize = 64;
@@ -1048,7 +1063,9 @@ void SquareMatrixMulAddR_OP3_AVX512_Cached(float* ALIGNED(64) Out, int Size, con
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX
 void SquareMatrixMulAddR_OP3_AVXx4_Cached(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
     constexpr int TileSize = 64;
@@ -1130,7 +1147,9 @@ void SquareMatrixMulAddR_OP3_AVXx4_Cached(float* ALIGNED(32) Out, int Size, cons
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX512
 void SquareMatrixMulAddR_OP3_AVX512x2_Cached(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
     constexpr int TileSize = 64;
@@ -1194,7 +1213,9 @@ void SquareMatrixMulAddR_OP3_AVX512x2_Cached(float* ALIGNED(64) Out, int Size, c
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_SSE
 void SquareMatrixMulAddR_OP4_SSE_MathSimt(float* ALIGNED(16) Out, int Size, const float* ALIGNED(16) A, const float* ALIGNED(16) B, const float* ALIGNED(16) C)
 {
     using Scalar = Scalar<float, 4>;
@@ -1233,7 +1254,9 @@ void SquareMatrixMulAddR_OP4_SSE_MathSimt(float* ALIGNED(16) Out, int Size, cons
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX
 void SquareMatrixMulAddR_OP4_AVX_MathSimt(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
     using Scalar = Scalar<float, 8>;
@@ -1272,7 +1295,9 @@ void SquareMatrixMulAddR_OP4_AVX_MathSimt(float* ALIGNED(32) Out, int Size, cons
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX512
 void SquareMatrixMulAddR_OP4_AVX512_MathSimt(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
     using Scalar = Scalar<float, 16>;
@@ -1311,7 +1336,9 @@ void SquareMatrixMulAddR_OP4_AVX512_MathSimt(float* ALIGNED(64) Out, int Size, c
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX
 void SquareMatrixMulAddR_OP4_AVXx4_MathSimt(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
     using Scalar = Scalar<float, 8>;
@@ -1373,7 +1400,9 @@ void SquareMatrixMulAddR_OP4_AVXx4_MathSimt(float* ALIGNED(32) Out, int Size, co
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX512
 void SquareMatrixMulAddR_OP4_AVX512x2_MathSimt(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
     using Scalar = Scalar<float, 16>;
@@ -1421,7 +1450,9 @@ void SquareMatrixMulAddR_OP4_AVX512x2_MathSimt(float* ALIGNED(64) Out, int Size,
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_SSE
 void SquareMatrixMulAddR_OP4_SSE_MathSimt_Cached(float* ALIGNED(16) Out, int Size, const float* ALIGNED(16) A, const float* ALIGNED(16) B, const float* ALIGNED(16) C)
 {
     using Scalar = Scalar<float, 4>;
@@ -1470,7 +1501,9 @@ void SquareMatrixMulAddR_OP4_SSE_MathSimt_Cached(float* ALIGNED(16) Out, int Siz
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX
 void SquareMatrixMulAddR_OP4_AVX_MathSimt_Cached(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
     using Scalar = Scalar<float, 8>;
@@ -1519,7 +1552,9 @@ void SquareMatrixMulAddR_OP4_AVX_MathSimt_Cached(float* ALIGNED(32) Out, int Siz
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX512
 void SquareMatrixMulAddR_OP4_AVX512_MathSimt_Cached(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
     using Scalar = Scalar<float, 16>;
@@ -1568,7 +1603,9 @@ void SquareMatrixMulAddR_OP4_AVX512_MathSimt_Cached(float* ALIGNED(64) Out, int 
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX
 void SquareMatrixMulAddR_OP4_AVXx4_MathSimt_Cached(float* ALIGNED(32) Out, int Size, const float* ALIGNED(32) A, const float* ALIGNED(32) B, const float* ALIGNED(32) C)
 {
     using Scalar = Scalar<float, 8>;
@@ -1638,7 +1675,9 @@ void SquareMatrixMulAddR_OP4_AVXx4_MathSimt_Cached(float* ALIGNED(32) Out, int S
 #endif // ENABLE_ADD
     }
 }
+#endif
 
+#ifdef USE_AVX512
 void SquareMatrixMulAddR_OP4_AVX512x2_MathSimt_Cached(float* ALIGNED(64) Out, int Size, const float* ALIGNED(64) A, const float* ALIGNED(64) B, const float* ALIGNED(64) C)
 {
     using Scalar = Scalar<float, 16>;
@@ -1703,3 +1742,4 @@ void SquareMatrixMulAddR_OP4_AVX512x2_MathSimt_Cached(float* ALIGNED(64) Out, in
 #endif // ENABLE_ADD
     }
 }
+#endif

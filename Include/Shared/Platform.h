@@ -39,7 +39,7 @@
  * @param Alignment Memory alignment in bytes
  * @param Size Allocation desired size. Must be a multiple of Alignment
  */
-#define PLATFORM_ALIGNED_MALLOC(Type, MemPtr, Alignment, Size) MemPtr = (Type*)aligned_alloc(Size, Alignment);
+#define PLATFORM_ALIGNED_MALLOC(Type, MemPtr, Alignment, Size) MemPtr = (Type*)aligned_alloc(Alignment, Size);
 
 /**
  * Re heap allocate aligned memory
@@ -47,7 +47,7 @@
  * @param Alignment Memory alignment in bytes
  * @param Size Allocation desired size. Must be a multiple of Alignment
  */
-#define PLATFORM_ALIGNED_REALLOC(MemPtr, Alignment, Size) realloc(MemPtr, Size);
+#define PLATFORM_ALIGNED_REALLOC(MemPtr, Alignment, Size) realloc(MemPtr, Size); // TODO fix
 
 /**
  * Free heap aligned memory

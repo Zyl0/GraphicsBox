@@ -6,7 +6,7 @@ gb_msvc_c_version =        "c11"
 -- Linux/GCC or CLang
 gb_gnuc_cpp_version =      "gnu++20"
 gb_gnuc_c_version =        "gnu11"
-gb_linux_toolset =         "gcc"
+gb_linux_toolset =         "clang"
 
 -- Pathes
 gb_SolutionDir =               path.getabsolute(".")
@@ -105,24 +105,15 @@ solution "GraphicsBox"
         if gbUseSIMD_X86_AVX512 == true then
             -- Not yet available in latest release of premake
             -- vectorextensions "AVX512"
-
             filter { "system:linux" , "configurations:Development" }
-                buildoptions { "-mavx512f -mavx512vl" }
-                linkoptions { "-mavx512f -mavx512vl" }
-       
-            filter { "system:linux" , "configurations:Release" }
                 buildoptions { "-mavx512f -mavx512vl" }
                 linkoptions { "-mavx512f -mavx512vl" }
 
             filter { "system:windows" , "configurations:Development" }
                 vectorextensions "AVX2" 
                 buildoptions { "/arch:AVX512" }
-       
-            filter { "system:windows" , "configurations:Release" }
-                vectorextensions "AVX2" 
-                buildoptions { "/arch:AVX512" }
-
-            filter {}
+            
+            filter "configurations:Development"
 
         elseif gbUseSIMD_X86_AVX == true then
             vectorextensions "AVX2" 
@@ -142,24 +133,15 @@ solution "GraphicsBox"
         if gbUseSIMD_X86_AVX512 == true then
             -- Not yet available in latest release of premake
             -- vectorextensions "AVX512"
-
-            filter { "system:linux" , "configurations:Development" }
-                buildoptions { "-mavx512f -mavx512vl" }
-                linkoptions { "-mavx512f -mavx512vl" }
-       
             filter { "system:linux" , "configurations:Release" }
                 buildoptions { "-mavx512f -mavx512vl" }
                 linkoptions { "-mavx512f -mavx512vl" }
-
-            filter { "system:windows" , "configurations:Development" }
-                vectorextensions "AVX2" 
-                buildoptions { "/arch:AVX512" }
        
             filter { "system:windows" , "configurations:Release" }
                 vectorextensions "AVX2" 
                 buildoptions { "/arch:AVX512" }
 
-            filter {}
+            filter "configurations:Release"
         elseif gbUseSIMD_X86_AVX == true then
             vectorextensions "AVX2" 
         elseif gbUseSIMD_X86_SSE == true then
@@ -197,7 +179,7 @@ solution "GraphicsBox"
         defines ("PLATFORM_LINUX")
 
         buildoptions { "-mtune=native -march=native" }
-        buildoptions { "-W -Wall -Wextra -Wsign-compare -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable", "-pipe" }
+        buildoptions { "-W -Wall -Wextra -Wsign-compare -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable -fveclib=SVML", "-pipe" }
         
         filter { "system:linux" , "configurations:Debug" }
             buildoptions { "-g", "-O0" } 
@@ -385,7 +367,7 @@ end
 
         -- Project files    
         files {
-            path.join(gb_SourceDependencyDir, "TinyGLTF", "tinyexr.h"),
+            path.join(gb_SourceDependencyDir, "TinyEXR", "tinyexr.h"),
             path.join(gb_LibsImplementDir, "tiny_exr.cpp")
         }
     

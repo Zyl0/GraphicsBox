@@ -11,13 +11,13 @@
 #include "Shared/Assertion.h"
 #endif // CONFIG_DEBUG
 
-#ifdef USE_OPENMP
+#ifdef USE_OPENMP_4
 #include <omp.h>
-#define MATH_SIMT_SIMDIFY_FOR #pragma omp simd
-#define MATH_SIMT_SIMDIFY_ALIGNED(Variable, Alignement) aligned(Variable:Alignement)
+#define MATH_SIMT_PRAGMAFY(X) _Pragma(#X)
+#define MATH_SIMT_OMP_SIMDIFY_FOR(omp_directive_params) MATH_SIMT_PRAGMAFY(omp simd omp_directive_params)
 #else // USE_OPENMP
-#define MATH_SIMT_SIMDIFY_FOR
-#define MATH_SIMT_SIMDIFY_ALIGNED(Variable, Alignement)
+#define MATH_SIMT_PRAGMAFY(X)
+#define MATH_SIMT_OMP_SIMDIFY_FOR(omp_directive_params)
 #endif // !USE_OPENMP
 
 namespace Math::Simt
@@ -243,7 +243,12 @@ namespace Math::Simt
 
         static consteval size_t Size() {return ThreadCount;}
 
-        DataType ALIGNED_VECTOR(sizeof(DataType) * kThreadCount, sizeof(DataType) * kThreadCount) m VECTOR_FALLBACK(ThreadCount);
+        union {
+            DataType ALIGNED(sizeof(DataType) * kThreadCount) m[ThreadCount];
+#if defined(__GNUC__) || defined(__clang__)
+            DataType ALIGNED_VECTOR(sizeof(DataType) * kThreadCount, sizeof(DataType) * kThreadCount) v[1];
+#endif // defined(__GNUC__) || defined(__clang__)
+        };
 
         Scalar();
         Scalar(Type v);
@@ -303,7 +308,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>::Scalar(Type v)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        #pragma omp simd aligned(m:kAlignment)
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             m[i] = v;
@@ -317,7 +322,7 @@ namespace Math::Simt
         {
             Type value = *(vs.begin());
 
-            MATH_SIMT_SIMDIFY_FOR
+            MATH_SIMT_OMP_SIMDIFY_FOR()
             for (size_t i = 0; i < ThreadCount; ++i)
             {
                 m[i] = value;
@@ -346,7 +351,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator=(Type v)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m, kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] = v;
@@ -362,7 +367,7 @@ namespace Math::Simt
         {
             Type v = *(vs.begin());
 
-            MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+            MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
             for (size_t i = 0; i < ThreadCount; ++i)
             {
                 m[i] = v;
@@ -384,7 +389,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator + (const Scalar<DataType, ThreadCount>& a, const Scalar<DataType, ThreadCount>& b)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(b.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment) aligned(b.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] + b.m[i];
@@ -397,7 +402,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator - (const Scalar<DataType, ThreadCount>& a, const Scalar<DataType, ThreadCount>& b)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(b.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment) aligned(b.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] - b.m[i];
@@ -410,7 +415,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator * (const Scalar<DataType, ThreadCount>& a, const Scalar<DataType, ThreadCount>& b)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(b.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment) aligned(b.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] * b.m[i];
@@ -423,7 +428,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator / (const Scalar<DataType, ThreadCount>& a, const Scalar<DataType, ThreadCount>& b)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(b.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment) aligned(b.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] / b.m[i];
@@ -436,7 +441,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator + (const Scalar<DataType, ThreadCount>& a, DataType b)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] + b;
@@ -449,7 +454,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator + (DataType b, const Scalar<DataType, ThreadCount>& a)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] + b;
@@ -462,7 +467,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator - (const Scalar<DataType, ThreadCount>& a, DataType b)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] - b;
@@ -475,7 +480,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator - (DataType b, const Scalar<DataType, ThreadCount>& a)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = b - a.m[i];
@@ -488,7 +493,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator * (const Scalar<DataType, ThreadCount>& a, DataType b)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] * b;
@@ -501,7 +506,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator * (DataType b, const Scalar<DataType, ThreadCount>& a)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] * b;
@@ -514,7 +519,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator / (const Scalar<DataType, ThreadCount>& a, DataType b)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = a.m[i] / b;
@@ -527,7 +532,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> operator / (DataType b, const Scalar<DataType, ThreadCount>& a)
     {
         Scalar<DataType, ThreadCount> r;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(a.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(a.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             r.m[i] = b / a.m[i];
@@ -539,7 +544,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator+=(const Scalar& other)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(other.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment) aligned(other.m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] += other.m[i];
@@ -551,7 +556,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator-=(const Scalar& other)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(other.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment) aligned(other.m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] -= other.m[i];
@@ -563,7 +568,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator*=(const Scalar& other)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(other.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment) aligned(other.m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] *= other.m[i];
@@ -575,7 +580,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator/=(const Scalar& other)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(other.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment) aligned(other.m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] /= other.m[i];
@@ -587,7 +592,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator+=(Type other)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] += other;
@@ -599,7 +604,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator-=(Type other)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] -= other;
@@ -611,7 +616,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator*=(Type other)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] *= other;
@@ -623,7 +628,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::operator/=(Type other)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] /= other;
@@ -635,7 +640,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
     Scalar<DataType, ThreadCount>& Scalar<DataType, ThreadCount>::Zero()
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < kThreadCount; ++i)
         {
             m[i] = Type(0);
@@ -648,7 +653,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> Scalar<DataType, ThreadCount>::Load(const DataType* ptr)
     {
         Scalar m;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             m[i] = ptr[i];
@@ -661,7 +666,7 @@ namespace Math::Simt
         const Mask<ThreadCount>& mask)
     {
         Scalar m;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             m[i] = mask[i] ? ptr[i] : DataType(0);
@@ -673,7 +678,7 @@ namespace Math::Simt
     INLINE Scalar<DataType, ThreadCount> Scalar<DataType, ThreadCount>::LoadAligned(const DataType* ptr)
     {
         Scalar m;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(ptr:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             m[i] = ptr[i];
@@ -686,7 +691,7 @@ namespace Math::Simt
         const Mask<ThreadCount>& mask)
     {
         Scalar m;
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(ptr:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             m[i] = mask[i] ? ptr[i] : m[i];
@@ -697,7 +702,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
     INLINE void Scalar<DataType, ThreadCount>::Store(DataType* ptr) const
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             ptr[i] = m[i];
@@ -707,7 +712,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
     INLINE void Scalar<DataType, ThreadCount>::Store(DataType* ptr, const Mask<ThreadCount>& mask) const
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             ptr[i] = mask[i] ? m[i] : ptr[i];
@@ -717,7 +722,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
     INLINE void Scalar<DataType, ThreadCount>::StoreAligned(DataType* ptr) const
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment) aligned(ptr:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             ptr[i] = m[i];
@@ -727,7 +732,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
     INLINE void Scalar<DataType, ThreadCount>::StoreAligned(DataType* ptr, const Mask<ThreadCount>& mask) const
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment) MATH_SIMT_SIMDIFY_ALIGNED(ptr, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment) aligned(ptr:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             ptr[i] = mask[i] ? m[i] : ptr[i];
@@ -737,7 +742,7 @@ namespace Math::Simt
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
     void Scalar<DataType, ThreadCount>::Set(const DataType& rawValue)
     {
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i)
         {
             m[i] = rawValue;
@@ -813,7 +818,7 @@ namespace Math::Simt
         Scalar<DataType, ThreadCount> r(0);
         size_t idx = 0;
 
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(r.m, kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(r.m:kAlignment))
         for (size_t i = 0; i < ThreadCount; ++i) if (mask[i]) r[i] = V[idx++];
         
         return r;

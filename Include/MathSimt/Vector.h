@@ -2,7 +2,6 @@
 
 #include "Types.h"
 #include "Functions.h"
-#include "ctti/detail/pretty_function.hpp"
 #include "Math/Vector.h"
 
 namespace Math::Simt
@@ -255,7 +254,7 @@ namespace Math::Simt
     {
         typename Vector2<DataType, ThreadCount>::ScalarType r = SquareMagnitude(v);
         
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(r.m, Vector2<DataType, ThreadCount>::kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(r.m:(Vector2<DataType, ThreadCount>::kAlignment)))
         for (size_t i = 0; i < Vector2<DataType, ThreadCount>::kThreadCount; i++)
         {
             r.m[i] = std::sqrt(r.m[i]);
@@ -497,7 +496,7 @@ namespace Math::Simt
     {
         typename Vector3<DataType, ThreadCount>::ScalarType r = SquareMagnitude(v);
         
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(r.m, Vector4<DataType, ThreadCount>::kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(r.m:(Vector4<DataType, ThreadCount>::kAlignment)))
         for (size_t i = 0; i < Vector3<DataType, ThreadCount>::kThreadCount; i++)
         {
             r.m[i] = std::sqrt(r.m[i]);
@@ -987,7 +986,7 @@ namespace Math::Simt
     {
         typename Vector4<DataType, ThreadCount>::ScalarType r = SquareMagnitude(v);
         
-        MATH_SIMT_SIMDIFY_FOR MATH_SIMT_SIMDIFY_ALIGNED(r.m, Vector4<DataType, ThreadCount>::kAlignment)
+        MATH_SIMT_OMP_SIMDIFY_FOR(aligned(r.m:(Vector4<DataType, ThreadCount>::kAlignment)))
         for (size_t i = 0; i < Vector3<DataType, ThreadCount>::kThreadCount; i++)
         {
             r.m[i] = std::sqrt(r.m[i]);
