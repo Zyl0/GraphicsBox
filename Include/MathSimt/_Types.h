@@ -229,6 +229,21 @@ namespace Math::Simt
                 r += std::popcount(bits[i]);
             return r;
         }
+        
+        constexpr size_t FirstValid() const
+        {
+            size_t r = kThreadCount;
+
+            for (size_t i = 0; i < Scale; ++i)
+            {
+                if (bits[i] == 0) continue;
+                
+                r = std::countr_zero(bits[i]) + ThreadCount * i;
+                break;
+            }
+            
+            return r;
+        }
     };
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
@@ -748,6 +763,66 @@ namespace Math::Simt
             m[i] = rawValue;
         }
     }
+    
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Scalar<DataType, ThreadCount> Mul_Add(
+        const Scalar<DataType, ThreadCount>& A,
+        const Scalar<DataType, ThreadCount>& B,
+        const Scalar<DataType, ThreadCount>& C
+        )
+    {
+        Scalar<DataType, ThreadCount> r;
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            r[i] = A[i] * B[i] + C[i];
+        }
+        return r;
+    }
+    
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Scalar<DataType, ThreadCount> Mul_Sub(
+        const Scalar<DataType, ThreadCount>& A,
+        const Scalar<DataType, ThreadCount>& B,
+        const Scalar<DataType, ThreadCount>& C
+        )
+    {
+        Scalar<DataType, ThreadCount> r;
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            r[i] = A[i] * B[i] - C[i];
+        }
+        return r;
+    }
+    
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Scalar<DataType, ThreadCount> Mul_Negate_Add(
+        const Scalar<DataType, ThreadCount>& A,
+        const Scalar<DataType, ThreadCount>& B,
+        const Scalar<DataType, ThreadCount>& C
+        )
+    {
+        Scalar<DataType, ThreadCount> r;
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            r[i] = -(A[i] * B[i]) + C[i];
+        }
+        return r;
+    }
+    
+    template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
+    INLINE Scalar<DataType, ThreadCount> Mul_Negate_Sub(
+        const Scalar<DataType, ThreadCount>& A,
+        const Scalar<DataType, ThreadCount>& B,
+        const Scalar<DataType, ThreadCount>& C
+        )
+    {
+        Scalar<DataType, ThreadCount> r;
+        for (size_t i = 0; i < ThreadCount; ++i)
+        {
+            r[i] = -(A[i] * B[i]) - C[i];
+        }
+        return r;
+    }
 
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)
     INLINE Scalar<DataType, ThreadCount> Select(
@@ -930,5 +1005,40 @@ namespace Math::Simt
             indices[i] = (i + base_offset) % ThreadCount;
         }
         return Permute(V, indices);
+    }
+    
+    template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE DataType Lowest(const Scalar<DataType, ThreadCount>& V)
+    {
+        DataType res = V.m[0];
+        for (int i = 1; i < ThreadCount; ++i)
+        {
+            res = V.m[i] < res ? V.m[i] : res;
+        }
+        
+        return res;
+    }
+    
+    template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE DataType Highest(const Scalar<DataType, ThreadCount>& V)
+    {
+        DataType res = V.m[0];
+        for (int i = 1; i < ThreadCount; ++i)
+        {
+            res = V.m[i] > res ? V.m[i] : res;
+        }
+        
+        return res;
+    }
+    
+    template <typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE uint32_t IndexOf(const Scalar<DataType, ThreadCount>& V, DataType val)
+    {
+        for (int i = 0; i < ThreadCount; ++i)
+        {
+            if (V.m[i] == val) return i;
+        }
+        
+        return ThreadCount;
     }
 }

@@ -539,8 +539,6 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
         error("Unsupported x86 ISA")
     end
 
-    local intrinUseIntelSVML = false -- TODO see if possible how to set this up
-
     -- Intrinsics parts
     local intrinCat;
     local intrinZeroSuffix;
@@ -587,6 +585,8 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     local intrinIsScatterAvailable = false
     local intrinIsPermuteAvailagle = true
     local intrinIsCompressAvailable = false
+    local intrinIsLowestHighestOpAvailable = true
+    local intrinIsFMAAvailable = false
     if intrinUseIntelSVML == true then
         intrinDivAvailable = true
     end
@@ -607,6 +607,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
         intrinIs8bit = true
         intrinIsPermuteAvailagle = false
         intrinIsScatterAvailable = false
+        intrinIsLowestHighestOpAvailable = false
     elseif PrimitiveType == PrimitiveTypes.UInt8 then
         intrinMulAvailable = false
         intrinLoadStoreAvailable = false
@@ -617,15 +618,23 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
         intrinIs8bit = true
         intrinIsPermuteAvailagle = false
         intrinIsScatterAvailable = false
+        intrinIsLowestHighestOpAvailable = false
     elseif PrimitiveType == PrimitiveTypes.Float then
         intrinIs32bit = true
         if x86_ISA == ISAs.x86_SSE then
             intrinIsPermuteAvailagle = false
         end
+        if x86_ISA_Limit == ISAs.x86_AVX_512 then
+            intrinIsFMAAvailable = true
+        end
     elseif PrimitiveType == PrimitiveTypes.Double then
         intrinIs64bit = true
         if x86_ISA == ISAs.x86_SSE then
             intrinIsPermuteAvailagle = false
+            intrinIsLowestHighestOpAvailable = false
+        end
+        if x86_ISA_Limit == ISAs.x86_AVX_512 then
+            intrinIsFMAAvailable = true
         end
     elseif PrimitiveType == PrimitiveTypes.Int32 then
         intrinIs32bit = true
@@ -741,6 +750,10 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     local intrinFuncExpand = "_" .. intrinCat .. "_maskz_expand_" .. ISA.Suffix
     local intrinFuncExpandPassTrough = "_" .. intrinCat .. "_mask_expand_" .. ISA.Suffix
     local intrinFuncPopcountMask = "_mm_popcnt_u64"
+    local intrinFuncFMAdd = "_" .. intrinCat .. "_fmadd_" .. ISA.Suffix
+    local intrinFuncFMSub = "_" .. intrinCat .. "_fmsub_" .. ISA.Suffix
+    local intrinFuncFNegMAdd = "_" .. intrinCat .. "_fnmadd_" .. ISA.Suffix
+    local intrinFuncFNegMSub = "_" .. intrinCat .. "_fnmsub_" .. ISA.Suffix
 
     -- operators
     local opsArithmetical = { 
@@ -856,6 +869,8 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     snipetPack4TwoBitsIndices = snipetPack4TwoBitsIndices .. "    intrin_indices |= (indices[3] & 3) << (3 * 2);\n"
     snipetAlignement = "" .. ISA.Alignment * RegisterCount;
 
+    local iterationVal1;
+
     f:write("// Scalar specialization for " .. ISA.Type .. " x " .. ISA.ElementCount .. " x " .. RegisterCount .. "\n")
     f:write("template<> struct alignas(" .. ISA.Alignment * RegisterCount.. ") " .. snipetsScalarType .. "\n")
     f:write("{\n")
@@ -902,26 +917,24 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
             f:write("        reg["..(i-1).."] = registerVector"..i..";\n")
         end
         f:write("    }\n")
-    f:write("    INLINE Scalar(\n        ")
+        f:write("    INLINE Scalar(\n        ")
         for i = 1,((ISA.ElementCount * RegisterCount) - 1) do
-            f:write("Type e"..i..", ")
+            f:write("Type e"..(i - 1)..", ")
             if i % 4 == 0 then
                 f:write("\n        ")
             end
         end
-        f:write("Type e"..ISA.ElementCount * RegisterCount .."\n    )\n")
+        f:write("Type e"..((ISA.ElementCount * RegisterCount) - 1).."\n    )\n")
         f:write("    {\n")
         for i = 1, RegisterCount do
-        end
-        for i = 1, RegisterCount do
-            f:write("        reg["..(i-1).."] = "..intrinFuncSet.."(\n            ")
-            for j = 1,((ISA.ElementCount) - 1) do
-                f:write("e"..(i - 1) * ISA.ElementCount + j..", ")
+            f:write("        reg["..(RegisterCount - i).."] = "..intrinFuncSet.."(\n            ")
+            for j = ((ISA.ElementCount) - 1), 1, -1 do
+                f:write("e"..(RegisterCount - i) * ISA.ElementCount + j..", ")
                 if j % 4 == 0 then
                     f:write("\n            ")
                 end 
             end
-            f:write("e"..ISA.ElementCount * i..");\n")
+            f:write("e"..ISA.ElementCount * (RegisterCount - i)..");\n")
             if i < RegisterCount then
                 f:write("\n")
             end
@@ -1362,6 +1375,74 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
         f:write("    }\n")
     end
     f:write("};\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Mul_Add".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& A,\n")
+    f:write("    const " .. snipetsScalarType .. "& B,\n")
+    f:write("    const " .. snipetsScalarType .. "& C\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsFMAAvailable == true then
+        f:write("    " .. snipetsScalarType .. " r;\n")
+        for i = 1, RegisterCount do
+            f:write("    r.reg["..(i-1).."] = " .. intrinFuncFMAdd .. "(A.reg["..(i-1).."], B.reg["..(i-1).."], C.reg["..(i-1).."]);\n") 
+        end
+        f:write("    return r;\n")
+    else
+        f:write("    return A * B + C;\n")
+    end
+    f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Mul_Sub".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& A,\n")
+    f:write("    const " .. snipetsScalarType .. "& B,\n")
+    f:write("    const " .. snipetsScalarType .. "& C\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsFMAAvailable == true then
+        f:write("    " .. snipetsScalarType .. " r;\n")
+        for i = 1, RegisterCount do
+            f:write("    r.reg["..(i-1).."] = " .. intrinFuncFMSub .. "(A.reg["..(i-1).."], B.reg["..(i-1).."], C.reg["..(i-1).."]);\n") 
+        end
+        f:write("    return r;\n")
+    else
+        f:write("    return A * B - C;\n")
+    end
+    f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Mul_Negate_Add".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& A,\n")
+    f:write("    const " .. snipetsScalarType .. "& B,\n")
+    f:write("    const " .. snipetsScalarType .. "& C\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsFMAAvailable == true then
+        f:write("    " .. snipetsScalarType .. " r;\n")
+        for i = 1, RegisterCount do
+            f:write("    r.reg["..(i-1).."] = " .. intrinFuncFNegMAdd .. "(A.reg["..(i-1).."], B.reg["..(i-1).."], C.reg["..(i-1).."]);\n") 
+        end
+        f:write("    return r;\n")
+    else
+        f:write("    return (A * B) + C;\n")
+    end
+    f:write("}\n")
+    f:write("template<>\n")
+    f:write("INLINE " .. snipetsScalarType .." Mul_Negate_Sub".. snipetTemplateSpecialisation .. "(\n")
+    f:write("    const " .. snipetsScalarType .. "& A,\n")
+    f:write("    const " .. snipetsScalarType .. "& B,\n")
+    f:write("    const " .. snipetsScalarType .. "& C\n")
+    f:write("    )\n")
+    f:write("{\n")
+    if intrinIsFMAAvailable == true then
+        f:write("    " .. snipetsScalarType .. " r;\n")
+        for i = 1, RegisterCount do
+            f:write("    r.reg["..(i-1).."] = " .. intrinFuncFNegMSub .. "(A.reg["..(i-1).."], B.reg["..(i-1).."], C.reg["..(i-1).."]);\n") 
+        end
+        f:write("    return r;\n")
+    else
+        f:write("    return -(A * B) - C;\n")
+    end
+    f:write("}\n")
     f2:write("template<>\n")
     f2:write("INLINE " .. snipetsScalarType .." Select".. snipetTemplateSpecialisation .. "(\n")
     f2:write("    const " .. snipetsScalarType .. "& A,\n")
@@ -1732,6 +1813,103 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
     f2:write("        if (bins[i] == b) r[i] = V[out_idx++];\n")
     f2:write("    }\n")
     f2:write("    return r;\n")
+    f2:write("}\n")
+    if intrinIsLowestHighestOpAvailable == true then
+        f2:write("template<>\n")
+        f2:write("INLINE " .. snipetsScalarType .."::Type Lowest".. snipetTemplateSpecialisation .. "(\n")
+        f2:write("    const " .. snipetsScalarType .. "& V\n")
+        f2:write("    )\n")
+        f2:write("{\n")
+        f2:write("    Scalar<".. ISA.Type ..", " .. ISA.ElementCount .. "> a, b;\n")
+        f2:write("    Scalar<".. ISA.Type ..", " .. ISA.ElementCount .. ">::MaskType mask;\n")
+        if RegisterCount > 1 then
+            f2:write("    // keep the lowest elements of each vector lanes\n")
+            f2:write("    a = V.reg[0];\n")
+            for i = 2, RegisterCount do
+                f2:write("    b = V.reg["..(i-1).."];\n")
+                f2:write("    mask = a < b;\n")
+                f2:write("    a = Select(a, b, mask);\n")
+            end
+            f2:write("    \n")
+        else
+            f2:write("    a = V.reg[0];\n")
+        end
+        f2:write("    \n")
+        f2:write("    // recursively expand and compare values until the best fitting one fills the entire lane\n")
+        iterationVal1 = math.floor(ISA.ElementCount / 2)
+        while iterationVal1 > 1 do
+            f2:write("    static const Scalar<".. ISA.Type ..", " .. ISA.ElementCount .. ">::IndexerType step"..iterationVal1.."_lows(")
+            for i = 1, iterationVal1 do
+                f2:write("" .. (i-1) .. ", ")
+            end
+            for i = iterationVal1 + 1, ISA.ElementCount do
+                f2:write("0")
+                if i ~= ISA.ElementCount then
+                    f2:write(", ")
+                end
+            end
+            f2:write(");\n")
+            f2:write("    b = Permute(a, step"..iterationVal1.."_lows + Scalar<".. ISA.Type ..", " .. ISA.ElementCount .. ">::IndexerType(" .. iterationVal1  .. "));\n")
+            f2:write("    a = Permute(a, step"..iterationVal1.."_lows);\n")
+            f2:write("    mask = a < b;\n")
+            f2:write("    a = Select(a, b, mask);\n")
+            iterationVal1 = math.floor(iterationVal1 / 2)
+        end
+        f2:write("    \n")
+        f2:write("    return a.m[0] < a.m[1] ? a.m[0] : a.m[1];\n")
+        f2:write("}\n")
+        f2:write("template<>\n")
+        f2:write("INLINE " .. snipetsScalarType .."::Type Highest".. snipetTemplateSpecialisation .. "(\n")
+        f2:write("    const " .. snipetsScalarType .. "& V\n")
+        f2:write("    )\n")
+        f2:write("{\n")
+        f2:write("    Scalar<".. ISA.Type ..", " .. ISA.ElementCount .. "> a, b;\n")
+        f2:write("    Scalar<".. ISA.Type ..", " .. ISA.ElementCount .. ">::MaskType mask;\n")
+        if RegisterCount > 1 then
+            f2:write("    // keep the lowest elements of each vector lanes\n")
+            f2:write("    a = V.reg[0];\n")
+            for i = 2, RegisterCount do
+                f2:write("    b = V.reg["..(i-1).."];\n")
+                f2:write("    mask = a > b;\n")
+                f2:write("    a = Select(a, b, mask);\n")
+            end
+            f2:write("    \n")
+        else
+            f2:write("    a = V.reg[0];\n")
+        end
+        f2:write("    \n")
+        f2:write("    // recursively expand and compare values until the best fitting one fills the entire lane \n")
+        iterationVal1 = math.floor(ISA.ElementCount / 2)
+        while iterationVal1 > 1 do
+            f2:write("    static const Scalar<".. ISA.Type ..", " .. ISA.ElementCount .. ">::IndexerType step"..iterationVal1.."_lows(")
+            for i = 1, iterationVal1 do
+                f2:write("" .. (i-1)  .. ", ")
+            end
+            for i = iterationVal1 + 1, ISA.ElementCount do
+                f2:write("0")
+                if i ~= ISA.ElementCount then
+                    f2:write(", ")
+                end
+            end
+            f2:write(");\n")
+            f2:write("    b = Permute(a, step"..iterationVal1.."_lows + Scalar<".. ISA.Type ..", " .. ISA.ElementCount .. ">::IndexerType(" .. iterationVal1  .. "));\n")
+            f2:write("    a = Permute(a, step"..iterationVal1.."_lows);\n")
+            f2:write("    mask = a > b;\n")
+            f2:write("    a = Select(a, b, mask);\n")
+            iterationVal1 = math.floor(iterationVal1 / 2)
+        end
+        f2:write("    \n")
+        f2:write("    return a.m[0] > a.m[1] ? a.m[0] : a.m[1];\n")
+        f2:write("}\n")
+    end
+    f2:write("template<>\n")
+    f2:write("INLINE uint32_t IndexOf".. snipetTemplateSpecialisation .. "(\n")
+    f2:write("    const " .. snipetsScalarType .. "& V,\n")
+    f2:write("    " .. snipetsScalarType .. "::Type val\n")
+    f2:write("    )\n")
+    f2:write("{\n")
+    f2:write("    " .. snipetsScalarType .."::MaskType mask = V == val;\n")
+    f2:write("    return mask.FirstValid();\n")
     f2:write("}\n")
 end
 
