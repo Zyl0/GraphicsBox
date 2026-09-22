@@ -31,14 +31,16 @@ struct TriangleWave
 {
     static constexpr size_t kThreadCount = 32;
 
-    Math::Simt::Vector3<uint32_t, kThreadCount> Faces;
+    Math::Simt::Scalar<uint32_t, kThreadCount> Faces;
     
     Math::Simt::Vector3<float, kThreadCount> A;
     Math::Simt::Vector3<float, kThreadCount> B;
     Math::Simt::Vector3<float, kThreadCount> C;
     // Math::Simt::Vector3<float, kThreadCount> D; // <- todo for quads
     
-    Math::Simt::Scalar<float, kThreadCount>::MaskType Validity;
+    Math::Simt::Scalar<float, kThreadCount>::MaskType Validity = false;
+    
+    uint32_t BucketBegin, BucketEnd;
 };
 
 template<size_t ThreadCount>
@@ -46,19 +48,20 @@ struct HitWave
 {
     using Type = float;
     using ScalarType =  Math::Simt::Scalar<float, ThreadCount>;
+    using IndexScalarType =  Math::Simt::Scalar<uint32_t, ThreadCount>;
     using MaskType = Math::Simt::Scalar<float, ThreadCount>::MaskType;
     using IndexerType = Math::Simt::Scalar<float, ThreadCount>::IndexerType;
     using Vector2 = Math::Simt::Vector2<float, ThreadCount>;
     
     static constexpr size_t kThreadCount = 32;
     
-    HitWave() :  uv(), t(), face(std::numeric_limits<uint32_t>::max()) {}
-    HitWave(const ScalarType& T, const ScalarType& U, const ScalarType& V, const ScalarType& Face) : uv(U, V), t(T), face(Face) {}
+    HitWave() :  uv(), t(std::numeric_limits<float>::max()), face(std::numeric_limits<uint32_t>::max()) {}
+    HitWave(const ScalarType& T, const ScalarType& U, const ScalarType& V, const IndexScalarType& Face) : uv(U, V), t(T), face(Face) {}
     HitWave(const ScalarType& T,  const Vector2& UV, const ScalarType& Face) : uv(UV), t(T), face(Face) {}
     
-    Vector2<float, ThreadCount> uv;
-    ScalarType<float, ThreadCount> t;
-    ScalarType<uint32_t, ThreadCount> face;
+    Vector2 uv;
+    ScalarType t;
+    IndexScalarType face;
     
     INLINE MaskType IsValid() const {return face != std::numeric_limits<uint32_t>::max();}
     INLINE operator MaskType () const {return face != std::numeric_limits<uint32_t>::max();}
@@ -67,7 +70,8 @@ struct HitWave
 
     Hit Elt(size_t index) const
     {
-        return {t[index], uv[index].x, uv[index].y, face};
+        Math::Vector2f hit_uv = uv.Elt(index);
+        return Hit(t[index], hit_uv.x, hit_uv.y, face[index]);
     }
 
 };
@@ -366,6 +370,8 @@ public:
     iterator end() const {return iterator();}
     
 private:
+    HitWave<TriangleWave::kThreadCount> m_SIMDHits;
+    // uint32_t m_SIMDHitIndex = std::numeric_limits<uint32_t>::max();
     const BLAS* m_Blas;
     std::stack<uint32_t> m_IterationStack;
     BVHHit m_CurrentBVHHit;
@@ -373,6 +379,7 @@ private:
     uint32_t m_CurrentElementIndex;
     float m_tmax;
     Ray m_Ray;
+    Math::Matrix4f ModelToWorld;
 };
 
 // struct MLASElement
