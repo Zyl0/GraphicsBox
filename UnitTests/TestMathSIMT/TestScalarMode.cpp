@@ -324,6 +324,17 @@ TEMPLATE_TEST_CASE_SIG("Scalar constructors and methods", "[Scalar]",
                     REQUIRE(splt[nv_idx++] == T(i));
                 }
             }
+            
+            ScalarType c;
+            for (size_t i = 0; i < N; ++i) {c.m[i] = T(i + 1);}
+            
+            T min = Lowest(c), max = Highest(c);
+            REQUIRE(min == T(1));
+            REQUIRE(max == T(N));
+            
+            c.m[N/2] = T(0);
+            uint32_t idx = IndexOf(c, T(0));
+            REQUIRE(idx == (N/2));
         }
     }
 }
