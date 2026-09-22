@@ -469,8 +469,58 @@ namespace _Image
         }
         return Encoded;
     }
+    
+    Math::Vector4f Decode(Math::Vector4f Encoded, Image::Encoding Encoding)
+    {
+        switch (Encoding)
+        {
+        case Image::Linear:
+            break;
+
+        case Image::sRGB:
+            Encoded.x = sRGB::EOTF(Encoded.x);
+            Encoded.y = sRGB::EOTF(Encoded.y);
+            Encoded.z = sRGB::EOTF(Encoded.z);
+            break;
+
+        case Image::LogC:
+            Encoded.x = ArriLogC::GArriLogCToGLinear(Encoded.x);
+            Encoded.y = ArriLogC::GArriLogCToGLinear(Encoded.y);
+            Encoded.z = ArriLogC::GArriLogCToGLinear(Encoded.z);
+            break;
+
+        case Image::PQ:
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported encoding")
+            }
+        return Encoded;
+    }
 
     Math::Vector3f Encode(Math::Vector3f Linear, Image::Encoding Encoding)
+    {
+        switch (Encoding)
+        {
+        case Image::Linear:
+            break;
+
+        case Image::sRGB:
+            Linear.x = sRGB::OETF(Linear.x);
+            Linear.y = sRGB::OETF(Linear.y);
+            Linear.z = sRGB::OETF(Linear.z);
+            break;
+
+        case Image::LogC:
+            Linear.x = ArriLogC::GLinearToGArriLogC(Linear.x);
+            Linear.y = ArriLogC::GLinearToGArriLogC(Linear.y);
+            Linear.z = ArriLogC::GLinearToGArriLogC(Linear.z);
+            break;
+
+        case Image::PQ:
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported encoding")
+            }
+        return Linear;
+    }
+    
+    Math::Vector4f Encode(Math::Vector4f Linear, Image::Encoding Encoding)
     {
         switch (Encoding)
         {
@@ -505,6 +555,15 @@ void ClearBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer)
     }
 }
 
+void ClearBuffer(ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer)
+{
+    for (uint32_t y = 0; y < ImageBuffer.Height(); ++y)
+    for (uint32_t x = 0; x < ImageBuffer.Width(); ++x)
+    {
+        ImageBuffer.Write(x, y, 0);
+    }
+}
+
 Math::Vector3f ReadBuffer(const ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y)
 {
     auto sample = ImageBuffer.Read(x, y);
@@ -512,6 +571,20 @@ Math::Vector3f ReadBuffer(const ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffe
     result.x = _Image::ConvertRangesAware<float, uint8_t>(sample.x);
     result.y = _Image::ConvertRangesAware<float, uint8_t>(sample.y);
     result.z = _Image::ConvertRangesAware<float, uint8_t>(sample.z);
+
+    result = _Image::Decode(result, ImageBuffer.ComponentEncoding());
+
+    return result;
+}
+
+Math::Vector4f ReadBuffer(const ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y)
+{
+    auto sample = ImageBuffer.Read(x, y);
+    Math::Vector4f result;
+    result.x = _Image::ConvertRangesAware<float, uint8_t>(sample.x);
+    result.y = _Image::ConvertRangesAware<float, uint8_t>(sample.y);
+    result.z = _Image::ConvertRangesAware<float, uint8_t>(sample.z);
+    result.w = _Image::ConvertRangesAware<float, uint8_t>(sample.w);
 
     result = _Image::Decode(result, ImageBuffer.ComponentEncoding());
 
@@ -526,5 +599,17 @@ void WriteBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, 
     result.x = _Image::ConvertRangesAware<uint8_t, float>(data.x);
     result.y = _Image::ConvertRangesAware<uint8_t, float>(data.y);
     result.z = _Image::ConvertRangesAware<uint8_t, float>(data.z);
+    ImageBuffer.Write(x, y, result);
+}
+
+void WriteBuffer(ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y, Math::Vector4f data)
+{
+    data = _Image::Encode(data, ImageBuffer.ComponentEncoding());
+
+    Math::Vector4t<uint8_t> result;
+    result.x = _Image::ConvertRangesAware<uint8_t, float>(data.x);
+    result.y = _Image::ConvertRangesAware<uint8_t, float>(data.y);
+    result.z = _Image::ConvertRangesAware<uint8_t, float>(data.z);
+    result.w = _Image::ConvertRangesAware<uint8_t, float>(data.w);
     ImageBuffer.Write(x, y, result);
 }

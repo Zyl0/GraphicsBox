@@ -289,5 +289,10 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, TexelType data)
 }
 
 void ClearBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer);
+void ClearBuffer(ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer);
+
 Math::Vector3f ReadBuffer(const ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y);
+Math::Vector4f ReadBuffer(const ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y);
+
 void WriteBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y, Math::Vector3f data);
+void WriteBuffer(ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y, Math::Vector4f data);
