@@ -8,35 +8,36 @@
 
 StackAllocator::~StackAllocator()
 {
-    if (m_CurrentOffset == 0) return;
-
-    if (m_PreviousOffset != 0)
+    if (m_CurrentOffset != 0)
     {
-        size_t FreedSize = m_CurrentOffset;
-        size_t CurrentOffset = m_CurrentOffset;
-        size_t PreviousOffset = m_PreviousOffset;
-        uintptr_t start = reinterpret_cast<uintptr_t>(m_Memory.Address);
-
-        // Handle moved memory and padding
-        while (PreviousOffset != 0)
+        if (m_PreviousOffset != 0)
         {
-            uintptr_t currentAddress = start + PreviousOffset;
-            Header* currentHeader = reinterpret_cast<Header*>(currentAddress - sizeof(Header));
-            if (currentHeader->HasBeenMoved)
+            size_t FreedSize = m_CurrentOffset;
+            size_t CurrentOffset = m_CurrentOffset;
+            size_t PreviousOffset = m_PreviousOffset;
+            uintptr_t start = reinterpret_cast<uintptr_t>(m_Memory.Address);
+
+            // Handle moved memory and padding
+            while (PreviousOffset != 0)
             {
-                FreedSize -= (CurrentOffset - PreviousOffset);
+                uintptr_t currentAddress = start + PreviousOffset;
+                Header* currentHeader = reinterpret_cast<Header*>(currentAddress - sizeof(Header));
+                if (currentHeader->HasBeenMoved)
+                {
+                    FreedSize -= (CurrentOffset - PreviousOffset);
+                }
+                FreedSize -= currentHeader->padding;
+
+                CurrentOffset = PreviousOffset - currentHeader->padding;
+                PreviousOffset = currentHeader->PreviousOffset;
             }
-            FreedSize -= currentHeader->padding;
 
-            CurrentOffset = PreviousOffset - currentHeader->padding;
-            PreviousOffset = currentHeader->PreviousOffset;
+            if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, FreedSize);
         }
-
-        if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, FreedSize);
-    }
-    else
-    {
-        if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, m_CurrentOffset);
+        else
+        {
+            if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, m_CurrentOffset);
+        }
     }
         
     if (m_AllocType == Memory::AllocType::AT_Virtual && m_CommitedPage > 0)
@@ -132,11 +133,15 @@ void* StackAllocator::ReallocateAligned(void* OldPtr, size_t OldSize, size_t New
 
             if (NewSize > OldSize)
             {
-                if (m_Reporter != nullptr) m_Reporter->ReportIncrease(Memory::Reporter::RT_Used, NewSize - OldSize);
+                size_t diff = NewSize - OldSize;
+                if (m_Reporter != nullptr) m_Reporter->ReportIncrease(Memory::Reporter::RT_Used, diff);
+                m_CurrentOffset += diff;
             }
             else // if (NewSize < OldSize)
             {
-                if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, OldSize - NewSize);
+                size_t diff = OldSize - NewSize;
+                if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, diff);
+                m_CurrentOffset -= diff;
             }
             if (requiredPageCount < m_CommitedPage)
             {
@@ -149,13 +154,13 @@ void* StackAllocator::ReallocateAligned(void* OldPtr, size_t OldSize, size_t New
             if (NewSize > OldSize)
             {
                 size_t diff = NewSize - OldSize;
-                if (m_Reporter != nullptr) m_Reporter->ReportIncrease(Memory::Reporter::RT_Used, NewSize - OldSize);
+                if (m_Reporter != nullptr) m_Reporter->ReportIncrease(Memory::Reporter::RT_Used, diff);
                 m_CurrentOffset += diff;
             }
             else // if (NewSize < OldSize)
             {
                 size_t diff = OldSize - NewSize;
-                if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, OldSize - NewSize);
+                if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, diff);
                 m_CurrentOffset -= diff;
             }
         }

@@ -2,7 +2,7 @@
 
 #include "Memory/Reporter.h"
 
-TEST_CASE("Memory Reporter ")
+TEST_CASE("Memory Reporter")
 {
     SECTION("Construction")
     {
@@ -16,13 +16,13 @@ TEST_CASE("Memory Reporter ")
         REQUIRE(MemoryReporter.Size(Memory::Reporter::RT_Allocated) == 0);
     
         Memory::Reporter MemoryReporterBound{"Test reporter With Bounds", 1_KB};
-        REQUIRE(MemoryReporter.Name() == "Test reporter With Bounds");
-        REQUIRE(MemoryReporter.Limit() == 1_KB);
-        REQUIRE(MemoryReporter.Size(Memory::Reporter::RT_Physical) == 0);
-        REQUIRE(MemoryReporter.Size(Memory::Reporter::RT_VirtualReserved) == 0);
-        REQUIRE(MemoryReporter.Size(Memory::Reporter::RT_VirtualCommited) == 0);
-        REQUIRE(MemoryReporter.Size(Memory::Reporter::RT_Used) == 0);
-        REQUIRE(MemoryReporter.Size(Memory::Reporter::RT_Allocated) == 0);
+        REQUIRE(MemoryReporterBound.Name() == "Test reporter With Bounds");
+        REQUIRE(MemoryReporterBound.Limit() == 1_KB);
+        REQUIRE(MemoryReporterBound.Size(Memory::Reporter::RT_Physical) == 0);
+        REQUIRE(MemoryReporterBound.Size(Memory::Reporter::RT_VirtualReserved) == 0);
+        REQUIRE(MemoryReporterBound.Size(Memory::Reporter::RT_VirtualCommited) == 0);
+        REQUIRE(MemoryReporterBound.Size(Memory::Reporter::RT_Used) == 0);
+        REQUIRE(MemoryReporterBound.Size(Memory::Reporter::RT_Allocated) == 0);
     }
     
     SECTION("Reporting")

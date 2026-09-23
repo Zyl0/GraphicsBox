@@ -14,7 +14,7 @@ TEST_CASE("Stack Allocator Allocation")
 {
     Memory::Reporter reporter = {"Pool allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 20_KB);
     
     WHEN("Allocator is working on physical memory")
     {
@@ -103,7 +103,7 @@ TEST_CASE("Stack Allocator Allocation")
         {
             StackAllocator allocator{virtualMemory, Memory::AT_Virtual, &reporter};
 
-            void* ptr = allocator.Allocate(16_KB + 16);
+            void* ptr = allocator.Allocate(20_KB + 16);
             REQUIRE(ptr == nullptr);
         }
 
@@ -145,7 +145,7 @@ TEST_CASE("Stack Allocator Deallocation")
 {
     Memory::Reporter reporter = {"Pool allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {
@@ -191,7 +191,7 @@ TEST_CASE("Stack Allocator Reallocation")
 {
     Memory::Reporter reporter = {"Pool allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {

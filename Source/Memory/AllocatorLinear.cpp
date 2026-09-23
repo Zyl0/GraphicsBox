@@ -5,9 +5,7 @@
 
 LinearAllocator::~LinearAllocator()
 {
-    if (m_CurrentOffset == 0) return;
-        
-    if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, m_CurrentOffset - m_Leakage);
+    if (m_CurrentOffset != 0 && m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, m_CurrentOffset - m_Leakage);
         
     if (m_AllocType == Memory::AllocType::AT_Virtual && m_CommitedPage > 0)
     {

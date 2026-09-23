@@ -14,7 +14,7 @@ TEST_CASE("Linear Allocator Allocation")
 {
     Memory::Reporter reporter = {"Linear allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {
@@ -92,6 +92,7 @@ TEST_CASE("Linear Allocator Allocation")
         {
             LinearAllocator allocator{memory, Memory::AT_Physical, &reporter};
 
+            void* ptr0 = allocator.AllocateAligned(128, 128);
             void* ptr1 = allocator.AllocateAligned(16, 16);
             void* ptr2 = allocator.AllocateAligned(128, 128);
             
@@ -105,6 +106,7 @@ TEST_CASE("Linear Allocator Allocation")
         {
             LinearAllocator allocator{memory, Memory::AT_Physical, &reporter};
 
+            void* ptr0 = allocator.AllocateAligned(128, 128);
             void* ptr1 = allocator.AllocateAligned(100, 16);
             void* ptr2 = allocator.AllocateAligned(100, 32);
             
@@ -224,7 +226,7 @@ TEST_CASE("Linear Allocator Deallocation")
 {
     Memory::Reporter reporter = {"Linear allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {
@@ -270,7 +272,7 @@ TEST_CASE("Linear Allocator Reallocation")
 {
     Memory::Reporter reporter = {"Linear allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {

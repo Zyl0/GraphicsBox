@@ -2,6 +2,11 @@
 
 #include "Shared/Assertion.h"
 
+// Disabled for now
+// Allocators for the realloc function are expected not to release memory from the previous pointer of a realloc call
+// Therefore std realloc cannot really be used
+//#define ALLOW_SYS_MEM_MOVES
+
 void* SystemAllocator::Allocate(size_t Size) const
 {
     if (m_Reporter != nullptr) m_Reporter->ReportIncrease(Memory::Reporter::RT_Physical, Size);
@@ -30,6 +35,7 @@ void* SystemAllocator::Reallocate(void* OldPtr, size_t OldSize, size_t NewSize) 
         
     if (OldSize == NewSize) return OldPtr;
     
+#ifdef ALLOW_SYS_MEM_MOVES
     if (m_Reporter != nullptr && NewSize > OldSize)
     {
         m_Reporter->ReportIncrease(Memory::Reporter::RT_Physical, NewSize - OldSize);
@@ -45,6 +51,9 @@ void* SystemAllocator::Reallocate(void* OldPtr, size_t OldSize, size_t NewSize) 
     AssertOrError(NewPtr != nullptr, "Reallocation failed")
 
     return NewPtr;
+#else // ALLOW_SYS_MEM_MOVES
+    return Allocate(NewSize);
+#endif // !ALLOW_SYS_MEM_MOVES
 }
 
 void* SystemAllocator::ReallocateAligned(void* OldPtr, size_t OldSize, size_t NewSize, size_t Alignment) const
@@ -56,6 +65,7 @@ void* SystemAllocator::ReallocateAligned(void* OldPtr, size_t OldSize, size_t Ne
 
     if (OldSize == NewSize) return OldPtr;
     
+#ifdef ALLOW_SYS_MEM_MOVES
     if (m_Reporter != nullptr && NewSize > OldSize)
     {
         m_Reporter->ReportIncrease(Memory::Reporter::RT_Physical, NewSize - OldSize);
@@ -71,6 +81,9 @@ void* SystemAllocator::ReallocateAligned(void* OldPtr, size_t OldSize, size_t Ne
     AssertOrError(NewPtr != nullptr, "Reallocation failed")
         
     return NewPtr;
+#else // ALLOW_SYS_MEM_MOVES
+    return AllocateAligned(NewSize, Alignment);
+#endif // !ALLOW_SYS_MEM_MOVES
 }
 
 void SystemAllocator::Deallocate(void* ptr, size_t Size) const

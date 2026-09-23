@@ -8,19 +8,20 @@
 _PoolAllocator::~_PoolAllocator()
 {
     size_t CurrentOffset = m_AllocatedChunkCount * m_ChunkSize;
-    if (CurrentOffset == 0) return;
-
-    size_t FreedSize = CurrentOffset - m_Leakage;
-    FreeNode* node = m_FreeList;
-
-    // Handle moved memory
-    while (node != nullptr)
+    if (CurrentOffset != 0)
     {
-        FreedSize -= node->m_ChunkCount * m_ChunkSize;
-        node = node->m_Next;
-    }
+        size_t FreedSize = CurrentOffset - m_Leakage;
+        FreeNode* node = m_FreeList;
+
+        // Handle moved memory
+        while (node != nullptr)
+        {
+            FreedSize -= node->m_ChunkCount * m_ChunkSize;
+            node = node->m_Next;
+        }
         
-    if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, FreedSize);
+        if (m_Reporter != nullptr) m_Reporter->ReportDecrease(Memory::Reporter::RT_Used, FreedSize);
+    }
         
     if (m_AllocType == Memory::AllocType::AT_Virtual && m_CommitedPage > 0)
     {

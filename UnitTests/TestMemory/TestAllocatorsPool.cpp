@@ -17,7 +17,7 @@ TEST_CASE("Pool Allocator Allocation")
 {
     Memory::Reporter reporter = {"Pool allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {
@@ -213,7 +213,7 @@ TEST_CASE("Pool Allocator Deallocation")
 {
     Memory::Reporter reporter = {"Pool allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {
@@ -259,7 +259,7 @@ TEST_CASE("Pool Allocator Reallocation")
 {
     Memory::Reporter reporter = {"Pool allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {
@@ -445,7 +445,7 @@ TEST_CASE("Pool Allocator Stress test")
 {
     Memory::Reporter reporter = {"Pool allocation"};
     Memory::Block memory = Memory::Allocate(&reporter, 4_KB);
-    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 4_KB);
+    Memory::Block virtualMemory = Memory::Virtual::Reserve(&reporter, 16_KB);
     
     WHEN("Allocator is working on physical memory")
     {
