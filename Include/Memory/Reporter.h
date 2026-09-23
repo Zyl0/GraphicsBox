@@ -21,7 +21,9 @@ namespace Memory
             // Report memory usage
             RT_Used,
             
-            RT_Allocated // TODO see if used
+            // Used to get the total allocated size
+            // Do not use to report any memory increase or decrease
+            RT_Allocated
         };
         
         Reporter(std::string_view name, size_t limit = 0): m_Name(name), m_Limit(limit) {}
