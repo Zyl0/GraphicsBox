@@ -25,6 +25,7 @@ struct Hit
     INLINE bool operator!=(const Hit& outer) const {return ((IsValid() && !outer.IsValid()) || (!IsValid() && outer.IsValid())) || (IsValid() && (t == outer.t || u == outer.u || v == outer.v));}
 };
 
+// Ray tracing intersection test for trianges
 Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray);
 
 struct TriangleWave
@@ -78,9 +79,16 @@ struct HitWave
 
 HitWave<TriangleWave::kThreadCount> IntersectTriangle(const TriangleWave& Face, const Ray& Ray);
 
+// Face Vertex data interpolation for trianges
 float VertexInterpolateTriangle(const Hit& Hit, float a, float b, float c);
+
+// Face Vertex data interpolation for trianges
 Math::Vector2f VertexInterpolateTriangle(const Hit& Hit, Math::Vector2f a, Math::Vector2f b, Math::Vector2f c);
+
+// Face Vertex data interpolation for trianges
 Math::Vector3f VertexInterpolateTriangle(const Hit& Hit, Math::Vector3f a, Math::Vector3f b, Math::Vector3f c);
+
+// Face Vertex data interpolation for trianges
 Math::Vector4f VertexInterpolateTriangle(const Hit& Hit, Math::Vector4f a, Math::Vector4f b, Math::Vector4f c);
 
 class TraceRay

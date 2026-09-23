@@ -82,6 +82,7 @@
 #define PLATFORM_INLINE __forceinline 
 
 #ifdef CONFIG_DEBUG
+#include <crtdbg.h>
 /**
  * Allocate heap aligned memory
  * @param Type Pointer type
