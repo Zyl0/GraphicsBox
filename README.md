@@ -1,6 +1,9 @@
-# GraphicsBox
+GraphicsBox
+===========
 Graphics Box is a set of tools regarding graphics programming for prototyping graphical features. GraphicsBox is build 
 on C++ 20 and uses OpenGL as the Graphics API. 
+
+See [documentation](Documentation/Documentation.md) for more details.
 
 # Setup
 
