@@ -1315,7 +1315,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
             f:write("            r.m[i] = m[i] << s;\n")
             f:write("        }\n")
 
-            f:write("#endif // !#if defined(__GNUC__) || defined(__clang__)")
+            f:write("#endif // !#if defined(__GNUC__) || defined(__clang__)\n")
             f:write("        return r;\n")
         end
         f:write("    }\n")
@@ -1340,7 +1340,7 @@ local function WriteMathSIMTx86Specialization(f, f2, x86_ISA, x86_ISA_Limit, Pri
             f:write("            r.m[i] = m[i] >> s;\n")
             f:write("        }\n")
 
-            f:write("#endif // !#if defined(__GNUC__) || defined(__clang__)")
+            f:write("#endif // !#if defined(__GNUC__) || defined(__clang__)\n")
             f:write("        return r;\n")
         end
         f:write("    }\n")
