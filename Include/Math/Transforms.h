@@ -7,209 +7,6 @@
 namespace Math
 {
     template<typename type>
-    Matrix3t<type> MakeRotationX(type t)
-    {
-        type c = cos(t);
-        type s = sin(t);
-
-        return Matrix3t<type>(
-            static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   c,                      -s,
-            static_cast<type>(0),   -s,                     c
-        );
-    }
-
-    template<typename type>
-    Matrix3t<type> MakeRotationY(type t)
-    {
-        type c = cos(t);
-        type s = sin(t);
-
-        return Matrix3t<type>(
-            c,                      static_cast<type>(0),   s,
-            static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),
-            -s,                     static_cast<type>(0),   c
-        );
-    }
-
-    template<typename type>
-    Matrix3t<type> MakeRotationZ(type t)
-    {
-        type c = cos(t);
-        type s = sin(t);
-
-        return Matrix3t<type>(
-            c,                      -s,                     static_cast<type>(0),
-            s,                      c,                      static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
-        );
-    }
-
-    template<typename type>
-    Matrix3t<type> MakeRotation(const Vector3t<type> &a, type t)
-    {
-        type c = cos(t);
-        type s = sin(t);
-        type d = static_cast<type>(1) - c;
-
-        type x = a.x * d;
-        type y = a.y * d;
-        type z = a.z * d;
-
-        type axay = x * a.y;
-        type axaz = x * a.z;
-        type ayaz = y * a.z;
-
-        return Matrix3t<type>(
-            c +  x * a.x,           axay - s * a.z,         axaz + s * a.y,
-            axay + s * a.z,         c + y * a.y,            ayaz - s * a.x,
-            axaz - s * a.y,         ayaz + s * a.x,         c + z * a.x
-        );
-    }
-
-    template<typename type>
-    Matrix3t<type> MakeReflection(const Vector3t<type> &a)
-    {
-        type x = a.x * static_cast<type>(-2);
-        type y = a.y * static_cast<type>(-2);
-        type z = a.z * static_cast<type>(-2);
-
-        type axay = x * a.y;
-        type axaz = x * a.z;
-        type ayaz = y * a.z; 
-    
-        return Matrix3t<type>(
-            x * a.x + 1,            axay,                   axaz,
-            axay,                   y * a.y + 1,            ayaz,
-            axaz,                   ayaz,                   z * a.z + 1
-        );
-    }
-
-    template<typename type>
-    Matrix3t<type> MakeInvocation(const Vector3t<type> &a)
-    {
-        type x = a.x * static_cast<type>(2);
-        type y = a.y * static_cast<type>(2);
-        type z = a.z * static_cast<type>(2);
-
-        type axay = x * a.y;
-        type axaz = x * a.z;
-        type ayaz = y * a.z; 
-    
-        return Matrix3t<type>(
-            x * a.x - 1,            axay,                   axaz,
-            axay,                   y * a.y - 1,            ayaz,
-            axaz,                   ayaz,                   z * a.z - 1
-        );
-    }
-
-    template<typename type>
-    Matrix3t<type> MakeScale(type x, type y, type z)
-    {
-        return Matrix3t<type>(
-            x,                      static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   y,                      static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(0),   z
-        );
-    }
-
-    template<typename type>
-    inline Matrix3t<type> MakeScale(const Vector3t<type> &a)
-    {
-        return MakeScale(a.x, a.y, a.z);
-    }
-
-    template<typename type>
-    inline Matrix3t<type> MakeScale(type s)
-    {
-        return MakeScale(s, s, s);
-    }
-
-    template<typename type>
-    inline Matrix4t<type> MakeFrustumProjection(type FOVy, type s, type n, type f)
-    {
-        type g = static_cast<type>(1) / tan(FOVy / static_cast<type>(2));
-        type k = f / (f - n);
-
-        return Matrix4t<type>(
-            g / s,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),       g,                      static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),       static_cast<type>(0),   k,                      -n * k,
-            static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    inline Matrix4t<type> MakeInfiniteProjection(type FOVy, type s, type n, type e)
-    {
-        type g = static_cast<type>(1) / tan(FOVy / static_cast<type>(2));
-        e = 1.0f - e;
-
-        return Matrix4t<type>(
-            g / s,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),       g,                      static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),       static_cast<type>(0),   e,                      -n * e,
-            static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-inline Matrix4t<type> MakeRevFrustumProjection(type FOVy, type s, type n, type f)
-    {
-        type g = static_cast<type>(1) / tan(FOVy / static_cast<type>(2));
-        type k = f / (n - f);
-
-        return Matrix4t<type>(
-            g / s,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),       g,                      static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),       static_cast<type>(0),   k,                      -f * k,
-            static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    inline Matrix4t<type> MakeRevInfiniteProjection(type FOVy, type s, type n, type e)
-    {
-        type g = static_cast<type>(1) / tan(FOVy / static_cast<type>(2));
-
-        return Matrix4t<type>(
-            g / s,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),       g,                      static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),       static_cast<type>(0),   e,                      n * (static_cast<type>(1) - e),
-            static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    inline Matrix4t<type> MakeOrthoProjection(type l, type r, type t, type b, type n, type f)
-    {
-        type wInv = static_cast<type>(1) / (r - l);
-        type hInv = static_cast<type>(1) / (b - t);
-        type dInv = static_cast<type>(1) / (f - n);
-
-        return Matrix4t<type>(
-            static_cast<type>(2) * wInv,static_cast<type>(0),       static_cast<type>(0),   -(r + l) * wInv,
-            static_cast<type>(0),       static_cast<type>(2)*hInv,  static_cast<type>(0),   -(b + t) * hInv,
-            static_cast<type>(0),       static_cast<type>(0),       dInv,                   -n * dInv,
-            static_cast<type>(0),       static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1)
-        );
-    }
-
-
-    template<typename type>
-    inline Matrix4t<type> MakeLookAtView(Vector3t<type> from, Vector3t<type> at, Vector3t<type> up)
-    {;
-        Vector3t<type> right = Normalize( Cross(at, Normalize(up) ) );
-        Vector3t<type> newUp = Normalize( Cross(right, at) );
-
-        return Inverse(Matrix4t<type>(
-            right.x,                    newUp.x,                -at.x,                  from.x,
-            right.y,                    newUp.y,                -at.y,                  from.y,
-            right.z,                    newUp.z,                -at.z,                  from.z,
-            static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)));
-    }
-
-    template<typename type>
     struct Transform4t : Matrix4t<type>
     {
         Transform4t()  :
@@ -292,6 +89,171 @@ inline Matrix4t<type> MakeRevFrustumProjection(type FOVy, type s, type n, type f
             this->n[3][1] = p.y;
             this->n[3][2] = p.z;
         }
+        
+        INLINE static Transform4t Identity()
+        {
+            return Transform4t<type>(
+                static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
+            );
+        }
+
+        INLINE static Transform4t Translation(type tx, type ty, type tz)
+        {
+            return Transform4t<type>(
+                static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   tx,
+                static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   ty,
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   tz
+            );
+        }
+
+        INLINE static Transform4t Translation(Vector3t<type> t)
+        {
+            return Translation(t.x, t.y, t.z);   
+        }
+        
+        INLINE static Transform4t RotationX(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Transform4t<type>(
+                static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   c,                      -s,                     static_cast<type>(0),
+                static_cast<type>(0),   -s,                     c,                      static_cast<type>(0)
+            );
+        }
+
+        INLINE static Transform4t RotationY(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Transform4t<type>(
+                c,                      static_cast<type>(0),   s,                      static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
+                -s,                     static_cast<type>(0),   c,                      static_cast<type>(0)
+            );
+        }
+
+        INLINE static Transform4t RotationZ(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Transform4t(
+                c,                      -s,                     static_cast<type>(0),   static_cast<type>(0),
+                s,                      c,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
+            );
+        }
+
+        INLINE static Transform4t Rotation(const Vector3t<type> &a, type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+            type d = static_cast<type>(1) - c;
+
+            type x = a.x * d;
+            type y = a.y * d;
+            type z = a.z * d;
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z;
+
+            return Transform4t(
+                c +  x * a.x,           axay - s * a.z,         axaz + s * a.y,         static_cast<type>(0),
+                axay + s * a.z,         c + y * a.y,            ayaz - s * a.x,         static_cast<type>(0),
+                axaz - s * a.y,         ayaz + s * a.x,         c + z * a.x,            static_cast<type>(0)
+            );
+        }
+
+        INLINE static Transform4t Reflection(const Vector3t<type> &a)
+        {
+            type x = a.x * static_cast<type>(-2);
+            type y = a.y * static_cast<type>(-2);
+            type z = a.z * static_cast<type>(-2);
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z; 
+        
+            return Transform4t(
+                x * a.x + 1,            axay,                   axaz,                   static_cast<type>(0),
+                axay,                   y * a.y + 1,            ayaz,                   static_cast<type>(0),
+                axaz,                   ayaz,                   z * a.z + 1,            static_cast<type>(0)
+            );
+        }
+
+        INLINE static Transform4t Invocation(const Vector3t<type> &a)
+        {
+            type x = a.x * static_cast<type>(2);
+            type y = a.y * static_cast<type>(2);
+            type z = a.z * static_cast<type>(2);
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z; 
+        
+            return Transform4t(
+                x * a.x - 1,            axay,                   axaz,                   static_cast<type>(0),
+                axay,                   y * a.y - 1,            ayaz,                   static_cast<type>(0),
+                axaz,                   ayaz,                   z * a.z - 1,            static_cast<type>(0)
+            );
+        }
+
+        INLINE static Transform4t Scale(type x, type y, type z)
+        {
+            return Transform4t(
+                x,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   y,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   z,                      static_cast<type>(0)
+            );
+        }
+
+        INLINE static Transform4t Scale(const Vector3t<type> &a)
+        {
+            return Scale(a.x, a.y, a.z);
+        }
+
+        INLINE static Transform4t Scale(type s)
+        {
+            return Scale(s, s, s);
+        }
+
+        INLINE static Transform4t Perspective(type fieldOfView, type aspectRatio, type zNear, type zFar)
+        {
+            float itan = 1 / tan(fieldOfView * 0.5f);
+            float id = 1 / (zNear - zFar);
+            
+            return Transform4t(
+                Matrix4t<type>(
+                    itan/aspectRatio,   0,      0,                  0,
+                    0,                  itan,   0,                  0,
+                    0,                  0,      (zFar+zNear)*id,    2.f*zFar*zNear*id,
+                    0,                  0,      -1,                 0
+                )
+            );
+        }
+
+        INLINE static Transform4t Reflection(const PlaneT<type> &f)
+        {
+            type x = f.x * static_cast<type>(-2);
+            type y = f.y * static_cast<type>(-2);
+            type z = f.z * static_cast<type>(-2);
+
+            type nxny = x * f.y;
+            type nxnz = x * f.z;
+            type nynz = y * f.z;
+            
+            return Transform4t(
+                x * f.x + static_cast<type>(1), nxny, nxnz, x * f.w,
+                nxny, y * f.y + static_cast<type>(1), nynz, y * f.w,
+                nxnz, nynz, z * f.z + static_cast<type>(1), z * f.w
+            );
+        }
     };
 
     template<typename type>
@@ -372,185 +334,6 @@ inline Matrix4t<type> MakeRevFrustumProjection(type FOVy, type s, type n, type f
             H(0,0) * t.x + H(0,1) * t.y + H(0,2) * t.z + H(0,3),
             H(1,0) * t.x + H(1,1) * t.y + H(1,2) * t.z + H(1,3),
             H(2,0) * t.x + H(2,1) * t.y + H(2,2) * t.z + H(2,3)
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousIdentity()
-    {
-        return Transform4t<type>(
-            static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousTranslation(type tx, type ty, type tz)
-    {
-        return Transform4t<type>(
-            static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   tx,
-            static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   ty,
-            static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   tz
-        );
-    }
-
-    template<typename type>
-    inline Transform4t<type> MakeHomogeneousTranslation(Vector3t<type> t)
-    {
-        return MakeHomogeneousTranslation(t.x, t.y, t.z);   
-    }
-    
-    template<typename type>
-    Transform4t<type> MakeHomogeneousRotationX(type t)
-    {
-        type c = cos(t);
-        type s = sin(t);
-
-        return Transform4t<type>(
-            static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   c,                      -s,                     static_cast<type>(0),
-            static_cast<type>(0),   -s,                     c,                      static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousRotationY(type t)
-    {
-        type c = cos(t);
-        type s = sin(t);
-
-        return Transform4t<type>(
-            c,                      static_cast<type>(0),   s,                      static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
-            -s,                     static_cast<type>(0),   c,                      static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousRotationZ(type t)
-    {
-        type c = cos(t);
-        type s = sin(t);
-
-        return Transform4t<type>(
-            c,                      -s,                     static_cast<type>(0),   static_cast<type>(0),
-            s,                      c,                      static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousRotation(const Vector3t<type> &a, type t)
-    {
-        type c = cos(t);
-        type s = sin(t);
-        type d = static_cast<type>(1) - c;
-
-        type x = a.x * d;
-        type y = a.y * d;
-        type z = a.z * d;
-
-        type axay = x * a.y;
-        type axaz = x * a.z;
-        type ayaz = y * a.z;
-
-        return Transform4t<type>(
-            c +  x * a.x,           axay - s * a.z,         axaz + s * a.y,         static_cast<type>(0),
-            axay + s * a.z,         c + y * a.y,            ayaz - s * a.x,         static_cast<type>(0),
-            axaz - s * a.y,         ayaz + s * a.x,         c + z * a.x,            static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousReflection(const Vector3t<type> &a)
-    {
-        type x = a.x * static_cast<type>(-2);
-        type y = a.y * static_cast<type>(-2);
-        type z = a.z * static_cast<type>(-2);
-
-        type axay = x * a.y;
-        type axaz = x * a.z;
-        type ayaz = y * a.z; 
-    
-        return Transform4t<type>(
-            x * a.x + 1,            axay,                   axaz,                   static_cast<type>(0),
-            axay,                   y * a.y + 1,            ayaz,                   static_cast<type>(0),
-            axaz,                   ayaz,                   z * a.z + 1,            static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousInvocation(const Vector3t<type> &a)
-    {
-        type x = a.x * static_cast<type>(2);
-        type y = a.y * static_cast<type>(2);
-        type z = a.z * static_cast<type>(2);
-
-        type axay = x * a.y;
-        type axaz = x * a.z;
-        type ayaz = y * a.z; 
-    
-        return Transform4t<type>(
-            x * a.x - 1,            axay,                   axaz,                   static_cast<type>(0),
-            axay,                   y * a.y - 1,            ayaz,                   static_cast<type>(0),
-            axaz,                   ayaz,                   z * a.z - 1,            static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousScale(type x, type y, type z)
-    {
-        return Transform4t<type>(
-            x,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   y,                      static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(0),   z,                      static_cast<type>(0)
-        );
-    }
-
-    template<typename type>
-    inline Transform4t<type> MakeHomogeneousScale(const Vector3t<type> &a)
-    {
-        return MakeHomogeneousScale(a.x, a.y, a.z);
-    }
-
-    template<typename type>
-    inline Transform4t<type> MakeHomogeneousScale(type s)
-    {
-        return MakeHomogeneousScale(s, s, s);
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousPerspective(type fieldOfView, type aspectRatio, type zNear, type zFar)
-    {
-        float itan = 1 / tan(fieldOfView * 0.5f);
-        float id = 1 / (zNear - zFar);
-        
-        return Transform4t<type>(
-            Matrix4t<type>(
-                itan/aspectRatio,   0,      0,                  0,
-                0,                  itan,   0,                  0,
-                0,                  0,      (zFar+zNear)*id,    2.f*zFar*zNear*id,
-                0,                  0,      -1,                 0
-            )
-        );
-    }
-
-    template<typename type>
-    Transform4t<type> MakeHomogeneousReflection(const PlaneT<type> &f)
-    {
-        type x = f.x * static_cast<type>(-2);
-        type y = f.y * static_cast<type>(-2);
-        type z = f.z * static_cast<type>(-2);
-
-        type nxny = x * f.y;
-        type nxnz = x * f.z;
-        type nynz = y * f.z;
-        
-        return Transform4t<type>(
-            x * f.x + static_cast<type>(1), nxny, nxnz, x * f.w,
-            nxny, y * f.y + static_cast<type>(1), nynz, y * f.w,
-            nxnz, nynz, z * f.z + static_cast<type>(1), z * f.w
         );
     }
 

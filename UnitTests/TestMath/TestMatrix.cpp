@@ -24,7 +24,7 @@ TEST_CASE("Matrix3 - Constructors and Elements")
     REQUIRE(m3 == Transpose(m2));
     REQUIRE(m3[0].x == 1.0f);
     
-    Matrix3f ident = MakeIdentity<float>();
+    Matrix3f ident = Matrix3f::Identity();
     REQUIRE(ident(0, 0) == 1.0f);
     REQUIRE(ident(1, 1) == 1.0f);
     REQUIRE(ident(2, 2) == 1.0f);
@@ -33,8 +33,8 @@ TEST_CASE("Matrix3 - Constructors and Elements")
 
 TEST_CASE("Matrix3 - Operators and Functions")
 {
-    Matrix3f m1 = MakeIdentity<float>();
-    Matrix3f m2 = MakeIdentity<float>();
+    Matrix3f m1 = Matrix3f::Identity();
+    Matrix3f m2 = Matrix3f::Identity();
     m2(0, 1) = 2.0f;
     
     Matrix3f add = m1 + m2;
@@ -86,7 +86,7 @@ TEST_CASE("Matrix4 - Constructors and Elements")
     REQUIRE(m2(0, 3) == 4.0f);
     REQUIRE(m2(3, 3) == 16.0f);
     
-    Matrix4f ident = MakeMatrix4Identity<float>();
+    Matrix4f ident = Matrix4f::Identity();
     REQUIRE(ident(0, 0) == 1.0f);
     REQUIRE(ident(1, 1) == 1.0f);
     REQUIRE(ident(2, 2) == 1.0f);
@@ -96,8 +96,8 @@ TEST_CASE("Matrix4 - Constructors and Elements")
 
 TEST_CASE("Matrix4 - Operators and Functions")
 {
-    Matrix4f m1 = MakeMatrix4Identity<float>();
-    Matrix4f m2 = MakeMatrix4Identity<float>();
+    Matrix4f m1 = Matrix4f::Identity();
+    Matrix4f m2 = Matrix4f::Identity();
     m2(0, 1) = 2.0f;
     
     Matrix4f add = m1 + m2;

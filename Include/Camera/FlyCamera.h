@@ -72,7 +72,7 @@ private:
     Math::Matrix4f ComputeProjection() const;
     inline void UpdateProjection() {SetProjectionTransform(ComputeProjection());}
 
-    Math::Matrix3f m_Rotator = Math::MakeIdentity<float>();
+    Math::Matrix3f m_Rotator = Math::Matrix3f::Identity();
 
     float m_NearDistance = 0;
     float m_FarDistance = 0;

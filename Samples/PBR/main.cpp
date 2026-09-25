@@ -520,7 +520,7 @@ public:
             SetUniform(1, SceneObjects.Lights);
             SetUniform(2, SceneObjects.ProceduralSkyParameters);
 
-            SetUniform(m_PipelineProcedural, "Model", MakeHomogeneousIdentity<float>());
+            SetUniform(m_PipelineProcedural, "Model", Matrix4f::Identity());
 
             // Material
             SetUniform(m_PipelineProcedural, "BaseColor", m_Material.BaseColor);
@@ -548,7 +548,7 @@ public:
                 SetUniform(m_PipelineCubemap, "SkyLightMipCount",  SceneObjects.BakedSkylightCube.MipCount());
             }
             
-            SetUniform(m_PipelineCubemap, "Model", MakeHomogeneousIdentity<float>());
+            SetUniform(m_PipelineCubemap, "Model", Matrix4f::Identity());
 
             // Material
             SetUniform(m_PipelineCubemap, "BaseColor", m_Material.BaseColor);
@@ -567,7 +567,7 @@ public:
             SetUniform(m_PipelineHDRI, "SkyLightHDRi", 0, SceneObjects.SkylightHDRI, SceneObjects.BaseSampler);
             SetUniform(m_PipelineCubemap, "SkyLightMipCount",  SceneObjects.SkylightHDRI.MipCount());
 
-            SetUniform(m_PipelineHDRI, "Model", MakeHomogeneousIdentity<float>());
+            SetUniform(m_PipelineHDRI, "Model", Matrix4f::Identity());
 
             // Material
             SetUniform(m_PipelineHDRI, "BaseColor", m_Material.BaseColor);

@@ -27,9 +27,9 @@ namespace Math
 template <typename type>
 Math::Transform4t<type> Math::WorldTransform<type>::GetTransform() const
 {
-    return Math::MakeHomogeneousTranslation(Position) *
+    return Transform4t<type>::Translation(Position) *
         Math::Transform4t<type>(Rotation.GetRotationMatrix()) *
-        Math::MakeHomogeneousScale(Scale);
+        Transform4t<type>::Scale(Scale);
 }
 
 template <typename type>

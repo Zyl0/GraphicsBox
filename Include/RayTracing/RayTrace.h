@@ -94,8 +94,8 @@ Math::Vector4f VertexInterpolateTriangle(const Hit& Hit, Math::Vector4f a, Math:
 class TraceRay
 {
 public:    
-    TraceRay(const Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::MakeMatrix4Identity<float>());
-    TraceRay(const Mesh& Mesh, unsigned FirstVertex, unsigned VertexCount, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::MakeMatrix4Identity<float>());
+    TraceRay(const Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::Transform4f::Identity());
+    TraceRay(const Mesh& Mesh, unsigned FirstVertex, unsigned VertexCount, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::Transform4f::Identity());
 
     Hit Next();
     INLINE Hit ClosestHit() const {return m_ClosestHit;}
@@ -349,7 +349,7 @@ struct BVHHit
 class TraceRayBLAS
 {
 public:
-    TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::MakeMatrix4Identity<float>());
+    TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::Transform4f::Identity());
     
     Hit Next();
     INLINE Hit ClosestHit() const {return m_ClosestHit;}

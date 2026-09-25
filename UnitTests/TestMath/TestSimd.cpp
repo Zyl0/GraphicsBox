@@ -25,10 +25,10 @@ TEST_CASE("Simd - Aligned Types")
     REQUIRE(aq().w == 4.0f);
     
     AlignedMatrix4f am4;
-    am4 = MakeMatrix4Identity<float>();
+    am4 = Matrix4f::Identity();
     REQUIRE(am4()(0, 0) == 1.0f);
     
-    Transform4f t = MakeHomogeneousIdentity<float>();
+    Transform4f t = Transform4f::Identity();
     am4 = t;
     REQUIRE(am4()(0, 0) == 1.0f);
 }

@@ -104,20 +104,129 @@ namespace Math
             n[2][0] /= s; n[2][1] /= s; n[2][2] /= s;
             return *this;
         }
+        
+        INLINE static Matrix3t Identity()
+        {
+            return Matrix3t<type>(
+                static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+        
+        INLINE static Matrix3t RotationX(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Matrix3t<type>(
+                static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   c,                      -s,
+                static_cast<type>(0),   -s,                     c
+            );
+        }
+
+        INLINE static Matrix3t RotationY(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Matrix3t<type>(
+                c,                      static_cast<type>(0),   s,
+                static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),
+                -s,                     static_cast<type>(0),   c
+            );
+        }
+
+        INLINE static Matrix3t RotationZ(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Matrix3t<type>(
+                c,                      -s,                     static_cast<type>(0),
+                s,                      c,                      static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+        INLINE static Matrix3t Rotation(const Vector3t<type> &a, type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+            type d = static_cast<type>(1) - c;
+
+            type x = a.x * d;
+            type y = a.y * d;
+            type z = a.z * d;
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z;
+
+            return Matrix3t<type>(
+                c +  x * a.x,           axay - s * a.z,         axaz + s * a.y,
+                axay + s * a.z,         c + y * a.y,            ayaz - s * a.x,
+                axaz - s * a.y,         ayaz + s * a.x,         c + z * a.x
+            );
+        }
+
+        INLINE static Matrix3t Reflection(const Vector3t<type> &a)
+        {
+            type x = a.x * static_cast<type>(-2);
+            type y = a.y * static_cast<type>(-2);
+            type z = a.z * static_cast<type>(-2);
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z; 
+        
+            return Matrix3t<type>(
+                x * a.x + 1,            axay,                   axaz,
+                axay,                   y * a.y + 1,            ayaz,
+                axaz,                   ayaz,                   z * a.z + 1
+            );
+        }
+
+        INLINE static Matrix3t Invocation(const Vector3t<type> &a)
+        {
+            type x = a.x * static_cast<type>(2);
+            type y = a.y * static_cast<type>(2);
+            type z = a.z * static_cast<type>(2);
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z; 
+        
+            return Matrix3t<type>(
+                x * a.x - 1,            axay,                   axaz,
+                axay,                   y * a.y - 1,            ayaz,
+                axaz,                   ayaz,                   z * a.z - 1
+            );
+        }
+
+        INLINE static Matrix3t Scale(type x, type y, type z)
+        {
+            return Matrix3t<type>(
+                x,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   y,                      static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   z
+            );
+        }
+
+        INLINE static Matrix3t Scale(const Vector3t<type> &a)
+        {
+            return Scale(a.x, a.y, a.z);
+        }
+
+        INLINE static Matrix3t Scale(type s)
+        {
+            return Scale(s, s, s);
+        }
     };
-    
-    template<typename type>
-    Matrix3t<type> MakeIdentity()
-    {
-        return Matrix3t<type>(
-            static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
-        );
-    }
 
     template<typename type>
-    inline Matrix3t<type> operator +(const Matrix3t<type>& A, const Matrix3t<type>& B)
+    INLINE Matrix3t<type> operator +(const Matrix3t<type>& A, const Matrix3t<type>& B)
     {
         return Matrix3t<type>(
                         A(0,0) + B(0,0), A(0,1) + B(0,1), A(0,2) + B(0,2),
@@ -126,7 +235,7 @@ namespace Math
     }
 
     template<typename type>
-    inline Matrix3t<type> operator -(const Matrix3t<type>& A, const Matrix3t<type>& B)
+    INLINE Matrix3t<type> operator -(const Matrix3t<type>& A, const Matrix3t<type>& B)
     {
         return Matrix3t<type>(
                         A(0,0) - B(0,0), A(0,1) - B(0,1), A(0,2) - B(0,2),
@@ -135,7 +244,7 @@ namespace Math
     }
 
     template<typename type>
-    inline Matrix3t<type> operator *(const Matrix3t<type>& A, const Matrix3t<type>& B)
+    INLINE Matrix3t<type> operator *(const Matrix3t<type>& A, const Matrix3t<type>& B)
     {
         return Matrix3t<type>(
                         A(0,0) * B(0,0) + A(0,1) * B(1,0) + A(0,2) * B(2,0),
@@ -153,7 +262,7 @@ namespace Math
     }
 
     template<typename type>
-    inline Vector3t<type> operator *(const Matrix3t<type> &M, const Vector3t<type>& v)
+    INLINE Vector3t<type> operator *(const Matrix3t<type> &M, const Vector3t<type>& v)
     {
         return Vector3t<type>(
                         M(0,0) * v.x + M(0,1) * v.y + M(0, 2) * v.z,
@@ -162,7 +271,7 @@ namespace Math
     }
 
     template<typename type>
-    inline type Determinant(const Matrix3t<type>& M)
+    INLINE type Determinant(const Matrix3t<type>& M)
     {
         return  (M(0,0) * (M(1,1) * M(2,2) - M(1, 2) * M(2, 1)))
               + (M(0,1) * (M(1,2) * M(2,0) - M(1, 0) * M(2, 2)))
@@ -309,10 +418,205 @@ namespace Math
             n[3][0] /= s;   n[3][1] /= s;	n[3][2] /= s;	n[3][3] /= s;
             return *this;
         }
+        
+        INLINE static Matrix4t Identity()
+        {
+            return Matrix4t(
+                static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+        
+        INLINE static Matrix4t RotationX(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Matrix4t(
+                static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   c,                      -s,                     static_cast<type>(0),
+                static_cast<type>(0),   -s,                     c,                      static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+        INLINE static Matrix4t RotationY(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Matrix4t(
+                c,                      static_cast<type>(0),   s,                      static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
+                -s,                     static_cast<type>(0),   c,                      static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+        INLINE static Matrix4t RotationZ(type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+
+            return Matrix4t(
+                c,                      -s,                     static_cast<type>(0),   static_cast<type>(0),
+                s,                      c,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+        INLINE static Matrix4t Rotation(const Vector3t<type> &a, type t)
+        {
+            type c = cos(t);
+            type s = sin(t);
+            type d = static_cast<type>(1) - c;
+
+            type x = a.x * d;
+            type y = a.y * d;
+            type z = a.z * d;
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z;
+
+            return Matrix4t(
+                c +  x * a.x,           axay - s * a.z,         axaz + s * a.y,         static_cast<type>(0),
+                axay + s * a.z,         c + y * a.y,            ayaz - s * a.x,         static_cast<type>(0),
+                axaz - s * a.y,         ayaz + s * a.x,         c + z * a.x,            static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+        INLINE static Matrix4t Reflection(const Vector3t<type> &a)
+        {
+            type x = a.x * static_cast<type>(-2);
+            type y = a.y * static_cast<type>(-2);
+            type z = a.z * static_cast<type>(-2);
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z; 
+        
+            return Matrix4t(
+                x * a.x + 1,            axay,                   axaz,                   static_cast<type>(0),
+                axay,                   y * a.y + 1,            ayaz,                   static_cast<type>(0),
+                axaz,                   ayaz,                   z * a.z + 1,            static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+        INLINE static Matrix4t Invocation(const Vector3t<type> &a)
+        {
+            type x = a.x * static_cast<type>(2);
+            type y = a.y * static_cast<type>(2);
+            type z = a.z * static_cast<type>(2);
+
+            type axay = x * a.y;
+            type axaz = x * a.z;
+            type ayaz = y * a.z; 
+        
+            return Matrix4t(
+                x * a.x - 1,            axay,                   axaz,                   static_cast<type>(0),
+                axay,                   y * a.y - 1,            ayaz,                   static_cast<type>(0),
+                axaz,                   ayaz,                   z * a.z - 1,            static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+        INLINE static Matrix4t Scale(type x, type y, type z)
+        {
+            return Matrix4t(
+                x,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   y,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   z,                      static_cast<type>(0),
+                static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+        INLINE static Matrix4t Scale(const Vector3t<type> &a)
+        {
+            return Scale(a.x, a.y, a.z);
+        }
+
+        INLINE static Matrix4t Scale(type s)
+        {
+            return Scale(s, s, s);
+        }
+        
+        INLINE static Matrix4t FrustumProjection(type FOVy, type s, type n, type f)
+        {
+            type g = static_cast<type>(1) / tan(FOVy / static_cast<type>(2));
+            type k = f / (f - n);
+
+            return Matrix4t<type>(
+                g / s,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),       g,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),       static_cast<type>(0),   k,                      -n * k,
+                static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
+            );
+        }
+
+        INLINE static Matrix4t InfiniteProjection(type FOVy, type s, type n, type e)
+        {
+            type g = static_cast<type>(1) / tan(FOVy / static_cast<type>(2));
+            e = 1.0f - e;
+
+            return Matrix4t<type>(
+                g / s,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),       g,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),       static_cast<type>(0),   e,                      -n * e,
+                static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
+            );
+        }
+
+        INLINE static Matrix4t RevFrustumProjection(type FOVy, type s, type n, type f)
+        {
+            type g = static_cast<type>(1) / tan(FOVy / static_cast<type>(2));
+            type k = f / (n - f);
+
+            return Matrix4t(
+                g / s,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),       g,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),       static_cast<type>(0),   k,                      -f * k,
+                static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
+            );
+        }
+
+        INLINE static Matrix4t RevInfiniteProjection(type FOVy, type s, type n, type e)
+        {
+            type g = static_cast<type>(1) / tan(FOVy / static_cast<type>(2));
+
+            return Matrix4t(
+                g / s,                      static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),       g,                      static_cast<type>(0),   static_cast<type>(0),
+                static_cast<type>(0),       static_cast<type>(0),   e,                      n * (static_cast<type>(1) - e),
+                static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0)
+            );
+        }
+
+        INLINE static Matrix4t OrthoProjection(type l, type r, type t, type b, type n, type f)
+        {
+            type wInv = static_cast<type>(1) / (r - l);
+            type hInv = static_cast<type>(1) / (b - t);
+            type dInv = static_cast<type>(1) / (f - n);
+
+            return Matrix4t(
+                static_cast<type>(2) * wInv,static_cast<type>(0),       static_cast<type>(0),   -(r + l) * wInv,
+                static_cast<type>(0),       static_cast<type>(2)*hInv,  static_cast<type>(0),   -(b + t) * hInv,
+                static_cast<type>(0),       static_cast<type>(0),       dInv,                   -n * dInv,
+                static_cast<type>(0),       static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1)
+            );
+        }
+
+
+        static Matrix4t LookAtView(Vector3t<type> from, Vector3t<type> at, Vector3t<type> up);
     };
 
     template<typename type>
-    inline Matrix4t<type> operator +(const Matrix4t<type>& A, const Matrix4t<type>& B)
+    INLINE Matrix4t<type> operator +(const Matrix4t<type>& A, const Matrix4t<type>& B)
     {
         return Matrix4t<type>(
                         A(0,0) + B(0,0), A(0,1) + B(0,1), A(0,2) + B(0,2), A(0,3) + B(0,3),
@@ -322,7 +626,7 @@ namespace Math
     }
 
     template<typename type>
-    inline Matrix4t<type> operator -(const Matrix4t<type>& A, const Matrix4t<type>& B)
+    INLINE Matrix4t<type> operator -(const Matrix4t<type>& A, const Matrix4t<type>& B)
     {
         return Matrix4t<type>(
                         A(0,0) - B(0,0), A(0,1) - B(0,1), A(0,2) - B(0,2), A(0,3) - B(0,3),
@@ -332,7 +636,7 @@ namespace Math
     }
 
     template<typename type>
-    inline Matrix4t<type> operator *(const Matrix4t<type>& A, const Matrix4t<type>& B)
+    INLINE Matrix4t<type> operator *(const Matrix4t<type>& A, const Matrix4t<type>& B)
     {
         return Matrix4t<type>(
                         A(0,0) * B(0,0) + A(0,1) * B(1,0) + A(0,2) * B(2,0) + A(0,3) * B(3,0),
@@ -358,7 +662,7 @@ namespace Math
     }
 
     template<typename type>
-    inline Vector4t<type> operator *(const Matrix4t<type> &M, const Vector4t<type>& v)
+    INLINE Vector4t<type> operator *(const Matrix4t<type> &M, const Vector4t<type>& v)
     {
         return Vector4t<type>(
                         M(0,0) * v.x + M(0,1) * v.y + M(0, 2) * v.z + M(0,3) * v.w,
@@ -368,24 +672,13 @@ namespace Math
     }
 
     template<typename type>
-    inline Vector4t<type> operator *(const Vector4t<type>& v, const Matrix4t<type> &M)
+    INLINE Vector4t<type> operator *(const Vector4t<type>& v, const Matrix4t<type> &M)
     {
         return Vector4t<type>(
                         M(0,0) * v.x + M(0,1) * v.x + M(0, 2) * v.x + M(0,3) * v.x,
                         M(1,0) * v.y + M(1,1) * v.y + M(1, 2) * v.y + M(1,3) * v.y,
                         M(2,0) * v.z + M(2,1) * v.z + M(2, 2) * v.z + M(2,3) * v.z,
                         M(3,0) * v.w + M(3,1) * v.w + M(3, 2) * v.w + M(3,3) * v.w);
-    }
-
-    template<typename type>
-    Matrix4t<type> MakeMatrix4Identity()
-    {
-        return Matrix4t<type>(
-            static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1),   static_cast<type>(0),
-            static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)
-        );
     }
 
     template<typename type>
@@ -436,7 +729,7 @@ namespace Math
     }
 
     template<typename type>
-    Matrix4t<type> ToTransform4D(const Matrix3t<type>& Matrix)
+    Matrix4t<type> ToTransform4(const Matrix3t<type>& Matrix)
     {
         return Matrix4t<type>(
             Matrix(0,0),    Matrix(1,0),    Matrix(2,0),    0,
@@ -444,6 +737,19 @@ namespace Math
             Matrix(0,2),    Matrix(1,2),    Matrix(2,2),    0,
             0,              0,              0,              1
         );
+    }
+    
+    template <typename type>
+    Matrix4t<type> Matrix4t<type>::LookAtView(Vector3t<type> from, Vector3t<type> at, Vector3t<type> up)
+    {;
+        Vector3t<type> right = Normalize( Cross(at, Normalize(up) ) );
+        Vector3t<type> newUp = Normalize( Cross(right, at) );
+
+        return Inverse(Matrix4t(
+            right.x,                    newUp.x,                -at.x,                  from.x,
+            right.y,                    newUp.y,                -at.y,                  from.y,
+            right.z,                    newUp.z,                -at.z,                  from.z,
+            static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)));
     }
 
     

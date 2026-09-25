@@ -44,9 +44,9 @@ Math::Matrix4f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::V
     Math::Vector3f S = Minv * W;
 
     // Scale columns of M by S to get RGB to XYZ
-    Math::Matrix3f RGBtoXYZ = M * MakeScale(S);
+    Math::Matrix3f RGBtoXYZ = M * Math::Matrix3f::Scale(S);
 
-    return Math::ToTransform4D(RGBtoXYZ);
+    return Math::ToTransform4(RGBtoXYZ);
 }
 
 // Calculates conversion matrix to XYZ coords from RGB coords defined respective to the gamut provided by the input chromaticity values for color primaries
@@ -73,7 +73,7 @@ Math::Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chro
     Math::Vector4f S = invM * Math::Vector4f(whiteXYZ, 1.0f);
     S /= S.w;
     
-    const Math::Matrix4f RGBtoXYZ = ( Math::MakeHomogeneousScale(S.xyz()) * M );
+    const Math::Matrix4f RGBtoXYZ = ( Math::Transform4f::Scale(S.xyz()) * M );
 
     return RGBtoXYZ;
 }

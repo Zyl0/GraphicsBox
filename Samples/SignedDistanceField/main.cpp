@@ -103,7 +103,7 @@ public:
         Bind(*m_SamplePipeline);
         Bind(m_MeshObject->GetVAO());
 
-        SetUniform(*m_SamplePipeline, "Model", Math::MakeHomogeneousIdentity<float>());
+        SetUniform(*m_SamplePipeline, "Model", Matrix4f::Identity());
         SetUniform(*m_SamplePipeline, "ViewProjection", m_Camera.Projection() * m_Camera.View());
 
         SetUniform(*m_SamplePipeline, "lightColor", m_LightColor * m_LightIntensity);

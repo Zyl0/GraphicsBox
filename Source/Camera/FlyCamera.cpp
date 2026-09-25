@@ -82,7 +82,7 @@ Math::Transform4f FlyCamera::ComputeView()
             m_Rotator
             )
         *
-        Math::MakeHomogeneousTranslation(-Position());
+        Math::Transform4f::Translation(-Position());
 }
 
 Math::Matrix4f FlyCamera::ComputeProjection() const
@@ -91,6 +91,6 @@ Math::Matrix4f FlyCamera::ComputeProjection() const
     float ZFar = std::max(float(1), m_FarDistance);
     
     return
-        Math::MakeFrustumProjection(m_FieldOfView, AspectRatio(), ZNear, ZFar);
+        Math::Matrix4f::FrustumProjection(m_FieldOfView, AspectRatio(), ZNear, ZFar);
         //* Math::MakeHomogeneousPerspective(m_FieldOfView, m_AspectRatio, m_NearDistance, m_FarDistance);
 }

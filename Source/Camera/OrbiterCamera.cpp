@@ -8,7 +8,7 @@ void OrbiterCamera::LookAt(const Math::Point3f& center, const float size)
     m_rotation = Math::Vector3f(0, Math::Radians(180.0f), 0);
     m_size = size;
     m_radius = size;
-    Rotator = Math::MakeIdentity<float>();
+    Rotator = Math::Matrix3f::Identity();
 
     UpdateView();
     UpdateProjection();
@@ -36,9 +36,9 @@ void OrbiterCamera::Rotate(float x, float y, float z)
     m_rotation.y = m_rotation.y + x;
     m_rotation.z = m_rotation.z + z;
 
-    Rotator = Math::MakeRotationX(m_rotation.x)
-            * Math::MakeRotationY(m_rotation.y)
-            * Math::MakeRotationZ(m_rotation.z);
+    Rotator = Math::Matrix3f::RotationX(m_rotation.x)
+            * Math::Matrix3f::RotationY(m_rotation.y)
+            * Math::Matrix3f::RotationZ(m_rotation.z);
 
     UpdateView();
     UpdateProjection();
@@ -63,14 +63,14 @@ void OrbiterCamera::Translate(float x, float y, float z)
 
 Math::Transform4f OrbiterCamera::ComputeView()
 {
-    return Math::MakeHomogeneousTranslation( -Position().x, -Position().y, -m_size ) 
+    return Math::Transform4f::Translation( -Position().x, -Position().y, -m_size ) 
         * Math::Transform4f(Rotator)
-        * Math::MakeHomogeneousTranslation( -m_center.x, -m_center.y, -m_center.z ); 
+        * Math::Transform4f::Translation( -m_center.x, -m_center.y, -m_center.z ); 
 }
 
 Math::Matrix4f OrbiterCamera::ComputeProjection()
 {
-    return Math::MakeHomogeneousPerspective(m_fov, m_width / m_height, znear(), zfar());
+    return Math::Transform4f::Perspective(m_fov, m_width / m_height, znear(), zfar());
 }
 
 float OrbiterCamera::znear() const

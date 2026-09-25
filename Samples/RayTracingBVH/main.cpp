@@ -461,7 +461,7 @@ public:
             
             if (ClosestHit)
             {
-                static const Matrix3f RotationX = MakeRotationY<float>(M_PI / 2.0);
+                static const Matrix3f RotationX = Matrix3f::RotationY(M_PI / 2.0);
                 
                 DebugRendering->DrawRay(WorldToViewportProj, PrimaryRay, ClosestHit.t);
                 
@@ -963,7 +963,7 @@ public:
 
     void RayTracedScreenshotBVHShaded()
     {
-        static const Matrix3f RotationX = MakeRotationY<float>(M_PI / 2.0);
+        static const Matrix3f RotationX = Matrix3f::RotationY(M_PI / 2.0);
         /*
          (
             1,0,0,  // 1,0,0,

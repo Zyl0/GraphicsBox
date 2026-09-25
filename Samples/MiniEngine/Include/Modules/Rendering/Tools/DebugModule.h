@@ -31,8 +31,8 @@ namespace Rendering::Debug
 
         void DrawFrustum(const Math::Matrix4f& SourceCamera, const Math::Matrix4f& TargetCamera) const;
         void DrawFrustum(const StorageBuffer& CameraBuffer, uint32_t SourceCamera, uint32_t TargetCamera) const;
-        void DrawBox(const Math::Matrix4f& Camera, const Math::Box3f& Box, const Math::Vector3f& Color, const Math::Matrix4f& Transform = Math::MakeMatrix4Identity<float>()) const;
-        void DrawBox(const StorageBuffer& CameraBuffer, uint32_t Camera, const Math::Box3f& Box, const Math::Vector3f& Color, const Math::Matrix4f& Transform = Math::MakeMatrix4Identity<float>()) const;
+        void DrawBox(const Math::Matrix4f& Camera, const Math::Box3f& Box, const Math::Vector3f& Color, const Math::Matrix4f& Transform = Math::Matrix4f::Identity()) const;
+        void DrawBox(const StorageBuffer& CameraBuffer, uint32_t Camera, const Math::Box3f& Box, const Math::Vector3f& Color, const Math::Matrix4f& Transform = Math::Matrix4f::Identity()) const;
         void DrawRay(const Math::Matrix4f& WorldToProj, Math::Point3f Origin, float Distance, Math::Vector3f Direction, float HitDistance) const;
         void DrawRay(const StorageBuffer& CameraBuffer, Math::Point3f Origin, float Distance, Math::Vector3f Direction, float HitDistance) const;
 

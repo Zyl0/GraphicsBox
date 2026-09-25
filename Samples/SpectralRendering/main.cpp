@@ -303,7 +303,7 @@ int main(void)
                 // Vertex Shader data
                 SetUniform(sRGBMeshToRadiance, "ViewProjection", camera.Projection() * camera.View());
                 // SetUniform(sRGBMeshToRadiance, "InverseViewProjection", camera.InverseView() * camera.InverseProjection());
-                SetUniform(sRGBMeshToRadiance, "Model", MakeHomogeneousIdentity<float>());
+                SetUniform(sRGBMeshToRadiance, "Model", Matrix4f::Identity());
                 // SetUniform(sRGBMeshToRadiance, "InverseModel", MakeHomogeneousIdentity<float>());
 
                 // Material
@@ -363,7 +363,7 @@ int main(void)
 
                 // Vertex Shader data
                 SetUniform(SpectralSlicedMeshToRadiance, "ViewProjection", camera.Projection() * camera.View());
-                SetUniform(SpectralSlicedMeshToRadiance, "Model", MakeHomogeneousIdentity<float>());
+                SetUniform(SpectralSlicedMeshToRadiance, "Model", Matrix4f::Identity());
 
                 // Material
                 SetUniform(SpectralSlicedMeshToRadiance, "BaseColorPack0", CurrentBaseColorSpectralSlices[0]);

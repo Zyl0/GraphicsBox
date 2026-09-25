@@ -5,7 +5,7 @@ using namespace Math;
 
 TEST_CASE("Transforms - Reference Translation")
 {
-    Transform4f trans = MakeHomogeneousTranslation<float>(10.0f, -5.0f, 3.0f);
+    Transform4f trans = Transform4f::Translation(10.0f, -5.0f, 3.0f);
     
     // Translation applied to a point should shift it
     Point3f p(1.0f, 1.0f, 1.0f);
@@ -24,7 +24,7 @@ TEST_CASE("Transforms - Reference Translation")
 
 TEST_CASE("Transforms - Reference Scale")
 {
-    Transform4f scale = MakeHomogeneousScale<float>(2.0f, 0.5f, -1.0f);
+    Transform4f scale = Transform4f::Scale(2.0f, 0.5f, -1.0f);
 
     Point3f p(10.0f, 10.0f, 10.0f);
     Point3f pScaled = scale * p;
@@ -44,7 +44,7 @@ TEST_CASE("Transforms - Reference Rotations")
     float piOver2 = (float)M_PI / 2.0f;
     
     // Right-handed rotation around X-axis
-    Transform4f rotX = MakeHomogeneousRotationX<float>(piOver2);
+    Transform4f rotX = Transform4f::RotationX(piOver2);
     Point3f px(0.0f, 1.0f, 0.0f);
     Point3f pxRot = rotX * px;
     // Y unit vector rotated by 90 degrees around X goes to Z
@@ -53,7 +53,7 @@ TEST_CASE("Transforms - Reference Rotations")
     REQUIRE(Catch::Approx(pxRot.z).margin(0.0001f) == 1.0f);
 
     // Right-handed rotation around Y-axis
-    Transform4f rotY = MakeHomogeneousRotationY<float>(piOver2);
+    Transform4f rotY = Transform4f::RotationY(piOver2);
     Point3f py(1.0f, 0.0f, 0.0f);
     Point3f pyRot = rotY * py;
     // X unit vector rotated by 90 degrees around Y goes to -Z
@@ -62,7 +62,7 @@ TEST_CASE("Transforms - Reference Rotations")
     REQUIRE(Catch::Approx(pyRot.z).margin(0.0001f) == -1.0f);
 
     // Right-handed rotation around Z-axis
-    Transform4f rotZ = MakeHomogeneousRotationZ<float>(piOver2);
+    Transform4f rotZ = Transform4f::RotationZ(piOver2);
     Point3f pz(1.0f, 0.0f, 0.0f);
     Point3f pzRot = rotZ * pz;
     // X unit vector rotated by 90 degrees around Z goes to Y
@@ -71,7 +71,7 @@ TEST_CASE("Transforms - Reference Rotations")
     REQUIRE(Catch::Approx(pzRot.z).margin(0.0001f) == 0.0f);
 
     // Arbitrary axis rotation (around Y-axis as test)
-    Transform4f rotA = MakeHomogeneousRotation<float>(Vector3f(0.0f, 1.0f, 0.0f), piOver2);
+    Transform4f rotA = Transform4f::Rotation(Vector3f(0.0f, 1.0f, 0.0f), piOver2);
     Point3f pa(1.0f, 0.0f, 0.0f);
     Point3f paRot = rotA * pa;
     REQUIRE(Catch::Approx(paRot.x).margin(0.0001f) == 0.0f);
@@ -83,7 +83,7 @@ TEST_CASE("Transforms - Reference Reflection")
 {
     // Reflection across YZ plane (normal is X-axis)
     PlaneF plane(1.0f, 0.0f, 0.0f, 0.0f); 
-    Transform4f refT = MakeHomogeneousReflection<float>(plane);
+    Transform4f refT = Transform4f::Reflection(plane);
     
     Point3f p(5.0f, 3.0f, -2.0f);
     Point3f pRef = refT * p;
@@ -92,7 +92,7 @@ TEST_CASE("Transforms - Reference Reflection")
     REQUIRE(pRef.z == Catch::Approx(-2.0f));
 
     // Vector reflection
-    Transform4f refVec = MakeHomogeneousReflection<float>(Vector3f(0.0f, 1.0f, 0.0f));
+    Transform4f refVec = Transform4f::Reflection(Vector3f(0.0f, 1.0f, 0.0f));
     Point3f p2(5.0f, 3.0f, -2.0f);
     Point3f p2Ref = refVec * p2;
     REQUIRE(p2Ref.x == Catch::Approx(5.0f));
@@ -102,7 +102,7 @@ TEST_CASE("Transforms - Reference Reflection")
 
 TEST_CASE("Transforms - Reference Inverse")
 {
-    Transform4f trans = MakeHomogeneousTranslation<float>(10.0f, 20.0f, 30.0f);
+    Transform4f trans = Transform4f::Translation(10.0f, 20.0f, 30.0f);
     Transform4f invTrans = Inverse(trans);
     
     Point3f p(5.0f, 5.0f, 5.0f);
@@ -120,8 +120,8 @@ TEST_CASE("Transforms - Reference Inverse")
 
 TEST_CASE("Transforms - Reference Composition")
 {
-    Transform4f scale = MakeHomogeneousScale<float>(2.0f, 2.0f, 2.0f);
-    Transform4f trans = MakeHomogeneousTranslation<float>(10.0f, 0.0f, 0.0f);
+    Transform4f scale = Transform4f::Scale(2.0f, 2.0f, 2.0f);
+    Transform4f trans = Transform4f::Translation(10.0f, 0.0f, 0.0f);
     
     // Expected composition T = trans * scale
     // Applying T to p means trans * (scale * p)
@@ -141,7 +141,7 @@ TEST_CASE("Transforms - Reference LookAt")
     Vector3f center(0.0f, 0.0f, 0.0f);
     Vector3f up(0.0f, 1.0f, 0.0f);
     
-    Matrix4f lookAt = MakeLookAtView<float>(eye, center, up);
+    Matrix4f lookAt = Matrix4f::LookAtView(eye, center, up);
     Transform4f lookAtT(lookAt);
     
     // The eye position should map to the origin in view space
@@ -157,7 +157,7 @@ TEST_CASE("Transforms - Reference Projection Setup")
 {
     // Simply check standard layout of an orthogonal projection matrix
     float left = -10.0f, right = 10.0f, bottom = -10.0f, top = 10.0f, near = 1.0f, far = 100.0f;
-    Matrix4f ortho = MakeOrthoProjection<float>(left, right, top, bottom, near, far);
+    Matrix4f ortho = Matrix4f::OrthoProjection(left, right, top, bottom, near, far);
     
     // Ortho matrix M(0,0) = 2/(right - left) = 2/20 = 0.1
     // M(1,1) = 2/(top - bottom) = 2/20 = 0.1
@@ -167,7 +167,7 @@ TEST_CASE("Transforms - Reference Projection Setup")
     
     float fovY = (float)M_PI / 2.0f;
     float aspect = 1.0f;
-    Matrix4f persp = MakeHomogeneousPerspective<float>(fovY, aspect, near, far);
+    Matrix4f persp = Transform4f::Perspective(fovY, aspect, near, far);
     
     // Perspective M(0,0) = 1 / (aspect * tan(fovY/2)) = 1 / tan(PI/4) = 1.0
     // M(1,1) = 1 / tan(fovY/2) = 1.0
