@@ -102,10 +102,10 @@ TraceRay::TraceRay(const Mesh& Mesh, const Ray& Ray, const Math::Transform4f& Wo
     Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
     
     Vector4f t = WorldToModel * Vector4f(m_Ray.origin, 1.0f);
-    m_Ray.origin = Vector3f(t.XYZ()) / t.w;
+    m_Ray.origin = xyz(t) / t.w;
     
     t = WorldToModel * Vector4f(end, 1.0f);
-    end = Vector3f(t.XYZ()) / t.w;
+    end = xyz(t) / t.w;
     
     m_Ray.distance = Magnitude(end - m_Ray.origin);
     m_Ray.direction = Normalize(end - m_Ray.origin);
@@ -126,10 +126,10 @@ TraceRay::TraceRay(const Mesh& Mesh, unsigned FirstVertex, unsigned VertexCount,
     Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
 
     Vector4f t = WorldToModel * Vector4f(m_Ray.origin, 1.0f);
-    m_Ray.origin = Vector3f(t.XYZ()) / t.w;
+    m_Ray.origin = xyz(t) / t.w;
 
     t = WorldToModel * Vector4f(end, 1.0f);
-    end = Vector3f(t.XYZ()) / t.w;
+    end = xyz(t) / t.w;
 
     m_Ray.distance = Magnitude(end - m_Ray.origin);
     m_Ray.direction = Normalize(end - m_Ray.origin);
@@ -391,10 +391,10 @@ TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Math::Transfo
     Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
 
     Vector4f t = WorldToModel * Vector4f(m_Ray.origin, 1.0f);
-    m_Ray.origin = Vector3f(t.XYZ()) / t.w;
+    m_Ray.origin = xyz(t) / t.w;
 
     t = WorldToModel * Vector4f(end, 1.0f);
-    end = Vector3f(t.XYZ()) / t.w;
+    end = xyz(t) / t.w;
 
     m_Ray.distance = Magnitude(end - m_Ray.origin);
     m_Ray.direction = Normalize(end - m_Ray.origin);

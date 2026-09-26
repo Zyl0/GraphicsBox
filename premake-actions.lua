@@ -2085,6 +2085,270 @@ local function UpdateMathSIMTHeadersX86(ISA, HeaderName)
     f2:close()
 end
 
+local function GenerateAllCombinations(digits, minLen, maxLen)
+    digits = digits or {1, 2, 3, 4}
+    minLen = minLen or 2
+    maxLen = maxLen or 4
+    local results = {}
+    -- Recursive helper function
+    local function backtrack(targetLen, current)
+        if #current == targetLen then
+            -- Create a shallow copy of the current combination
+            local copy = {}
+            for i = 1, targetLen do
+                copy[i] = current[i]
+            end
+            table.insert(results, copy)
+            return
+        end
+        for _, num in ipairs(digits) do
+            table.insert(current, num)
+            backtrack(targetLen, current)
+            table.remove(current) -- Backtrack
+        end
+    end
+    -- Generate for each target length
+    for len = minLen, maxLen do
+        backtrack(len, {})
+    end
+    return results
+end
+
+local function CombinationIterator(digits, minLen, maxLen)
+    digits = digits or {1, 2, 3, 4}
+    minLen = minLen or 2
+    maxLen = maxLen or 4
+    return coroutine.wrap(function()
+        local function backtrack(targetLen, current)
+            if #current == targetLen then
+                local copy = {}
+                for i = 1, targetLen do
+                    copy[i] = current[i]
+                end
+                coroutine.yield(copy)
+                return
+            end
+            for _, num in ipairs(digits) do
+                table.insert(current, num)
+                backtrack(targetLen, current)
+                table.remove(current)
+            end
+        end
+        for len = minLen, maxLen do
+            backtrack(len, {})
+        end
+    end)
+end
+
+local function maxVal(list)
+    local maxVal = list[1]
+    for i = 2, #list do
+        if list[i] > maxVal then
+            maxVal = list[i]
+        end
+    end
+    return maxVal
+end
+
+local function UpdateVectorFile()
+    local out_file = path.join(gb_IntermediatesDir, "generated", "Math", "_VectorFunc.h")
+    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Math")) then
+        os.mkdir(path.join(gb_IntermediatesDir, "generated", "Math"))
+    end
+
+    local f = io.open(out_file, "w")
+    local vectorMembers = {"x", "y", "z", "w"}
+
+    f:write("#pragma once\n")
+    f:write("\n")
+    f:write("#include \"Math/Vector.h\"\n")
+    f:write("\n")
+    f:write("namespace Math\n")
+    f:write("{\n")
+    for vectorSize = 2,4 do 
+        f:write("    /* ---------- Common vector operators - Vector"..vectorSize.."t<type> ---------- */\n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE type SquareMagnitude(const Vector"..vectorSize.."t<type>& v)\n")
+        f:write("    {\n")
+        f:write("        return ")
+        for vectorMember = 1, vectorSize do 
+            f:write("v." .. vectorMembers[vectorMember] .. " * v.".. vectorMembers[vectorMember] )
+            if vectorMember ~= vectorSize then
+                f:write(" + ")
+            end
+        end
+        f:write(";\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE type Magnitude(const Vector"..vectorSize.."t<type>& v)\n")
+        f:write("    {\n")
+        f:write("        return std::sqrt(")
+        for vectorMember = 1, vectorSize do 
+            f:write("v." .. vectorMembers[vectorMember] .. " * v.".. vectorMembers[vectorMember] )
+            if vectorMember ~= vectorSize then
+                f:write(" + ")
+            end
+        end
+        f:write(");\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE type SquareDistance(const Vector"..vectorSize.."t<type>& a, const Vector"..vectorSize.."t<type>& b)\n")
+        f:write("    {\n")
+        f:write("        return SquareMagnitude(b - a);\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE Vector"..vectorSize.."t<type> Normalize(const Vector"..vectorSize.."t<type>& v)\n")
+        f:write("    {\n")
+        f:write("        return v / Magnitude(v);\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE Vector"..vectorSize.."t<type> Abs(const Vector"..vectorSize.."t<type>& v)\n")
+        f:write("    {\n")
+        f:write("        return Vector"..vectorSize.."t<type>(")
+        for vectorMember = 1, vectorSize do 
+            f:write("std::abs(v." .. vectorMembers[vectorMember] .. ")" )
+            if vectorMember ~= vectorSize then
+                f:write(", ")
+            end
+        end
+        f:write(");\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE Vector"..vectorSize.."t<type> Sqrt(const Vector"..vectorSize.."t<type>& v)\n")
+        f:write("    {\n")
+        f:write("        return Vector"..vectorSize.."t<type>(")
+        for vectorMember = 1, vectorSize do 
+            f:write("std::sqrt(v." .. vectorMembers[vectorMember] .. ")" )
+            if vectorMember ~= vectorSize then
+                f:write(", ")
+            end
+        end
+        f:write(");\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE Vector"..vectorSize.."t<type> InverseSqrt(const Vector"..vectorSize.."t<type>& v)\n")
+        f:write("    {\n")
+        f:write("        return Vector"..vectorSize.."t<type>(")
+        for vectorMember = 1, vectorSize do 
+            f:write("type(1) / std::sqrt(v." .. vectorMembers[vectorMember] .. ")" )
+            if vectorMember ~= vectorSize then
+                f:write(", ")
+            end
+        end
+        f:write(");\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE type Min(const Vector"..vectorSize.."t<type>& v)\n")
+        f:write("    {\n")
+        f:write("        type min = v.x;\n")
+        for vectorMember = 2, vectorSize do 
+            f:write("        min = std::min(min, v.".. vectorMembers[vectorMember] ..");\n")
+        end
+        f:write("        return min;\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE type Max(const Vector"..vectorSize.."t<type>& v)\n")
+        f:write("    {\n")
+        f:write("        type max = v.x;\n")
+        for vectorMember = 2, vectorSize do 
+            f:write("        max = std::max(max, v.".. vectorMembers[vectorMember] ..");\n")
+        end
+        f:write("        return max;\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE Vector"..vectorSize.."t<type> Min(const Vector"..vectorSize.."t<type>& a, const Vector"..vectorSize.."t<type>& b)\n")
+        f:write("    {\n")
+        f:write("        Vector"..vectorSize.."t<type> res;\n")
+        for vectorMember = 1, vectorSize do 
+            f:write("        res.".. vectorMembers[vectorMember] .." = std::min(a.".. vectorMembers[vectorMember] ..", b.".. vectorMembers[vectorMember] ..");\n")
+        end
+        f:write("        return res;\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE Vector"..vectorSize.."t<type> Max(const Vector"..vectorSize.."t<type>& a, const Vector"..vectorSize.."t<type>& b)\n")
+        f:write("    {\n")
+        f:write("        Vector"..vectorSize.."t<type> res;\n")
+        for vectorMember = 1, vectorSize do 
+            f:write("        res.".. vectorMembers[vectorMember] .." = std::max(a.".. vectorMembers[vectorMember] ..", b.".. vectorMembers[vectorMember] ..");\n")
+        end
+        f:write("        return res;\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE type Dot(const Vector"..vectorSize.."t<type>& a, const Vector"..vectorSize.."t<type>& b)\n")
+        f:write("    {\n")
+        f:write("        return ")
+        for vectorMember = 1, vectorSize do 
+            f:write("a." .. vectorMembers[vectorMember] .. " * b." .. vectorMembers[vectorMember])
+            if vectorMember ~= vectorSize then
+                f:write(" + ")
+            end
+        end
+        f:write(";\n")
+        f:write("        \n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE type CosTheta(const Vector"..vectorSize.."t<type>& a, const Vector"..vectorSize.."t<type>& b)\n")
+        f:write("    {\n")
+        f:write("        Vector"..vectorSize.."t<type> aNorm = Normalize(a), bNorm = Normalize(b);\n")
+        f:write("        return Dot(aNorm, bNorm);\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE Vector"..vectorSize.."t<type> Project(const Vector"..vectorSize.."t<type>& a, const Vector"..vectorSize.."t<type>& b)\n")
+        f:write("    {\n")
+        f:write("        return b * (Dot(a, b) / SquareMagnitude(b));\n")
+        f:write("    }\n")
+        f:write("    \n")
+        f:write("    template<typename type>\n")
+        f:write("    INLINE Vector"..vectorSize.."t<type> Reflect(const Vector"..vectorSize.."t<type>& a, const Vector"..vectorSize.."t<type>& b)\n")
+        f:write("    {\n")
+        f:write("        return a - b * (Dot(a, b) / SquareMagnitude(b));\n")
+        f:write("    }\n")
+        f:write("    \n")
+        -- f:write("     template<typename type>\n")
+        -- f:write("     INLINE Vector"..vectorSize.."t<type> Func(const Vector"..vectorSize.."t<type>& v)\n")
+        -- f:write("     {\n")
+        -- f:write("         \n")
+        -- f:write("     }\n")
+        -- f:write("     \n")
+    end
+    for vectorSize = 2,4 do 
+        f:write("     \n")
+        f:write("    /* ---------- Mapped Accessors - Vector"..vectorSize.."t<type>---------- */\n")
+        for combo in CombinationIterator({1, 2, 3, 4}, 2, 4) do
+            local dstSize = #combo
+            f:write("     template<typename type>\n")
+            f:write("     INLINE Vector"..dstSize.."t<type> ")
+            for i, member in ipairs(combo) do
+                f:write("" .. vectorMembers[member])
+            end
+            f:write("(const Vector"..vectorSize.."t<type>& v)\n")
+            f:write("     {\n")
+            f:write("         Vector"..dstSize.."t<type> res;\n")
+            for member = 1, dstSize do
+                f:write("         res.".. vectorMembers[member] .." = v."..vectorMembers[combo[member]]..";\n")
+            end
+            f:write("         return res;\n")
+            f:write("     }\n")
+        end
+    end
+    f:write("}\n")
+
+    f:close()
+end
+
 local function UpdateConfig()
     local f = io.open("premake-config.lua", "w")
     
@@ -2144,6 +2408,14 @@ newaction {
 }
 
 newaction {
+    trigger = "update-math",
+    description = "update generated math headers",
+    execute = function ()
+        UpdateVectorFile()
+    end
+}
+
+newaction {
     trigger = "setup",
     description = "project setup",
     execute = function ()        
@@ -2181,6 +2453,8 @@ newaction {
         if gbUseSIMD_X86_SSE == true then
             UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "_Types_SSE")
         end
+
+        UpdateVectorFile()
 
         UpdateConfig()
         

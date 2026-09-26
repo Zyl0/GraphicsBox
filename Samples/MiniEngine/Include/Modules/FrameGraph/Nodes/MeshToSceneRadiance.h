@@ -247,7 +247,7 @@ namespace FrameGraph
 
                 
                 // Material
-                SetUniform(GLTFBaseColor, Material.color.XYZ());
+                SetUniform(GLTFBaseColor, Material.color.xyz());
                 SetUniform(GLTFRoughness, Material.roughness);
                 SetUniform(GLTFMetalness, Material.metallic);
                 SetUniform(GLTFUseColorTexture, Material.colorTexture != UINT64_MAX);

@@ -274,8 +274,8 @@ public:
             }
             
             // Material
-            SetUniform(*m_SamplePipeline, "BaseColor", Material.color.XYZ());
-            SetUniform(*m_SamplePipeline, "Emissive", Material.emissive.XYZ());
+            SetUniform(*m_SamplePipeline, "BaseColor", Material.color.xyz());
+            SetUniform(*m_SamplePipeline, "Emissive", Material.emissive.xyz());
             SetUniform(*m_SamplePipeline, "Roughness", Material.roughness);
             SetUniform(*m_SamplePipeline, "Metalness", Material.metallic);
             if (Material.colorTexture != UINT64_MAX)                SetUniform(*m_SamplePipeline, "texColor", 4, m_Textures[Material.colorTexture], *m_MaterialSampler);
@@ -494,10 +494,9 @@ public:
             
                     Vector4f PositionH = ((*ModelMatrix) * Vector4f(VertexInterpolateTriangle(ClosestHit, a.Position(), b.Position(), c.Position()), 1.0f));
                     Position = PositionH.xyz() / PositionH.w;
-                    Normal = Normalize(((*ModelMatrix) * Vector4f(VertexInterpolateTriangle(ClosestHit, a.Normal(), b.Normal(), c.Normal()), 0.0f)).xyz());
+                    Normal = Normalize(xyz(((*ModelMatrix) * Vector4f(VertexInterpolateTriangle(ClosestHit, a.Normal(), b.Normal(), c.Normal()), 0.0f))));
                     break;
                 }
-                
                 
                 const GLTF::Material& material = m_Scene->materials[Material];
                 

@@ -121,36 +121,6 @@ namespace Math
         {return Vector2t(-v.x, -v.y);}
 
     template<typename type>
-    inline type Magnitude(const Vector2t<type>& v)
-        {return std::sqrt(v.x * v.x + v.y * v.y);}
-    
-    template<typename type>
-    inline type SquareMagnitude(const Vector2t<type>& v)
-        {return v.x * v.x + v.y * v.y;}
-
-    template<typename type>
-    inline Vector2t<type> Normalize(const Vector2t<type>& v)
-        {return v / Magnitude(v);}
-    
-    template<typename type>
-    INLINE Vector2t<type> Sqrt(const Vector2t<type>& v)
-    {
-        Vector2t<type> result;
-        result.x = std::sqrt(v.x);
-        result.y = std::sqrt(v.y);
-        return result;
-    }
-    
-    template<typename type>
-    INLINE Vector2t<type> InverseSqrt(const Vector2t<type>& v)
-    {
-        Vector2t<type> result;
-        result.x = type(1) / std::sqrt(v.x);
-        result.y = type(1) / std::sqrt(v.y);
-        return result;
-    }
-
-    template<typename type>
     inline Vector2t<type> operator +(const Vector2t<type>& a, const Vector2t<type>& b)
         {return Vector2t(a.x + b.x, a.y + b.y);}
 
@@ -165,18 +135,7 @@ namespace Math
     template<typename type>
     inline Vector2t<type> operator /(const Vector2t<type>& a, const Vector2t<type>& b)
         {return Vector2t(a.x / b.x, a.y / b.y);}
-
-    template<typename type>
-    inline type Dot(const Vector2t<type> a, const Vector2t<type> b)
-        {return a.x * b.x + a.y * b.y;}
-
-    template<typename type>
-    type CosTheta(const Vector2t<type> a, const Vector2t<type> b)
-    {
-        Vector2t<type> aNormalized = Normalize(a);
-        Vector2t<type> bNormalized = Normalize(b);
-        return Dot(aNormalized, bNormalized);
-    }
+    
     
     template<typename type>
     struct Vector3t
@@ -217,6 +176,15 @@ namespace Math
             z = std::move(Other.z);
             return *this;
         }
+        
+        Vector3t<type>& xy()
+            {return *(this);}
+        
+        Vector3t<type>& yz()
+            {return *reinterpret_cast<Vector3t<type>*>(&y);}
+        
+        Vector3t<type>& xyz()
+            {return *(this);}
 
         type& operator[](const int i)
             {return (&x)[i];}
@@ -311,42 +279,6 @@ namespace Math
         {return Vector3t(-v.x, -v.y, -v.z);}
 
     template<typename type>
-    inline type Magnitude(const Vector3t<type>& v)
-        {return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);}
-
-    template<typename type>
-    inline type SquareMagnitude(const Vector3t<type>& v)
-        {return v.x * v.x + v.y * v.y + v.z * v.z;}
-
-    template<typename type>
-    inline Vector3t<type> Normalize(const Vector3t<type>& v)
-        {return v / Magnitude(v);}
-    
-    template<typename type>
-    inline Vector3t<type> Abs(const Vector3t<type>& v)
-        {return Vector3t<type>(abs(v.x), abs(v.y), abs(v.z));}
-    
-    template<typename type>
-    INLINE Vector3t<type> Sqrt(const Vector3t<type>& v)
-    {
-        Vector3t<type> result;
-        result.x = std::sqrt(v.x);
-        result.y = std::sqrt(v.y);
-        result.z = std::sqrt(v.z);
-        return result;
-    }
-    
-    template<typename type>
-    INLINE Vector3t<type> InverseSqrt(const Vector3t<type>& v)
-    {
-        Vector3t<type> result;
-        result.x = type(1) / std::sqrt(v.x);
-        result.y = type(1) / std::sqrt(v.y);
-        result.z = type(1) / std::sqrt(v.z);
-        return result;
-    }
-
-    template<typename type>
     inline Vector3t<type> operator +(const Vector3t<type>& a,  type s)
         {return Vector3t(a.x + s, a.y + s, a.z + s);}
 
@@ -378,19 +310,6 @@ namespace Math
     inline Vector3t<type> operator /(const Vector3t<type>& a, const Vector3t<type>& b)
         {return Vector3t(a.x / b.x, a.y / b.y, a.z / b.z);}
 
-
-    template<typename type>
-    inline type Dot(const Vector3t<type> a, const Vector3t<type> b)
-        {return a.x * b.x + a.y * b.y + a.z * b.z;}
-
-    template<typename type>
-    type CosTheta(const Vector3t<type> a, const Vector3t<type> b)
-    {
-        Vector3t<type> aNormalized = Normalize(a);
-        Vector3t<type> bNormalized = Normalize(b);
-        return Dot(aNormalized, bNormalized);
-    }
-
     template<typename type>
     inline Vector3t<type> Cross(const Vector3t<type>& a, const Vector3t<type>& b)
     {
@@ -398,19 +317,7 @@ namespace Math
                             a.z * b.x - a.x * b.z,
                             a.x * b.y - a.y * b.x);
     }
-
-    template<typename type>
-    inline Vector3t<type> Project(const Vector3t<type>& a, const Vector3t<type>& b)
-    {
-        return b * (Dot(a, b) / Dot(b,b));
-    }
-
-    template<typename type>
-    inline Vector3t<type> Reflect(const Vector3t<type>& a, const Vector3t<type>& b)
-    {
-        return a - b * (Dot(a, b) / Dot(b,b));
-    }
-
+    
     template<typename type>
     struct Point3t : Vector3t<type>
     {
@@ -546,8 +453,20 @@ namespace Math
         
         Vector4t(const Vector4t<type>& a, const Vector4t<type> b) : x(b.x - a.x), y(b.y - a.y), z(b.z - a.z), w(b.w - a.w) {}
         
+        Vector3t<type>& xy()
+            {return *(this);}
+        
+        Vector3t<type>& yz()
+            {return *reinterpret_cast<Vector3t<type>*>(&y);}
+        
+        Vector3t<type>& zw()
+            {return *reinterpret_cast<Vector3t<type>*>(&y);}
+        
         Vector3t<type>& xyz()
             {return *reinterpret_cast<Vector3t<type>*>(this);}
+        
+        Vector3t<type>& yzw()
+            {return *reinterpret_cast<Vector3t<type>*>(&y);}
         
         const Vector3t<type>& xyz() const
             {return *reinterpret_cast<const Vector3t<type>*>(this);}
@@ -605,36 +524,6 @@ namespace Math
             w -= v.w;
             return *this;
         }
-
-        INLINE Vector3t<type> XXX() const {return Vector3t<type>(x, x, x);}
-        INLINE Vector3t<type> YXX() const {return Vector3t<type>(y, x, x);}
-        INLINE Vector3t<type> ZXX() const {return Vector3t<type>(z, x, x);}
-        INLINE Vector3t<type> XYX() const {return Vector3t<type>(x, y, x);}
-        INLINE Vector3t<type> YYX() const {return Vector3t<type>(y, y, x);}
-        INLINE Vector3t<type> ZYX() const {return Vector3t<type>(z, y, x);}
-        INLINE Vector3t<type> XZX() const {return Vector3t<type>(x, z, x);}
-        INLINE Vector3t<type> YZX() const {return Vector3t<type>(y, z, x);}
-        INLINE Vector3t<type> ZZX() const {return Vector3t<type>(z, z, x);}
-        
-        INLINE Vector3t<type> XXY() const {return Vector3t<type>(x, x, y);}
-        INLINE Vector3t<type> YXY() const {return Vector3t<type>(y, x, y);}
-        INLINE Vector3t<type> ZXY() const {return Vector3t<type>(z, x, y);}
-        INLINE Vector3t<type> XYY() const {return Vector3t<type>(x, y, y);}
-        INLINE Vector3t<type> YYY() const {return Vector3t<type>(y, y, y);}
-        INLINE Vector3t<type> ZYY() const {return Vector3t<type>(z, y, y);}
-        INLINE Vector3t<type> XZY() const {return Vector3t<type>(x, z, y);}
-        INLINE Vector3t<type> YZY() const {return Vector3t<type>(y, z, y);}
-        INLINE Vector3t<type> ZZY() const {return Vector3t<type>(z, z, y);}
-
-        INLINE Vector3t<type> XXZ() const {return Vector3t<type>(x, x, z);}
-        INLINE Vector3t<type> YXZ() const {return Vector3t<type>(y, x, z);}
-        INLINE Vector3t<type> ZXZ() const {return Vector3t<type>(z, x, z);}
-        INLINE Vector3t<type> XYZ() const {return Vector3t<type>(x, y, z);}
-        INLINE Vector3t<type> YYZ() const {return Vector3t<type>(y, y, z);}
-        INLINE Vector3t<type> ZYZ() const {return Vector3t<type>(z, y, z);}
-        INLINE Vector3t<type> XZZ() const {return Vector3t<type>(x, z, z);}
-        INLINE Vector3t<type> YZZ() const {return Vector3t<type>(y, z, z);}
-        INLINE Vector3t<type> ZZZ() const {return Vector3t<type>(z, z, z);}
     };
     
     template<typename type>
@@ -672,40 +561,6 @@ namespace Math
     template<typename type>
     inline Vector4t<type> operator -(const Vector4t<type>& v)
         {return Vector4t(-v.x, -v.y, -v.z, -v.w);}
-    
-    template<typename type>
-    inline type SquareMagnitude(const Vector4t<type>& v)
-        {return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w;}
-
-    template<typename type>
-    inline type Magnitude(const Vector4t<type>& v)
-        {return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);}
-
-    template<typename type>
-    inline Vector4t<type> Normalize(const Vector4t<type>& v)
-        {return v / Magnitude(v);}
-    
-    template<typename type>
-    INLINE Vector4t<type> Sqrt(const Vector4t<type>& v)
-    {
-        Vector4t<type> result;
-        result.x = std::sqrt(v.x);
-        result.y = std::sqrt(v.y);
-        result.z = std::sqrt(v.z);
-        result.w = std::sqrt(v.w);
-        return result;
-    }
-    
-    template<typename type>
-    INLINE Vector4t<type> InverseSqrt(const Vector4t<type>& v)
-    {
-        Vector4t<type> result;
-        result.x = type(1) / std::sqrt(v.x);
-        result.y = type(1) / std::sqrt(v.y);
-        result.z = type(1) / std::sqrt(v.z);
-        result.w = type(1) / std::sqrt(v.w);
-        return result;
-    }
 
     template<typename type>
     inline Vector4t<type> operator +(const Vector4t<type>& a, const Vector4t<type>& b)
@@ -722,30 +577,6 @@ namespace Math
     template<typename type>
     inline Vector4t<type> operator /(const Vector4t<type>& a, const Vector4t<type>& b)
         {return Vector4t(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);}
-
-    template<typename type>
-    inline type Dot(const Vector4t<type> a, const Vector4t<type> b)
-        {return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;}
-
-    template<typename type>
-    type CosTheta(const Vector4t<type> a, const Vector4t<type> b)
-    {
-        Vector4t<type> aNormalized = Normalize(a);
-        Vector4t<type> bNormalized = Normalize(b);
-        return Dot(aNormalized, bNormalized);
-    }
-
-    template<typename type>
-    inline Vector4t<type> Project(const Vector4t<type>& a, const Vector4t<type>& b)
-    {
-        return b * (Dot(a, b) / Dot(b,b));
-    }
-
-    template<typename type>
-    inline Vector4t<type> Reflect(const Vector3t<type>& a, const Vector4t<type>& b)
-    {
-        return a - b * (Dot(a, b) / Dot(b,b));
-    }
 
     using Vector2i = Vector2t<int>;
     using Vector2f = Vector2t<float>;
@@ -764,4 +595,4 @@ namespace Math
     using Vector4d = Vector4t<double>;
 }
 
-
+#include "Math/_VectorFunc.h"

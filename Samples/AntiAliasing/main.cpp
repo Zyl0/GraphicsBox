@@ -467,7 +467,7 @@ public:
 
             
             // Material
-            SetUniform(*pipeline, "BaseColor", Material.color.XYZ());
+            SetUniform(*pipeline, "BaseColor", Material.color.xyz());
             SetUniform(*pipeline, "Roughness", Material.roughness);
             SetUniform(*pipeline, "Metalness", Material.metallic);
             SetUniform(*pipeline, "UseColorTexture", Material.colorTexture != UINT64_MAX);

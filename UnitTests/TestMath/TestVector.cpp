@@ -269,7 +269,7 @@ TEST_CASE("Vector4 - Constructors and Element Access")
     REQUIRE(xyz.y == 6.0f);
     REQUIRE(xyz.z == 7.0f);
     
-    Vector3f yzx = v1.YZX();
+    Vector3f yzx = Math::yzx(v1);
     REQUIRE(yzx.x == 6.0f);
     REQUIRE(yzx.y == 7.0f);
     REQUIRE(yzx.z == 5.0f);

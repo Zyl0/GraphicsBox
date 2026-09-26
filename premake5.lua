@@ -518,6 +518,7 @@ group "Utilites"
             path.join(gb_SrcDir, "Math", "**.hpp"),
             path.join(gb_SrcDir, "Math", "**.c"),
             path.join(gb_SrcDir, "Math", "**.cpp"),
+            files (path.join(gb_IntermediatesDir, "generated", "Math", "_VectorFunc.h"))
         }
 
 

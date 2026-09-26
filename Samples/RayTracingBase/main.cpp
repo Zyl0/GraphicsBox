@@ -183,7 +183,7 @@ public:
             }
             
             // Material
-            SetUniform(*m_SamplePipeline, "baseColor", Material.color.XYZ());
+            SetUniform(*m_SamplePipeline, "baseColor", Material.color.xyz());
             // SetUniform(*m_SamplePipeline, "emissive", Material.emissive.XYZ());
             // SetUniform(*m_SamplePipeline, "roughness", Material.roughness);
             // SetUniform(*m_SamplePipeline, "metallic", Material.metallic);
