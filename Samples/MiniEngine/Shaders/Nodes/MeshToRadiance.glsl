@@ -105,6 +105,7 @@ void main( )
 #include "Include/FresnelSchlick.glsl"
 #include "Include/GGX.glsl"
 #include "Include/PBRLightingModel.glsl"
+#include "Include/GLTF.glsl"
 
 // Skylight method switch
 #ifdef USE_CUBEMAP_SKYLIGHT
@@ -151,18 +152,22 @@ uniform uint IndirectLightingSampleCount;
 
 // Material
 uniform vec3 BaseColor;
+uniform vec3 SpecularColor;
 uniform float Roughness;
 uniform float Metalness;
+uniform uint MaterialFlags;
 
 uniform uint UseColorTexture;
 uniform uint UseNormalTexture;
 uniform uint UseMRTexture;
 uniform uint UseAOTexture;
+uniform uint UseSpecularTexture;
 
 uniform sampler2D texColor;
 uniform sampler2D texNormal;
 uniform sampler2D texMR;
 uniform sampler2D texAO;
+uniform sampler2D texSpecular;
 
 uniform vec3 LightDirection;
 uniform vec3 LightColor;
@@ -184,13 +189,20 @@ layout(location= 1) out vec3 OutMotion;
 void main()
 {
     vec3 PixBaseColor = BaseColor;
+    vec3 Specular = SpecularColor;
     float PixMetalness = Metalness;
     float PixRoughness = Roughness;
     float PixAmbiantOcclusion = 1.f;
 
     if (UseColorTexture == 1)
     {
-        PixBaseColor = texture(texColor, UV0).xyz;
+        vec4 s = texture(texColor, UV0);
+        if (s.a < 0.5f) discard;
+        PixBaseColor = s.xyz * PixBaseColor;
+    }
+    if (UseSpecularTexture == 1)
+    {
+        Specular = texture(texSpecular, UV0).xyz * Specular;
     }
     if (UseMRTexture == 1)
     {
@@ -221,6 +233,15 @@ void main()
     vec3 DiffuseColor = mix(PixBaseColor, vec3(0), PixMetalness);
     vec3 F0 = mix(vec3(0.04), PixBaseColor, PixMetalness);
     float Alpha = PixRoughness * PixRoughness;
+    
+    if ((MaterialFlags & GLTF_Mat_UseSpecularGlossinessPBRExt) != 0)
+    {
+        // Color_diff = diffuse.rgb * (1 - max(specular.x, specular.y, specular.z))
+        // F0 = specular
+        // alpha = roughness ^ 2
+        DiffuseColor = mix(PixBaseColor * (1 - max(Specular.x, max(Specular.y, Specular.z))), vec3(0), PixMetalness);
+        vec3 F0 = mix(vec3(0.04), Specular, PixMetalness);
+    }
 
     vec3 Normal =  FragNormal;
     vec3 LocalNormal = vec3(0,0,1);

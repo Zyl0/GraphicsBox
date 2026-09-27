@@ -115,18 +115,22 @@ layout(location= 5) in mat3 FragTBN;
 
 // Material
 uniform vec3 BaseColor;
+uniform vec3 SpecularColor;
 uniform float Roughness;
 uniform float Metalness;
+uniform uint MaterialFlags;
 
 uniform uint UseColorTexture;
 uniform uint UseNormalTexture;
 uniform uint UseMRTexture;
 uniform uint UseAOTexture;
+uniform uint UseSpecularTexture;
 
 uniform sampler2D texColor;
 uniform sampler2D texNormal;
 uniform sampler2D texMR;
 uniform sampler2D texAO;
+uniform sampler2D texSpecular;
 
 layout(location= 0) out vec3 OutColor;
 // layout(location= 1) out vec4 OutPackedNormalTangent;
@@ -137,13 +141,20 @@ layout(location= 3) out vec3 OutProperties;
 void main()
 {
     OutColor = BaseColor;
+    vec3 Specular = SpecularColor;
     float PixMetalness = Metalness;
     float PixRoughness = Roughness;
     float PixAmbiantOcclusion = 1.f;
 
     if (UseColorTexture == 1)
     {
-        OutColor = texture(texColor, UV0).xyz;
+        vec4 s = texture(texColor, UV0);
+        if (s.a < 0.5f) discard;
+        OutColor = s.xyz * OutColor;
+    }
+    if (UseSpecularTexture == 1)
+    {
+        Specular = texture(texSpecular, UV0).xyz * SpecularColor;
     }
     if (UseMRTexture == 1)
     {

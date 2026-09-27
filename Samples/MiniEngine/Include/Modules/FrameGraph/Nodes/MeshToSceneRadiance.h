@@ -193,17 +193,21 @@ namespace FrameGraph
             
             // Uniform Data
             GLint GLTFBaseColor = GetUniformLocation(*pipeline, "BaseColor");
+            GLint GLTFSpecularColor = GetUniformLocation(*pipeline, "SpecularColor");
             GLint GLTFRoughness = GetUniformLocation(*pipeline, "Roughness");
             GLint GLTFMetalness = GetUniformLocation(*pipeline, "Metalness");
             GLint GLTFUseColorTexture = GetUniformLocation(*pipeline, "UseColorTexture");
             GLint GLTFUseNormalTexture = GetUniformLocation(*pipeline, "UseNormalTexture");
             GLint GLTFUseMRTexture = GetUniformLocation(*pipeline, "UseMRTexture");
             GLint GLTFUseAOTexture = GetUniformLocation(*pipeline, "UseAOTexture");
+            GLint GLTFSpecularTexture = GetUniformLocation(*pipeline, "UseSpecularTexture");
             GLint GLTFTexColor = GetUniformLocation(*pipeline, "texColor");
             GLint GLTFTexNormal = GetUniformLocation(*pipeline, "texNormal");
             GLint GLTFTexMR = GetUniformLocation(*pipeline, "texMR");
             GLint GLTFTexAO = GetUniformLocation(*pipeline, "texAO");
+            GLint GLTFTexSpecular = GetUniformLocation(*pipeline, "texSpecular");
             GLint GLTFModelMatrix = GetUniformLocation(*pipeline, "Model");
+            GLint GLTFMaterialFlags = GetUniformLocation(*pipeline, "MaterialFlags");
             
             // Scene storage buffers
             SetUniform(0, Resources.GetCameraBuffer());
@@ -248,17 +252,21 @@ namespace FrameGraph
                 
                 // Material
                 SetUniform(GLTFBaseColor, Material.color.xyz());
+                SetUniform(GLTFSpecularColor, Material.specularColor.xyz());
                 SetUniform(GLTFRoughness, Material.roughness);
                 SetUniform(GLTFMetalness, Material.metallic);
                 SetUniform(GLTFUseColorTexture, Material.colorTexture != UINT64_MAX);
                 SetUniform(GLTFUseNormalTexture, Material.normalTexture != UINT64_MAX);
                 SetUniform(GLTFUseMRTexture, Material.metallicRoughnessTexture != UINT64_MAX);
                 SetUniform(GLTFUseAOTexture, Material.occlusionTexture != UINT64_MAX);
+                SetUniform(GLTFTexSpecular, Material.specularTexture != UINT64_MAX);
+                SetUniform(GLTFMaterialFlags, (uint32_t)Material.flags);
                 
                 if (Material.colorTexture != UINT64_MAX)                SetUniform(GLTFTexColor, 4, Resources.Scene().textures[Material.colorTexture], MaterialSampler);
                 if (Material.normalTexture != UINT64_MAX)               SetUniform(GLTFTexNormal, 5, Resources.Scene().textures[Material.normalTexture], MaterialSampler);
                 if (Material.metallicRoughnessTexture != UINT64_MAX)    SetUniform(GLTFTexMR, 6, Resources.Scene().textures[Material.metallicRoughnessTexture], MaterialSampler);
                 if (Material.occlusionTexture != UINT64_MAX)            SetUniform(GLTFTexAO, 7, Resources.Scene().textures[Material.occlusionTexture], MaterialSampler);
+                if (Material.specularTexture != UINT64_MAX)            SetUniform(GLTFSpecularTexture, 7, Resources.Scene().textures[Material.specularTexture], MaterialSampler);
                 
                 Bind(Mesh.GetVAO());
                 if (Mesh.GetIndexBuffer().has_value())
