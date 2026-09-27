@@ -638,7 +638,7 @@ namespace Math::Simt
         static Matrix4 OrthoProjection(const ScalarType& l, const ScalarType& r, const ScalarType& t, const ScalarType& b, const ScalarType& n, const ScalarType& f)
         {
             ScalarType wInv = DataType(1) / (r - l);
-            ScalarType hInv = DataType(1) / (b - t);
+            ScalarType hInv = DataType(1) / (t - b);
             ScalarType dInv = DataType(1) / (f - n);
             
             return Matrix4(
