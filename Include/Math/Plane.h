@@ -24,6 +24,12 @@ namespace Math
     {
         return (f.x * v.x + f.y * v.y + f.z * v.z);
     }
+    
+    template<typename type>
+    type Dot(const PlaneT<type> &f, const Vector4t<type> &v)
+    {
+        return (f.x * v.x + f.y * v.y + f.z * v.z + f.w * v.w);
+    }
 
     template<typename type>
     type Dot(const PlaneT<type> &f, const Point3t<type> &p)

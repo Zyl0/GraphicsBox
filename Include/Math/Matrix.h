@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Plane.h"
 #include "Vector.h"
 
 namespace Math
@@ -600,7 +601,7 @@ namespace Math
         INLINE static Matrix4t OrthoProjection(type l, type r, type t, type b, type n, type f)
         {
             type wInv = static_cast<type>(1) / (r - l);
-            type hInv = static_cast<type>(1) / (b - t);
+            type hInv = static_cast<type>(1) / (t - b);
             type dInv = static_cast<type>(1) / (f - n);
 
             return Matrix4t(
@@ -610,7 +611,44 @@ namespace Math
                 static_cast<type>(0),       static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(1)
             );
         }
-
+        
+        INLINE static Matrix4t ProjectionNearPlane(const Matrix4t& P, const PlaneT<type>& k)
+        {
+            Matrix4t P2 = P;
+            Vector4t<type> vcamera = {
+                (k.x < type(0) ? type(-1) : type(1) - P(0, 2)) / P(0, 0),
+                (k.y < type(0) ? type(-1) : type(1) - P(1, 2)) / P(1, 1),
+                type(1),
+                (type(1) - P(2, 2)) / P(2, 3),
+            };
+            
+            type m = type(1) / Dot(k, vcamera);
+            P2(2, 0) = m * k.x;
+            P2(2, 1) = m * k.y;
+            P2(2, 2) = m * k.z;
+            P2(2, 3) = m * k.w;
+            
+            return P2;
+        }
+        
+        INLINE static Matrix4t RevProjectionNearPlane(const Matrix4t& P, const PlaneT<type>& k)
+        {
+            Matrix4t P2 = P;
+            Vector4t<type> vcamera = {
+                (k.x < type(0) ? type(-1) : type(1) - P(0, 2)) / P(0, 0),
+                (k.y < type(0) ? type(-1) : type(1) - P(1, 2)) / P(1, 1),
+                type(1),
+                P(2, 2) / P(2, 3),
+            };
+            
+            type m = -type(1) / Dot(k, vcamera);
+            P2(2, 0) = m * k.x;
+            P2(2, 1) = m * k.y;
+            P2(2, 2) = m * k.z + type(1);
+            P2(2, 3) = m * k.w;
+            
+            return P2;
+        }
 
         static Matrix4t LookAtView(Vector3t<type> from, Vector3t<type> at, Vector3t<type> up);
     };
