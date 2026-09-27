@@ -23,3 +23,6 @@
 [submodule "Catch2"]
 	path = Dependencies/LibSources/Catch2
 	url = https://github.com/catchorg/Catch2.git
+[submodule "ImGuizmo"]
+	path = Dependencies/LibSources/ImGuizmo
+	url = https://github.com/CedricGuillemet/ImGuizmo.git

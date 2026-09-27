@@ -473,6 +473,26 @@ end
         defines { 
             "GLEW_STATIC"
         }
+    
+    project "ImGUIzmo"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
+        project_dir = path.join(gb_SourceDependencyDir, "ImGuizmo")
+        
+        -- Project includes
+        includedirs (project_dir)
+
+        -- Project files
+        files {
+            path.join(project_dir, "src", "*.cpp"),
+            path.join(project_dir, "src", "*.c"), 
+            path.join(project_dir, "src", "*.h")
+        }
+    
 group "Utilites"
     project "Shared"
         language "C++"
@@ -834,6 +854,7 @@ group "Samples"
             path.join(gb_SourceDependencyDir, "imgui"),
             path.join(gb_SourceDependencyDir, "ctti", "include"),
             path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
+            path.join(gb_SourceDependencyDir, "ImGuizmo", "src"),
             path.join(gb_SourceDependencyDir, "Lyra", "include"),
         }
 
@@ -862,7 +883,8 @@ group "Samples"
             "RayTracing",
             "Rendering",
             "TinyGLTF3",
-            "ImGUI"
+            "ImGUI",
+            "ImGUIzmo"
         }
 
         dependson {
@@ -878,7 +900,8 @@ group "Samples"
             "RayTracing",
             "Rendering",
             "TinyGLTF3",
-            "ImGUI"
+            "ImGUI",
+           "ImGUIzmo"
         }
 
         -- Window specific 
@@ -985,6 +1008,7 @@ group "Samples"
                 path.join(gb_SamplesDir, name),
                 path.join(gb_SourceDependencyDir, "ctti", "include"),
                 path.join(gb_SourceDependencyDir, "imgui"),
+                path.join(gb_SourceDependencyDir, "ImGuizmo", "src"),
                 path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
             }
 
