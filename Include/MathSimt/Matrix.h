@@ -164,7 +164,7 @@ namespace Math::Simt
             return Matrix3(
                 ScalarType(1),  ScalarType(0),  ScalarType(0),
                 ScalarType(0),  c,              -s,
-                ScalarType(0),  -s,             c
+                ScalarType(0),  s,              c
             );
         }
         
