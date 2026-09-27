@@ -106,32 +106,32 @@ namespace Math::Simt
             typename ScalarType::MaskType mask, set{};
 
             mask = sum > ScalarType(0);
-            f = Type(0.25) / w;
             w = Select(Sqrt(sum + Type(1)) * Type(0.5), w, mask);
+            f = Type(0.25) / w;
             x = Select((m(2,1) - m(1,2)) * f, x, mask);
             y = Select((m(0,2) - m(2,0)) * f, y, mask);
             z = Select((m(1,0) - m(0,1)) * f, z, mask);
-            set &= mask;
+            set |= mask;
             
-            mask = (m00 > m11) && (m00 > m22);
-            f = Type(0.25) / x;
+            mask = !set && (m00 > m11) && (m00 > m22);
             x = Select(Sqrt(m00 - m11 - m22 + Type(1)) * Type(0.5), x, mask);
+            f = Type(0.25) / x;
             y = Select((m(1,0) - m(0,1)) * f, y, mask);
             z = Select((m(0,2) - m(2,0)) * f, z, mask);
             w = Select((m(2,1) - m(1,2)) * f, w, mask);
-            set &= mask;
+            set |= mask;
 
-            mask = m11 > m22;
-            f = Type(0.25) / y;
+            mask = !set && m11 > m22;
             y = Select(Sqrt(m11 - m00 - m22 + Type(1)) * Type(0.5), y, mask);
+            f = Type(0.25) / y;
             x = Select((m(1,0) - m(0,1)) * f, x, mask);
             z = Select((m(2,1) - m(1,2)) * f, z, mask);
             w = Select((m(0,2) - m(2,0)) * f, w, mask);
-            set &= mask;
+            set |= mask;
 
             set = ~set;
-            f = Type(0.25) / z;
             z = Select(Sqrt(m22 - m00 - m11 + Type(1)) * Type(0.5), z, set);
+            f = Type(0.25) / z;
             x = Select((m(0,2) - m(2,0)) * f, x, set);
             y = Select((m(2,1) - m(1,2)) * f, y, set);
             w = Select((m(1,0) - m(0,1)) * f, w, set);

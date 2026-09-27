@@ -58,9 +58,9 @@ TEMPLATE_TEST_CASE_SIG("Quaternion", "[Scalar]",
         Vector3 v(1.0f, 0.0f, 0.0f);
         Vector3 rot = q3(v); 
         // Rotate (1,0,0) by pi around y axis -> (-1, 0, 0)
-        REQUIRE((rot.x == -1.0f).All() == true);
-        REQUIRE((rot.y == 0.0f).All() == true);
-        REQUIRE((rot.z == 0.0f).All() == true);
+        REQUIRE(((rot.x > (-1.0f - 0.001f)) && (rot.x < (-1.0f + 0.001f))).All() == true);
+        REQUIRE(((rot.y > ( 0.0f - 0.001f)) && (rot.y < ( 0.f + 0.001f))).All() == true);
+        REQUIRE(((rot.z > ( 0.0f - 0.001f)) && (rot.z < ( 0.f + 0.001f))).All() == true);
     }
 
     SECTION("Quaternion - Operators")

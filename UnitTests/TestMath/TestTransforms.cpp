@@ -137,15 +137,15 @@ TEST_CASE("Transforms - Reference Composition")
 
 TEST_CASE("Transforms - Reference LookAt")
 {
-    Vector3f eye(0.0f, 0.0f, 5.0f);
+    Vector3f eye(5.0f, 0.0f, 0.0f);
     Vector3f center(0.0f, 0.0f, 0.0f);
-    Vector3f up(0.0f, 1.0f, 0.0f);
+    Vector3f up(0.0f, 0.0f, 1.0f);
     
     Matrix4f lookAt = Matrix4f::LookAtView(eye, center, up);
     Transform4f lookAtT(lookAt);
     
     // The eye position should map to the origin in view space
-    Point3f pEyePoint(0.0f, 0.0f, 5.0f);
+    Point3f pEyePoint(5.0f, 0.0f, 0.0f);
     Point3f pView = lookAtT * pEyePoint;
     
     REQUIRE(Catch::Approx(pView.x).margin(0.0001f) == 0.0f);

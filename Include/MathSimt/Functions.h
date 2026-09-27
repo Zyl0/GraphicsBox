@@ -23,7 +23,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::sqrt(v.m[i]);
         }
 
-        return v;
+        return r;
     }
     
     template<typename DataType, size_t ThreadCount>
@@ -36,7 +36,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = DataType(1) / std::sqrt(v.m[i]);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -49,7 +49,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::pow(v.m[i], exp.m[i]);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -62,7 +62,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::pow(v.m[i], exp);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -94,7 +94,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::exp(v.m[i]);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -301,7 +301,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::sin(v.m[i]);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -314,7 +314,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::asin(v.m[i]);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -327,7 +327,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::cos(v.m[i]);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -340,7 +340,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::acos(v.m[i]);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -353,7 +353,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::tan(v.m[i]);
         }
 
-        return v;
+        return r;
     }
 
     template<typename DataType, size_t ThreadCount>
@@ -366,7 +366,7 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::atan(v.m[i]);
         }
 
-        return v;
+        return r;
     }
     
     template<typename DataType, size_t ThreadCount>
@@ -379,6 +379,6 @@ MATH_SIMT_OMP_SIMDIFY_FOR()
             r.m[i] = std::atan2(Y.m[i], X.m[i]);
         }
 
-        return Y;
+        return r;
     }
 }

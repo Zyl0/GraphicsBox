@@ -74,35 +74,35 @@ TEMPLATE_TEST_CASE_SIG("Transforms", "[Scalar]",
         Point3 px(0.0f, 1.0f, 0.0f);
         Point3 pxRot = rotX * px;
         // Y unit vector rotated by 90 degrees around X goes to Z
-        REQUIRE((pxRot.x == T(0)).All() == true);
-        REQUIRE((pxRot.y == T(0)).All() == true);
-        REQUIRE((pxRot.z == T(1)).All() == true);
+        REQUIRE((pxRot.x > T(0 - 0.0001) && pxRot.x < T(0 + 0.0001)).All() == true);
+        REQUIRE((pxRot.y > T(0 - 0.0001) && pxRot.y < T(0 + 0.0001)).All() == true);
+        REQUIRE((pxRot.z > T(1 - 0.0001) && pxRot.z < T(1 + 0.0001)).All() == true);
 
         // Right-handed rotation around Y-axis
         Transform4 rotY = Transform4::RotationY(piOver2);
         Point3 py(1.0f, 0.0f, 0.0f);
         Point3 pyRot = rotY * py;
         // X unit vector rotated by 90 degrees around Y goes to -Z
-        REQUIRE((pyRot.x == T(0)).All() == true);
-        REQUIRE((pyRot.y == T(0)).All() == true);
-        REQUIRE((pyRot.z == T(-1)).All() == true);
+        REQUIRE((pyRot.x > T( 0 - 0.0001) && pyRot.x < T( 0 + 0.0001)).All() == true);
+        REQUIRE((pyRot.y > T( 0 - 0.0001) && pyRot.y < T( 0 + 0.0001)).All() == true);
+        REQUIRE((pyRot.z > T(-1 - 0.0001) && pyRot.z < T(-1 + 0.0001)).All() == true);
 
         // Right-handed rotation around Z-axis
         Transform4 rotZ = Transform4::RotationZ(piOver2);
         Point3 pz(1.0f, 0.0f, 0.0f);
         Point3 pzRot = rotZ * pz;
         // X unit vector rotated by 90 degrees around Z goes to Y
-        REQUIRE((pzRot.x == T(0)).All() == true);
-        REQUIRE((pzRot.y == T(1)).All() == true);
-        REQUIRE((pzRot.z == T(0)).All() == true);
+        REQUIRE((pzRot.x > T(0 - 0.0001) && pzRot.x < T(0 + 0.0001)).All() == true);
+        REQUIRE((pzRot.y > T(1 - 0.0001) && pzRot.y < T(1 + 0.0001)).All() == true);
+        REQUIRE((pzRot.z > T(0 - 0.0001) && pzRot.z < T(0 + 0.0001)).All() == true);
 
         // Arbitrary axis rotation (around Y-axis as test)
         Transform4 rotA = Transform4::Rotation(Vector3(0.0f, 1.0f, 0.0f), piOver2);
         Point3 pa(1.0f, 0.0f, 0.0f);
         Point3 paRot = rotA * pa;
-        REQUIRE((paRot.x == T(0)).All() == true);
-        REQUIRE((paRot.y == T(0)).All() == true);
-        REQUIRE((paRot.z == T(-1)).All() == true);
+        REQUIRE((paRot.x > T( 0 - 0.0001) && paRot.x < T( 0 + 0.0001)).All() == true);
+        REQUIRE((paRot.y > T( 0 - 0.0001) && paRot.y < T( 0 + 0.0001)).All() == true);
+        REQUIRE((paRot.z > T(-1 - 0.0001) && paRot.z < T(-1 + 0.0001)).All() == true);
     }
 
     SECTION("Transforms - Reference Reflection")
@@ -197,7 +197,7 @@ TEMPLATE_TEST_CASE_SIG("Transforms", "[Scalar]",
     
         // Perspective M(0,0) = 1 / (aspect * tan(fovY/2)) = 1 / tan(PI/4) = 1.0
         // M(1,1) = 1 / tan(fovY/2) = 1.0
-        REQUIRE((persp(0, 0) == T(1.0)).All() == true);
-        REQUIRE((persp(1, 1) == T(1.0)).All() == true);
+        REQUIRE((persp(0, 0) > T(1.0 - 0.0001) && persp(0, 0) < T(1.0 + 0.0001)).All() == true);
+        REQUIRE((persp(1, 1) > T(1.0 - 0.0001) && persp(1, 1) < T(1.0 + 0.0001)).All() == true);
     }
 }

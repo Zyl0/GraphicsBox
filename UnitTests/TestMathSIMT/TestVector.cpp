@@ -199,7 +199,8 @@ TEMPLATE_TEST_CASE_SIG("Vectors", "[Scalar]",
         REQUIRE((SquareMagnitude(v) == T(49)).All() == true);
     
         Vector3 n = Normalize(v);
-        REQUIRE((Magnitude(n) == T(1)).All() == true);
+        ScalarType mag = Magnitude(n);
+        REQUIRE((mag > T(1 - 0.0001) && (mag < T(1 + 0.0001))).All() == true);
         REQUIRE((n.x == T(2) / T(7)).All() == true);
 
         Vector3 a(T(1), T(0), T(0));
