@@ -33,7 +33,7 @@ TEMPLATE_TEST_CASE_SIG("Quaternion", "[Scalar]",
     {
         Quaternion q1;
         Quaternion q2(0.0f, 0.0f, 0.0f, 1.0f);
-        Quaternion q3(Vector3(0.0f, 1.0f, 0.0f), (float)M_PI);
+        Quaternion q3 = Quaternion::FromAxisAngle(Vector3(0.0f, 1.0f, 0.0f), (float)M_PI);
         Quaternion q4(0.0f, (float)M_PI / 2.0f, 0.0f); // yaw, pitch, roll
     
         REQUIRE((q2.x == 0.0f).All() == true);

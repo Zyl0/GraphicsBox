@@ -43,6 +43,15 @@ namespace Math::Simt
             y = sy * cp * sr + cy * sp * cr;
             z = sy * cp * cr - cy * sp * sr;
         }
+        
+        static Quaternion FromAxisAngle(const Vector3<DataType, ThreadCount>&axis, const ScalarType& angle)
+        {
+            ScalarType halfAngle = angle * DataType(0.5);
+            return Quaternion(
+                Normalize(axis) * Sin(halfAngle),
+                Cos(halfAngle)
+            );
+        }
 
         INLINE const Vector3<DataType, ThreadCount>& GetVectorPart() const
         {

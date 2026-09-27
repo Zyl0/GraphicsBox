@@ -7,7 +7,7 @@ TEST_CASE("Quaternion - Constructors and Properties")
 {
     QuaternionF q1;
     QuaternionF q2(0.0f, 0.0f, 0.0f, 1.0f);
-    QuaternionF q3(Vector3f(0.0f, 1.0f, 0.0f), (float)M_PI);
+    QuaternionF q3 = QuaternionF::FromAxisAngle(Vector3f(0.0f, 1.0f, 0.0f), (float)M_PI);
     QuaternionF q4(0.0f, (float)M_PI / 2.0f, 0.0f); // yaw, pitch, roll
     
     REQUIRE(q2.x == 0.0f);

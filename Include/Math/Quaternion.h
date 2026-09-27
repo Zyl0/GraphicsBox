@@ -16,6 +16,15 @@ namespace Math
         QuaternionT(const Vector3t<type> &v, float s) : x(v.x), y(v.y), z(v.z), w(s) {}
 
         QuaternionT(type yaw, type pitch, type roll);
+        
+        static QuaternionT FromAxisAngle(const Vector3t<type> &axis, float angle)
+        {
+            type halfAngle = angle * static_cast<type>(0.5);
+            return QuaternionT(
+                Normalize(axis) * std::sin(halfAngle),
+                std::cos(halfAngle)
+            );
+        }
 
         const Vector3t<type> &GetVectorPart() const
         {
@@ -41,6 +50,11 @@ namespace Math
             //const Vector3t<type> &b = GetVectorPart();
             //type b2 = b.x * b.x + b.y * b.y + b.z + b.z;
             //return (v * (w * w - b2) + b * (Dot(v,b) * static_cast<type>(2)) + Cross(b, v) * (w * static_cast<type>(2)));
+            
+            // Faster implementation assuming the quaternion is normalized, requires code to ensure the normalization to be deployed
+            // const Vector3t<type> &u = GetVectorPart();
+            // Vector3t<type> t = static_cast<type>(2) * Cross(u, v);
+            // return v + (w * t) + Cross(u, t);
 
             const Vector3t<type> &u = GetVectorPart();
             const type s = w;
