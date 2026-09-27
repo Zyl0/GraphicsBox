@@ -193,7 +193,7 @@ TEMPLATE_TEST_CASE_SIG("Transforms", "[Scalar]",
     
         ScalarType fovY = ScalarType(M_PI) / T(2);
         ScalarType aspect = T(1);
-        Matrix4 persp = Transform4::Perspective(fovY, aspect, near, far);
+        Matrix4 persp = Matrix4::FrustumProjection(fovY, aspect, near, far);
     
         // Perspective M(0,0) = 1 / (aspect * tan(fovY/2)) = 1 / tan(PI/4) = 1.0
         // M(1,1) = 1 / tan(fovY/2) = 1.0

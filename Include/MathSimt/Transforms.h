@@ -259,6 +259,7 @@ namespace Math::Simt
             );
         }
         
+        /* Perspective from gkit, removed for now
         INLINE static Transform4 Perspective(const Scalar<DataType, ThreadCount>& fieldOfView, const Scalar<DataType, ThreadCount>& aspectRatio, const Scalar<DataType, ThreadCount>& zNear, const Scalar<DataType, ThreadCount>& zFar)
         {
             Scalar<DataType, ThreadCount> itan = DataType(1) / Tan(fieldOfView * DataType(0.5));
@@ -272,6 +273,7 @@ namespace Math::Simt
                     DataType(0),        DataType(0),    DataType(-1),       DataType(0)
                 ));
         }
+        */
     };
 
     template <typename DataType, size_t ThreadCount> requires (std::is_arithmetic_v<DataType>)

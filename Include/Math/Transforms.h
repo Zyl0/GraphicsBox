@@ -223,6 +223,7 @@ namespace Math
             return Scale(s, s, s);
         }
 
+        /* Perspective from gkit, removed for now
         INLINE static Transform4t Perspective(type fieldOfView, type aspectRatio, type zNear, type zFar)
         {
             float itan = 1 / tan(fieldOfView * 0.5f);
@@ -237,6 +238,7 @@ namespace Math
                 )
             );
         }
+        */
 
         INLINE static Transform4t Reflection(const PlaneT<type> &f)
         {

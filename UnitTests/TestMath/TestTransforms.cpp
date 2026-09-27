@@ -167,7 +167,7 @@ TEST_CASE("Transforms - Reference Projection Setup")
     
     float fovY = (float)M_PI / 2.0f;
     float aspect = 1.0f;
-    Matrix4f persp = Transform4f::Perspective(fovY, aspect, near, far);
+    Matrix4f persp = Transform4f::FrustumProjection(fovY, aspect, near, far);
     
     // Perspective M(0,0) = 1 / (aspect * tan(fovY/2)) = 1 / tan(PI/4) = 1.0
     // M(1,1) = 1 / tan(fovY/2) = 1.0
