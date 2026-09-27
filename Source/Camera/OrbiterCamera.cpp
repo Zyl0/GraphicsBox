@@ -70,7 +70,7 @@ Math::Transform4f OrbiterCamera::ComputeView()
 
 Math::Matrix4f OrbiterCamera::ComputeProjection()
 {
-    return Math::Transform4f::Perspective(m_fov, m_width / m_height, znear(), zfar());
+    return Math::Transform4f::FrustumProjection(m_fov, m_width / m_height, znear(), zfar());
 }
 
 float OrbiterCamera::znear() const
