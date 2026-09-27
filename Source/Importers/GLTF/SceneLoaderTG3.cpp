@@ -98,63 +98,65 @@ namespace GLTF
         return true;
     }
 
-    static bool IsImageExention(std::string_view extention)
+    static bool IsImageExtension(std::string_view extension)
     {
-        if (
-            extention.compare(".dds") == 0 ||
-            extention.compare(".exr") == 0 ||
-            extention.compare(".png") == 0 ||
-            extention.compare(".jpg") == 0 ||
-            extention.compare(".jepg") == 0 ||
-            extention.compare(".tga") == 0 ||
-            extention.compare(".bmp") == 0 ||
-            extention.compare(".hdr") == 0 
-            ) 
-            return true;
-
+        static constexpr std::string_view validExts[] = {
+            ".dds", ".exr", ".png", ".jpg", ".jpeg", ".tga", ".bmp", ".hdr"
+        };
+        for (auto ext : validExts)
+        {
+            if (extension == ext) return true;
+        }
         return false;
+    }
+    
+    static int32_t GetTextureIndexFromValue(const tg3_value* val)
+    {
+        if (!val) return -1;
+        if (val->type == TG3_VALUE_INT)
+            return val->int_val;
+        if (val->type == TG3_VALUE_OBJECT)
+        {
+            const tg3_value* idx = FindValueInObject(*val, "index");
+            if (idx && idx->type == TG3_VALUE_INT)
+                return idx->int_val;
+        }
+        return -1;
     }
     
     static std::filesystem::path ResolveFileTypeMismatch(const std::filesystem::path& gltf_path, std::string_view local_filename) 
     {
         std::filesystem::path p = gltf_path.parent_path() / local_filename;
-        if (exists(p)) return p;
-        
+        if (std::filesystem::exists(p)) return p;
         if (p.has_extension())
         {
-            static std::array<const std::string_view, 8> extensionsToCheck {
-                ".dds", ".exr", ".png", ".jpg", ".jpeg", ".tga", ".bmp", ".hdr"
-            };
-                
-            // static std::array<const Image::FileType, 8> extensionsType {
-            //     Image::FileType::DDS,
-            //     Image::FileType::EXR, 
-            //     Image::FileType::PNG, 
-            //     Image::FileType::JPG, 
-            //     Image::FileType::JPG, 
-            //     Image::FileType::TGA,
-            //     Image::FileType::BMP, 
-            //     Image::FileType::HDR
-            // };
-            
             std::string extension = p.extension().generic_string();
-            
-            if (extension == ".gltf" || extension == ".glb") {}
-            else
-                if (IsImageExention(extension))
+            for (char& c : extension) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (extension == ".gltf" || extension == ".glb")
+            {
+                return p;
+            }
+            if (IsImageExtension(extension))
+            {
+                static constexpr std::string_view extensionsToCheck[] = {
+                    ".dds", ".exr", ".png", ".jpg", ".jpeg", ".tga", ".bmp", ".hdr"
+                };
+                for (auto checkExt : extensionsToCheck)
                 {
-                    for (size_t i = 0; i < extensionsToCheck.size(); i++)
+                    std::filesystem::path candidate = p;
+                    candidate.replace_extension(checkExt);
+                    if (std::filesystem::exists(candidate))
                     {
-                        p.replace_extension(extensionsToCheck[i]);
-                        if (std::filesystem::exists(p))
-                        {
-                            return p;
-                        }
+                        return candidate;
                     }
                 }
+                EngineLoggerWarnF("Image file not found with any known extension: \"%ls\"", p.c_str());
+            }
+            else
+            {
                 EngineLoggerErrorF("Unsupported file extension type \"%ls\"", p.extension().c_str());
+            }
         }
-        
         return p;
     }
     
@@ -197,6 +199,185 @@ namespace GLTF
         return transform;
     }
 
+    Material DecodeMaterial(const tg3_material& material)
+    {
+        Material MaterialObject;
+
+        // Unpack color
+        MaterialObject.color = Math::Vector4f(
+            static_cast<float>(material.pbr_metallic_roughness.base_color_factor[0]),
+            static_cast<float>(material.pbr_metallic_roughness.base_color_factor[1]),
+            static_cast<float>(material.pbr_metallic_roughness.base_color_factor[2]),
+            1.0f
+        );
+        if(material.pbr_metallic_roughness.base_color_texture.index >= 0)
+        {
+            MaterialObject.colorTexture = material.pbr_metallic_roughness.base_color_texture.index;
+        }
+        
+        MaterialObject.emissive = Math::Vector4f(
+            static_cast<float>(material.emissive_factor[0]),
+            static_cast<float>(material.emissive_factor[1]),
+            static_cast<float>(material.emissive_factor[2]),
+            1.0f
+        );
+        if (Magnitude(MaterialObject.emissive) > 0)
+        {
+            MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
+        }
+        if(material.emissive_texture.index >= 0)
+        {
+            MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
+            MaterialObject.emissiveTexture = material.emissive_texture.index;
+        }
+
+        // Unpack reflection
+        MaterialObject.roughness = static_cast<float>(material.pbr_metallic_roughness.roughness_factor);
+        MaterialObject.metallic = static_cast<float>(material.pbr_metallic_roughness.metallic_factor);
+        if(material.pbr_metallic_roughness.metallic_roughness_texture.index >= 0)
+        {
+            MaterialObject.metallicRoughnessTexture = material.pbr_metallic_roughness.metallic_roughness_texture.index;
+        }
+         
+        // Unpack AO
+        if(material.occlusion_texture.index >= 0)
+        {
+            MaterialObject.occlusionTexture = material.occlusion_texture.index;
+        }
+
+        // Get normal map
+        if(material.normal_texture.index >= 0)
+        {
+            MaterialObject.normalTexture = material.normal_texture.index;
+        }
+
+        MaterialObject.flags = MaterialObject.flags | (material.double_sided ? Material::EFlags::TwoSided :  Material::EFlags::None);
+        if (SAFE_STRCMP_S_LS(material.alpha_mode.data, material.alpha_mode.len, "BLEND") == 0) 
+        {
+            MaterialObject.flags = MaterialObject.flags | Material::EFlags::Transparent;
+        }
+        if (SAFE_STRCMP_S_LS(material.alpha_mode.data, material.alpha_mode.len, "MASK") == 0)
+        {
+            MaterialObject.flags = MaterialObject.flags | Material::EFlags::Masked;
+        }
+
+        //KHR_materials_ior
+        if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_ior"); extension != nullptr)
+        {
+            MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseIORExt;
+            if (const tg3_value* ior = FindValueInObject(extension->value, "ior"); ior != nullptr && ior->type == TG3_VALUE_REAL || ior->type == TG3_VALUE_INT)
+            {
+                MaterialObject.ior = ValueAsFloat(*ior);
+            }
+        }
+
+        //KHR_materials_specular
+        if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_specular"); extension != nullptr)
+        {
+            MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularExt;
+
+            if (const tg3_value* specularFactor = FindValueInObject(extension->value, "specularFactor"); specularFactor != nullptr)
+            {
+                if (specularFactor->type == TG3_VALUE_REAL || specularFactor->type == TG3_VALUE_INT)
+                MaterialObject.specular = ValueAsFloat(*specularFactor);
+            }
+
+            if (const tg3_value* specularTex = FindValueInObject(extension->value, "specularTexture"); specularTex != nullptr)
+            {
+                int32_t idx = GetTextureIndexFromValue(specularTex);
+                if (idx >= 0)
+                MaterialObject.specularTexture = static_cast<uint32_t>(idx); 
+            }
+
+            if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorFactor"); specularColorTex != nullptr)
+            {
+                if (specularColorTex->type == TG3_VALUE_ARRAY && specularColorTex->array_count == 3)
+                {
+                    MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
+                    MaterialObject.specularColor.y = ValueAsFloat(specularColorTex->array_data[1]);
+                    MaterialObject.specularColor.z = ValueAsFloat(specularColorTex->array_data[2]);
+                    MaterialObject.specularColor.w = 1.0f;
+                }
+            }
+
+            if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorTexture"); specularColorTex != nullptr)
+            {
+                int32_t idx = GetTextureIndexFromValue(specularColorTex);
+                if (idx >= 0)
+                MaterialObject.specularColorTexture = static_cast<uint32_t>(idx); 
+            }
+        }
+
+        //KHR_materials_transmission
+        if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_transmission"); extension != nullptr)
+        {
+            MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseTransmissionExt;
+
+            if (const tg3_value* transmission = FindValueInObject(extension->value, "transmissionFactor"); transmission != nullptr)
+            {
+                if (transmission->type == TG3_VALUE_REAL || transmission->type == TG3_VALUE_INT)
+                MaterialObject.transmission = ValueAsFloat(*transmission);
+            }
+
+            if (const tg3_value* transmissionTex = FindValueInObject(extension->value, "transmissionTexture"); transmissionTex != nullptr)
+            {
+                int32_t idx = GetTextureIndexFromValue(transmissionTex);
+                if (idx >= 0)
+                MaterialObject.transmissionTexture  = static_cast<uint32_t>(idx); 
+            }
+        }
+        
+        // KHR_materials_pbrSpecularGlossiness
+        if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_pbrSpecularGlossiness"); extension != nullptr)
+        {
+            MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularGlossinessPBRExt;
+            
+            if (const tg3_value* diffuseTex = FindValueInObject(extension->value, "diffuseTexture"); diffuseTex != nullptr)
+            {
+                int32_t idx = GetTextureIndexFromValue(diffuseTex);
+                if (idx >= 0)
+                    MaterialObject.colorTexture = static_cast<uint32_t>(idx); 
+            }
+
+            if (const tg3_value* diffuseColor = FindValueInObject(extension->value, "diffuseFactor"); diffuseColor != nullptr)
+            {
+                if (diffuseColor->type == TG3_VALUE_ARRAY && diffuseColor->array_count == 4)
+                {
+                    MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
+                    MaterialObject.color.y = ValueAsFloat(diffuseColor->array_data[1]);
+                    MaterialObject.color.z = ValueAsFloat(diffuseColor->array_data[2]);
+                    MaterialObject.color.w = ValueAsFloat(diffuseColor->array_data[3]);
+                }
+            }
+
+            if (const tg3_value* specularColor = FindValueInObject(extension->value, "specularFactor"); specularColor != nullptr)
+            {
+                if (specularColor->type == TG3_VALUE_ARRAY && specularColor->array_count == 3)
+                {
+                    MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
+                    MaterialObject.specularColor.y = ValueAsFloat(specularColor->array_data[1]);
+                    MaterialObject.specularColor.z = ValueAsFloat(specularColor->array_data[2]);
+                    MaterialObject.specularColor.w = 1.0f;
+                }
+            }
+
+            if (const tg3_value* glossinessFactor = FindValueInObject(extension->value, "glossinessFactor"); glossinessFactor != nullptr)
+            {
+                if (glossinessFactor->type == TG3_VALUE_REAL || glossinessFactor->type == TG3_VALUE_INT)
+                    MaterialObject.roughness = 1.f - ValueAsFloat(*glossinessFactor);
+            }
+
+            if (const tg3_value* specularGlossinessTex = FindValueInObject(extension->value, "specularGlossinessTexture"); specularGlossinessTex != nullptr)
+            {
+                int32_t idx = GetTextureIndexFromValue(specularGlossinessTex);
+                if (idx >= 0)
+                    MaterialObject.specularTexture = static_cast<uint32_t>(idx); 
+            }
+        }
+        
+        return MaterialObject;
+    }
+    
     void LoadSceneTree(
         const tinygltf3::Model& model,
         int node,
@@ -297,7 +478,17 @@ namespace GLTF
             for (size_t i = 0; i < model->textures_count; ++i)
             {
                 const auto& texture = model->textures[i];
-                const auto & image = model->images[texture.source];
+                int32_t imageSource = texture.source;
+                if (const tg3_extension* ddsExt = FindExtension(texture.ext, "MSFT_texture_dds"); ddsExt != nullptr)
+                {
+                    if (const tg3_value* ddsSource = FindValueInObject(ddsExt->value, "source"); 
+                        ddsSource != nullptr && ddsSource->type == TG3_VALUE_INT)
+                    {
+                        imageSource = ddsSource->int_val;
+                    }
+                }
+                AssertOrErrorCall(imageSource >= 0 && imageSource < model->images_count, continue;, "Image index is out of range")
+                const auto& image = model->images[imageSource];
                 AssertOrErrorCall(!image.as_is, continue;, "Custom image file type are not supported")
 
                 if (image.buffer_view >= 0)
@@ -348,176 +539,7 @@ namespace GLTF
         {
             for (size_t i = 0; i < model->materials_count; ++i)
             {
-                const auto& material = model->materials[i];
-                scene.materials.emplace_back();
-                Material& MaterialObject = *(scene.materials.end() - 1);
-
-                // Unpack color
-                MaterialObject.color = Math::Vector4f(
-                    static_cast<float>(material.pbr_metallic_roughness.base_color_factor[0]),
-                    static_cast<float>(material.pbr_metallic_roughness.base_color_factor[1]),
-                    static_cast<float>(material.pbr_metallic_roughness.base_color_factor[2]),
-                    1.0f
-                );
-                if(material.pbr_metallic_roughness.base_color_texture.index >= 0)
-                {
-                    MaterialObject.colorTexture = material.pbr_metallic_roughness.base_color_texture.index;
-                }
-                
-                MaterialObject.emissive = Math::Vector4f(
-                    static_cast<float>(material.emissive_factor[0]),
-                    static_cast<float>(material.emissive_factor[1]),
-                    static_cast<float>(material.emissive_factor[2]),
-                    1.0f
-                );
-                if (Magnitude(MaterialObject.emissive) > 0)
-                {
-                    MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
-                }
-                if(material.emissive_texture.index >= 0)
-                {
-                    MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
-                    MaterialObject.emissiveTexture = material.emissive_texture.index;
-                }
-
-                // Unpack reflection
-                MaterialObject.roughness = static_cast<float>(material.pbr_metallic_roughness.roughness_factor);
-                MaterialObject.metallic = static_cast<float>(material.pbr_metallic_roughness.metallic_factor);
-                if(material.pbr_metallic_roughness.metallic_roughness_texture.index >= 0)
-                {
-                    MaterialObject.metallicRoughnessTexture = material.pbr_metallic_roughness.metallic_roughness_texture.index;
-                }
-                 
-                // Unpack AO
-                if(material.occlusion_texture.index >= 0)
-                {
-                    MaterialObject.occlusionTexture = material.occlusion_texture.index;
-                }
-
-                // Get normal map
-                if(material.normal_texture.index >= 0)
-                {
-                    MaterialObject.normalTexture = material.normal_texture.index;
-                }
-
-                MaterialObject.flags = MaterialObject.flags | (material.double_sided ? Material::EFlags::TwoSided :  Material::EFlags::None);
-                if (SAFE_STRCMP_S_LS(material.alpha_mode.data, material.alpha_mode.len, "BLEND") == 0) 
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::Transparent;
-                }
-                if (SAFE_STRCMP_S_LS(material.alpha_mode.data, material.alpha_mode.len, "MASK") == 0)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::Masked;
-                }
-
-                //KHR_materials_ior
-                if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_ior"); extension != nullptr)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseIORExt;
-                    if (const tg3_value* ior = FindValueInObject(extension->value, "ior"); ior != nullptr && ior->type == TG3_VALUE_REAL || ior->type == TG3_VALUE_INT)
-                    {
-                        MaterialObject.ior = ValueAsFloat(*ior);
-                    }
-                }
-
-                //KHR_materials_specular
-                if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_specular"); extension != nullptr)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularExt;
-
-                    if (const tg3_value* specularFactor = FindValueInObject(extension->value, "specularFactor"); specularFactor != nullptr)
-                    {
-                        if (specularFactor->type == TG3_VALUE_REAL || specularFactor->type == TG3_VALUE_INT)
-                        MaterialObject.specular = ValueAsFloat(*specularFactor);
-                    }
-
-                    if (const tg3_value* specularTex = FindValueInObject(extension->value, "specularTexture"); specularTex != nullptr)
-                    {
-                        if (specularTex->type == TG3_VALUE_INT && specularTex->int_val >= 0)
-                        MaterialObject.specularTexture = static_cast<uint32_t>(specularTex->int_val); 
-                    }
-
-                    if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorFactor"); specularColorTex != nullptr)
-                    {
-                        if (specularColorTex->type == TG3_VALUE_ARRAY && specularColorTex->array_count == 3)
-                        {
-                            MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
-                            MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[1]);
-                            MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[2]);
-                            MaterialObject.specularColor.w = 1.0f;
-                        }
-                    }
-
-                    if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorTexture"); specularColorTex != nullptr)
-                    {
-                        if (specularColorTex->type == TG3_VALUE_INT && specularColorTex->int_val >= 0)
-                        MaterialObject.specularColorTexture = static_cast<uint32_t>(specularColorTex->int_val); 
-                    }
-                }
-
-                //KHR_materials_transmission
-                if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_transmission"); extension != nullptr)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseTransmissionExt;
-
-                    if (const tg3_value* transmission = FindValueInObject(extension->value, "transmissionFactor"); transmission != nullptr)
-                    {
-                        if (transmission->type == TG3_VALUE_REAL || transmission->type == TG3_VALUE_INT)
-                        MaterialObject.transmission = ValueAsFloat(*transmission);
-                    }
-
-                    if (const tg3_value* transmissionTex = FindValueInObject(extension->value, "transmissionTexture"); transmissionTex != nullptr)
-                    {
-                        if (transmissionTex->type == TG3_VALUE_INT && transmissionTex->int_val >= 0)
-                        MaterialObject.specularColorTexture = static_cast<uint32_t>(transmissionTex->int_val); 
-                    }
-                }
-                
-                // KHR_materials_pbrSpecularGlossiness
-                if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_pbrSpecularGlossiness"); extension != nullptr)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularGlossinessPBRExt;
-                    
-                    if (const tg3_value* diffuseTex = FindValueInObject(extension->value, "diffuseTexture"); diffuseTex != nullptr)
-                    {
-                        if (diffuseTex->type == TG3_VALUE_INT && diffuseTex->int_val >= 0)
-                        MaterialObject.colorTexture = static_cast<uint32_t>(diffuseTex->int_val); 
-                    }
-
-                    if (const tg3_value* diffuseColor = FindValueInObject(extension->value, "diffuseFactor"); diffuseColor != nullptr)
-                    {
-                        if (diffuseColor->type == TG3_VALUE_ARRAY && diffuseColor->array_count == 4)
-                        {
-                            MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
-                            MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[1]);
-                            MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[2]);
-                            MaterialObject.color.w = ValueAsFloat(diffuseColor->array_data[3]);
-                        }
-                    }
-
-                    if (const tg3_value* specularColor = FindValueInObject(extension->value, "specularFactor"); specularColor != nullptr)
-                    {
-                        if (specularColor->type == TG3_VALUE_ARRAY && specularColor->array_count == 3)
-                        {
-                            MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
-                            MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[1]);
-                            MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[2]);
-                            MaterialObject.specularColor.w = 1.0f;
-                        }
-                    }
-
-                    if (const tg3_value* glossinessFactor = FindValueInObject(extension->value, "glossinessFactor"); glossinessFactor != nullptr)
-                    {
-                        if (glossinessFactor->type == TG3_VALUE_REAL || glossinessFactor->type == TG3_VALUE_INT)
-                        MaterialObject.roughness = 1.f - ValueAsFloat(*glossinessFactor);
-                    }
-
-                    if (const tg3_value* specularGlossinessTex = FindValueInObject(extension->value, "specularGlossinessTexture"); specularGlossinessTex != nullptr)
-                    {
-                        if (specularGlossinessTex->type == TG3_VALUE_INT && specularGlossinessTex->int_val >= 0)
-                        MaterialObject.specularTexture = static_cast<uint32_t>(specularGlossinessTex->int_val); 
-                    }
-                }
+                scene.materials.emplace_back(DecodeMaterial(model->materials[i]));
             }
         }
 
@@ -1048,7 +1070,17 @@ namespace GLTF
             for (size_t i = 0; i < model->textures_count; ++i)
             {
                 const auto& texture = model->textures[i];
-                const auto & image = model->images[texture.source];
+                int32_t imageSource = texture.source;
+                if (const tg3_extension* ddsExt = FindExtension(texture.ext, "MSFT_texture_dds"); ddsExt != nullptr)
+                {
+                    if (const tg3_value* ddsSource = FindValueInObject(ddsExt->value, "source"); 
+                        ddsSource != nullptr && ddsSource->type == TG3_VALUE_INT)
+                    {
+                        imageSource = ddsSource->int_val;
+                    }
+                }
+                AssertOrErrorCall(imageSource >= 0 && imageSource < model->images_count, continue;, "Image index is out of range")
+                const auto& image = model->images[imageSource];
                 AssertOrErrorCall(!image.as_is, continue;, "Custom image file type are not supported")
                 
                 if (image.buffer_view >= 0)
@@ -1099,158 +1131,7 @@ namespace GLTF
         {
             for (size_t i = 0; i < model->materials_count; ++i)
             {
-                const auto& material = model->materials[i];
-                scene.materials.emplace_back();
-                Material& MaterialObject = *(scene.materials.end() - 1);
-
-                // Unpack color
-                MaterialObject.color = Math::Vector4f(
-                    static_cast<float>(material.pbr_metallic_roughness.base_color_factor[0]),
-                    static_cast<float>(material.pbr_metallic_roughness.base_color_factor[1]),
-                    static_cast<float>(material.pbr_metallic_roughness.base_color_factor[2]),
-                    1.0f
-                );
-                if(material.pbr_metallic_roughness.base_color_texture.index >= 0)
-                {
-                    MaterialObject.colorTexture = material.pbr_metallic_roughness.base_color_texture.index;
-                }
-                MaterialObject.emissive = Math::Vector4f(
-                    static_cast<float>(material.emissive_factor[0]),
-                    static_cast<float>(material.emissive_factor[1]),
-                    static_cast<float>(material.emissive_factor[2]),
-                    1.0f
-                );
-                if (Magnitude(MaterialObject.emissive) > 0)
-                {
-                    MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
-                }
-                if(material.emissive_texture.index >= 0)
-                {
-                    MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
-                    MaterialObject.emissiveTexture = material.emissive_texture.index;
-                }
-
-                // Unpack reflection
-                MaterialObject.roughness = static_cast<float>(material.pbr_metallic_roughness.roughness_factor);
-                MaterialObject.metallic = static_cast<float>(material.pbr_metallic_roughness.metallic_factor);
-                if(material.pbr_metallic_roughness.metallic_roughness_texture.index >= 0)
-                {
-                    MaterialObject.metallicRoughnessTexture = material.pbr_metallic_roughness.metallic_roughness_texture.index;
-                }
-                 
-                // Unpack AO
-                if(material.occlusion_texture.index >= 0)
-                {
-                    MaterialObject.occlusionTexture = material.occlusion_texture.index;
-                }
-
-                // Get normal map
-                if(material.normal_texture.index >= 0)
-                {
-                    MaterialObject.normalTexture = material.normal_texture.index;
-                }
-
-                MaterialObject.flags = MaterialObject.flags | (material.double_sided ? Material::EFlags::TwoSided :  Material::EFlags::None);
-                if (SAFE_STRCMP_S_LS(material.alpha_mode.data, material.alpha_mode.len, "BLEND") == 0) 
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::Transparent;
-                }
-                if (SAFE_STRCMP_S_LS(material.alpha_mode.data, material.alpha_mode.len, "MASK") == 0)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::Masked;
-                }
-
-                //KHR_materials_ior
-                if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_ior"); extension != nullptr)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseIORExt;
-                    if (const tg3_value* ior = FindValueInObject(extension->value, "ior"); ior != nullptr && ior->type == TG3_VALUE_REAL || ior->type == TG3_VALUE_INT)
-                    {
-                        MaterialObject.ior = ValueAsFloat(*ior);
-                    }
-                }
-
-                //KHR_materials_specular
-                if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_specular"); extension != nullptr)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularExt;
-
-                    if (const tg3_value* specularFactor = FindValueInObject(extension->value, "specularFactor"); specularFactor != nullptr && specularFactor->type == TG3_VALUE_REAL || specularFactor->type == TG3_VALUE_INT)
-                    {
-                        MaterialObject.specular = ValueAsFloat(*specularFactor);
-                    }
-
-                    if (const tg3_value* specularTex = FindValueInObject(extension->value, "specularTexture"); specularTex != nullptr && specularTex->type == TG3_VALUE_INT && specularTex->int_val >= 0)
-                    {
-                        MaterialObject.specularTexture = static_cast<uint32_t>(specularTex->int_val); 
-                    }
-
-                    if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorFactor"); specularColorTex != nullptr && specularColorTex->type == TG3_VALUE_ARRAY && specularColorTex->array_count == 3)
-                    {
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[1]);
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[2]);
-                        MaterialObject.specularColor.w = 1.0f;
-                    }
-
-                    if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorTexture"); specularColorTex != nullptr && specularColorTex->type == TG3_VALUE_INT && specularColorTex->int_val >= 0)
-                    {
-                        MaterialObject.specularColorTexture = static_cast<uint32_t>(specularColorTex->int_val); 
-                    }
-                }
-
-                //KHR_materials_transmission
-                if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_transmission"); extension != nullptr)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseTransmissionExt;
-
-                    if (const tg3_value* transmission = FindValueInObject(extension->value, "transmissionFactor"); transmission != nullptr && transmission->type == TG3_VALUE_REAL || transmission->type == TG3_VALUE_INT)
-                    {
-                        MaterialObject.transmission = ValueAsFloat(*transmission);
-                    }
-
-                    if (const tg3_value* transmissionTex = FindValueInObject(extension->value, "transmissionTexture"); transmissionTex != nullptr && transmissionTex->type == TG3_VALUE_INT && transmissionTex->int_val >= 0)
-                    {
-                        MaterialObject.specularColorTexture = static_cast<uint32_t>(transmissionTex->int_val); 
-                    }
-                }
-                
-                // KHR_materials_pbrSpecularGlossiness
-                if (const tg3_extension* extension = FindExtension(material.ext, "KHR_materials_pbrSpecularGlossiness"); extension != nullptr)
-                {
-                    MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularGlossinessPBRExt;
-                    
-                    if (const tg3_value* diffuseTex = FindValueInObject(extension->value, "diffuseTexture"); diffuseTex != nullptr && diffuseTex->type == TG3_VALUE_INT && diffuseTex->int_val >= 0)
-                    {
-                        MaterialObject.colorTexture = static_cast<uint32_t>(diffuseTex->int_val); 
-                    }
-
-                    if (const tg3_value* diffuseColor = FindValueInObject(extension->value, "diffuseFactor"); diffuseColor != nullptr && diffuseColor->type == TG3_VALUE_ARRAY && diffuseColor->array_count == 4)
-                    {
-                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
-                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[1]);
-                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[2]);
-                        MaterialObject.color.w = ValueAsFloat(diffuseColor->array_data[3]);
-                    }
-
-                    if (const tg3_value* specularColor = FindValueInObject(extension->value, "specularFactor"); specularColor != nullptr && specularColor->type == TG3_VALUE_ARRAY && specularColor->array_count == 3)
-                    {
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[1]);
-                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[2]);
-                        MaterialObject.specularColor.w = 1.0f;
-                    }
-
-                    if (const tg3_value* glossinessFactor = FindValueInObject(extension->value, "glossinessFactor"); glossinessFactor != nullptr && glossinessFactor->type == TG3_VALUE_REAL || glossinessFactor->type == TG3_VALUE_INT)
-                    {
-                        MaterialObject.roughness = 1.f - ValueAsFloat(*glossinessFactor);
-                    }
-
-                    if (const tg3_value* specularGlossinessTex = FindValueInObject(extension->value, "specularGlossinessTexture"); specularGlossinessTex != nullptr && specularGlossinessTex->type == TG3_VALUE_INT && specularGlossinessTex->int_val >= 0)
-                    {
-                        MaterialObject.specularTexture = static_cast<uint32_t>(specularGlossinessTex->int_val); 
-                    }
-                }
+                scene.materials.emplace_back(DecodeMaterial(model->materials[i]));
             }
         }
 
