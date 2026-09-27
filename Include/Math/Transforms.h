@@ -121,7 +121,7 @@ namespace Math
             return Transform4t<type>(
                 static_cast<type>(1),   static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(0),
                 static_cast<type>(0),   c,                      -s,                     static_cast<type>(0),
-                static_cast<type>(0),   -s,                     c,                      static_cast<type>(0)
+                static_cast<type>(0),   s,                      c,                      static_cast<type>(0)
             );
         }
 

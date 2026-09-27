@@ -159,7 +159,7 @@ namespace Math::Simt
             return Transform4(
                 1,              DataType(0),    DataType(0),    DataType(0),
                 DataType(0),    c,              -s,             DataType(0),
-                DataType(0),    -s,             c,              DataType(0)
+                DataType(0),    s,              c,              DataType(0)
             );
         }
         
@@ -182,7 +182,7 @@ namespace Math::Simt
             
             return Transform4(
                 c,              -s,             DataType(0),    DataType(0),
-                -s,             c,              DataType(0),    DataType(0),
+                s,              c,              DataType(0),    DataType(0),
                 DataType(0),    DataType(0),    1,              DataType(0)
             );
         }
