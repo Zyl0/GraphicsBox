@@ -741,14 +741,15 @@ namespace Math
     
     template <typename type>
     Matrix4t<type> Matrix4t<type>::LookAtView(Vector3t<type> from, Vector3t<type> at, Vector3t<type> up)
-    {;
-        Vector3t<type> right = Normalize( Cross(at, Normalize(up) ) );
-        Vector3t<type> newUp = Normalize( Cross(right, at) );
+    {
+        Vector3t<type> forward = Normalize(from - at);
+        Vector3t<type> right = Normalize( Cross(forward, Normalize(up) ) );
+        Vector3t<type> newUp = Normalize( Cross(right, forward) );
 
         return Inverse(Matrix4t(
-            right.x,                    newUp.x,                -at.x,                  from.x,
-            right.y,                    newUp.y,                -at.y,                  from.y,
-            right.z,                    newUp.z,                -at.z,                  from.z,
+            right.x,                    newUp.x,                -forward.x,                  from.x,
+            right.y,                    newUp.y,                -forward.y,                  from.y,
+            right.z,                    newUp.z,                -forward.z,                  from.z,
             static_cast<type>(0),       static_cast<type>(0),   static_cast<type>(0),   static_cast<type>(1)));
     }
 

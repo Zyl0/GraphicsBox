@@ -651,13 +651,14 @@ namespace Math::Simt
         
         static Matrix4 LookAtView(const Vector3<DataType, ThreadCount>& from, const Vector3<DataType, ThreadCount>& at, const Vector3<DataType, ThreadCount>& up)
         {
-            Vector3<DataType, ThreadCount> right = Normalize( Cross(at, Normalize(up) ) );
-            Vector3<DataType, ThreadCount> newUp = Normalize( Cross(right, at) );
+            Vector3<DataType, ThreadCount> forward = Normalize(from - at);
+            Vector3<DataType, ThreadCount> right = Normalize( Cross(forward, Normalize(up) ) );
+            Vector3<DataType, ThreadCount> newUp = Normalize( Cross(right, forward) );
             
             return Inverse(Matrix4(
-                right.x,        newUp.x,        -at.x,          from.x,
-                right.y,        newUp.y,        -at.y,          from.y,
-                right.z,        newUp.z,        -at.z,          from.z,
+                right.x,        newUp.x,        -forward.x,          from.x,
+                right.y,        newUp.y,        -forward.y,          from.y,
+                right.z,        newUp.z,        -forward.z,          from.z,
                 ScalarType(0),  ScalarType(0),  ScalarType(0),  ScalarType(1)
             ));
         }
