@@ -104,6 +104,9 @@ public:
         m_DebugRayCoordinates = {0, 0};
         m_MaterialSampler.emplace(Sampler::Params{});
         m_IndirectSampleCount = 128;
+        m_RenderSunlight = true;
+        m_RenderIndirectLight = true;
+        m_DebugFreezeRandomSequence = false;
 
         // Load scene data
         {
@@ -464,39 +467,8 @@ public:
                 static const Matrix3f RotationX = Matrix3f::RotationY(M_PI / 2.0);
                 
                 DebugRendering->DrawRay(WorldToViewportProj, PrimaryRay, ClosestHit.t);
-                
-                Point3f Position;
-                Vector3f Normal;
-                Vector3f Tangent = Vector3f(0);
-                switch (Mesh->GetMeshType())
-                {
-                case Mesh::POINTS:
-                case Mesh::LINE_STRIP:
-                case Mesh::LINE_LOOP:
-                case Mesh::LINES:
-                case Mesh::LINE_STRIP_ADJACENCY:
-                case Mesh::LINES_ADJACENCY:
-                case Mesh::PATCHES:
-                case Mesh::QUAD_STRIP:
-                case Mesh::QUADS:
-                case Mesh::_Count:
-                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported vertex type. Expected triangles")
 
-                case Mesh::TRIANGLE_STRIP_ADJACENCY:
-                case Mesh::TRIANGLES_ADJACENCY:
-                case Mesh::TRIANGLE_STRIP:
-                case Mesh::TRIANGLE_FAN:
-                case Mesh::TRIANGLES:
-                    Mesh::ConstFace face(*Mesh, ClosestHit.face);
-                    Mesh::ConstVertex a = face[0];
-                    Mesh::ConstVertex b = face[1];
-                    Mesh::ConstVertex c = face[2];
-            
-                    Vector4f PositionH = ((*ModelMatrix) * Vector4f(VertexInterpolateTriangle(ClosestHit, a.Position(), b.Position(), c.Position()), 1.0f));
-                    Position = PositionH.xyz() / PositionH.w;
-                    Normal = Normalize(xyz(((*ModelMatrix) * Vector4f(VertexInterpolateTriangle(ClosestHit, a.Normal(), b.Normal(), c.Normal()), 0.0f))));
-                    break;
-                }
+                SurfaceHit surface = HitInterpolateProperties(*Mesh, ClosestHit, ModelMatrix);
                 
                 const GLTF::Material& material = m_Scene->materials[Material];
                 
@@ -539,18 +511,19 @@ public:
                 }
                 
                 if (m_DrawDebugRayTraversalIndirectLight)
-                {                    
-                    Tangent = RotationX * Normal;
-                    Vector3f FragBiTangent = Cross(Normal, Tangent); // always re-derive B from N×T
-                    Matrix3f InvTBN = Matrix3f(Tangent, FragBiTangent, Normal);
-                    Matrix3f FragTBN = Transpose(InvTBN);
+                {
+                    surface.Tangent = Normalize(surface.Tangent - Dot(surface.Tangent, surface.Normal) * surface.Normal);
+                    Vector3f FragBiTangent = Cross(surface.Normal, surface.Tangent); // always re-derive B from N×T
+                    Matrix3f FragTBN = Matrix3f( surface.Tangent, FragBiTangent, surface.Normal);
+                    // FragTBN = Transpose(FragTBN);
+                    Matrix3f InvTBN = Transpose(FragTBN);
                     
-                    Vector3f v = Normalize(m_RayTracingCamera.GetWorldPosition() - Position);
+                    Vector3f v = Normalize(m_RayTracingCamera.GetWorldPosition() - surface.Position);
 
                     Vector3f vNormalSpace = InvTBN * v;
                     
                     std::random_device hwseed;
-                    std::default_random_engine rng( hwseed() );
+                    std::default_random_engine rng( m_DebugFreezeRandomSequence ? 0 : hwseed() );
                     std::uniform_real_distribution<float> uniform(0, 1);
                     
                     for (size_t i = 0; i < m_IndirectSampleCount; ++i)
@@ -558,9 +531,16 @@ public:
                         float u1 = uniform( rng );
                         float u2 = uniform( rng );
                             
-                        Vector3f SampledFace = Rendering::SampleGGXVNDF_Intel2023(vNormalSpace, Alpha, Alpha, u1, u2);
+                        Vector3f SampledFace = Rendering::SampleGGX(Vector3f(0, 0, 1), Alpha, Alpha, u1, u2);
                         Vector3f ne = Normalize(FragTBN * SampledFace);
-                        Vector3f l = Reflect(v, ne);
+                        Vector3f l = Reflect(-v, ne);
+                        
+                        DebugRendering->DrawLine(
+                            WorldToViewportProj,
+                            PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t,
+                            PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + ne * 0.2f,
+                            Vector3f(0.f, 1.f, 0.f)                            
+                        );
                         
                         Ray IndirectLightRay = {
                             .origin = PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + l * 0.01f, 
@@ -583,6 +563,8 @@ public:
                 
                             if (Hit Closest = IndirectLightRayTracerBLAS.ClosestHit(); Closest)
                             {
+                                if (ClosestIndirectHit && ClosestIndirectHit.t < Closest.t) continue;
+                                
                                 // BLAS Closest Hit
                                 ClosestIndirectHit = Closest;
                             }
@@ -673,6 +655,7 @@ public:
         ImGui::Checkbox("Debug draw Ray traversal", &m_DrawDebugRayTraversal);
         ImGui::Checkbox("Debug draw traversal shadow rays", &m_DrawDebugRayTraversalShadowMap);
         ImGui::Checkbox("Debug draw traversal indirect rays", &m_DrawDebugRayTraversalIndirectLight);
+        ImGui::Checkbox("Debug freeze indirect ray gen", &m_DebugFreezeRandomSequence);
         
         if (m_DrawDebugRayTraversal)
         {
@@ -959,6 +942,11 @@ public:
             WriteBuffer(TargetImage, x, y, Color);
         }
     }
+    
+    Vector3f GramSchmidt(Vector3f T, Vector3f N)
+    {
+        return Normalize(T - Dot(T, N) * N);
+    }
 
     void RayTracedScreenshotBVHShaded()
     {
@@ -1071,160 +1059,181 @@ public:
                 // Evaluate material
                 const GLTF::Material& material = m_Scene->materials[Material];
                 Vector3f Color{};
-                switch (Mesh->GetMeshType())
+                
+                SurfaceHit surface = HitInterpolateProperties(*Mesh, ClosestHit, ModelMatrix);
+                
+                if (false)
                 {
-                case Mesh::POINTS:
-                case Mesh::LINE_STRIP:
-                case Mesh::LINE_LOOP:
-                case Mesh::LINES:
-                case Mesh::LINE_STRIP_ADJACENCY:
-                case Mesh::LINES_ADJACENCY:
-                case Mesh::PATCHES:
-                case Mesh::QUAD_STRIP:
-                case Mesh::QUADS:
-                case Mesh::_Count:
-                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported vertex type. Expected triangles")
-
-                case Mesh::TRIANGLE_STRIP_ADJACENCY:
-                case Mesh::TRIANGLES_ADJACENCY:
-                case Mesh::TRIANGLE_STRIP:
-                case Mesh::TRIANGLE_FAN:
-                case Mesh::TRIANGLES:
-                    Mesh::ConstFace face(*Mesh, ClosestHit.face);
-                    Mesh::ConstVertex a = face[0];
-                    Mesh::ConstVertex b = face[1];
-                    Mesh::ConstVertex c = face[2];
+                    // ── Tangent derivation ────────────────────────────────────────────────
+                    // We need a vector that points in the direction of increasing U on the
+                    // surface. With only per-vertex data we approximate this by choosing an
+                    // arbitrary "up" reference that is not parallel to N, then projecting it
+                    // onto the tangent plane.  We pick between two candidates to avoid the
+                    // singularity when N is nearly parallel to the candidate.
+    
+                    // Candidate 1: world +X  (good when N is mostly vertical)
+                    // Candidate 2: world +Y  (good when N is mostly horizontal)
+                    // Choosing the one that is most perpendicular to N minimises the
+                    // initial skew before Gram-Schmidt.
+                    Vector3f refAxis   = (abs(surface.Normal.y) < 0.9) ? Vector3f(0.0, 1.0, 0.0) : Vector3f(0.0, 0.0, 1.0);
+    
+                    // Initial tangent: perpendicular to N, aimed along refAxis.
+                    // This gives a consistent "U direction" over the surface that
+                    // aligns with typical cylindrical / planar UV layouts.
+                    Vector3f T_raw = GramSchmidt(refAxis, surface.Normal);
+    
+                    // Incorporate the actual UV coordinates so that the tangent tracks the
+                    // UV seams rather than just the geometry.  We rotate T_raw by the
+                    // per-vertex UV angle — i.e. bias T toward the dU direction implied by
+                    // the texCoord.  This is a lightweight approximation; for exact results
+                    // use dFdx/dFdy in the fragment shader or pre-computed tangents.
+                    float uvAngle  = atan2(surface.TextureCoordinates.y, surface.TextureCoordinates.x);  // U direction hint
+                    float cosA     = cos(uvAngle);
+                    float sinA     = sin(uvAngle);
+                    Vector3f B_raw    = Cross(surface.Normal, T_raw);  // initial bitangent
+    
+                    // Rotate T_raw in the tangent plane by uvAngle
+                    surface.Tangent = Normalize(cosA * T_raw + sinA * B_raw);
+                }
             
-                    Vector4f PositionH = ((*ModelMatrix) * Vector4f(VertexInterpolateTriangle(ClosestHit, a.Position(), b.Position(), c.Position()), 1.0f));
-                    Point3f Position = PositionH.xyz() / PositionH.w;
-                    Vector3f Normal = Normalize(((*ModelMatrix) * Vector4f(VertexInterpolateTriangle(ClosestHit, a.Normal(), b.Normal(), c.Normal()), 0.0f)).xyz());
-                    Vector3f Tangent = Vector3f(0);
-                    if (Mesh->HasTangents()) Normalize(((*ModelMatrix) * Vector4f(VertexInterpolateTriangle(ClosestHit, a.Tangent(), b.Tangent(), c.Tangent()), 0.0f)).xyz());
-                    Vector2f UVs = Vector2f(0.5);
-                    if (Mesh->HasTextureCoordinates()) VertexInterpolateTriangle(ClosestHit, a.TextureCoordinate(), b.TextureCoordinate(), c.TextureCoordinate());
+                // UVs in repeat mode 
+                // TODO rework image API with sampler
+                surface.TextureCoordinates.x = abs(fmod(surface.TextureCoordinates.x, 1.f));
+                surface.TextureCoordinates.y = abs(fmod(surface.TextureCoordinates.y, 1.f)); 
+        
+                // Shadowmap test
+                float SunlightVisibility = 1.0f;
+                if (m_RenderSunlight)
+                {
+                    Ray SunLightRay = {
+                        .origin = PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + m_LightDirection * 0.01f, 
+                        .direction = m_LightDirection, 
+                        .distance = 300.f
+                    };
+                    TraceRayTLAS SunlightRayTracerTLAS(*m_CPUSceneTLAS, SunLightRay);
             
-                    // UVs in repeat mode 
-                    // TODO rework image API with sampler
-                    UVs.x = abs(fmod(UVs.x, 1.f));
-                    UVs.y = abs(fmod(UVs.y, 1.f)); 
-            
-                    // Shadowmap test
-                    float SunlightVisibility = 1.0f;
+                    bool HasHit = false;
+                    for (BVHHit TLASHit : SunlightRayTracerTLAS)
                     {
-                        Ray SunLightRay = {
-                            .origin = PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + m_LightDirection * 0.01f, 
-                            .direction = m_LightDirection, 
-                            .distance = 300.f
-                        };
-                        TraceRayTLAS SunlightRayTracerTLAS(*m_CPUSceneTLAS, SunLightRay);
+                        const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
                 
-                        bool HasHit = false;
-                        for (BVHHit TLASHit : SunlightRayTracerTLAS)
-                        {
-                            const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
-                    
-                            TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, Elt.WorldToModel);
-                    
-                            for (Hit Hit : SunlightRayTracerBLAS)
-                            {                    
-                                // BLAS Any Hit   
-                                HasHit = true;
-                            }
-                            if (HasHit) break;
+                        TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, Elt.WorldToModel);
+                
+                        for (Hit Hit : SunlightRayTracerBLAS)
+                        {                    
+                            // BLAS Any Hit   
+                            HasHit = true;
                         }
-                
-                        SunlightVisibility = HasHit ? 0.f : 1.f;
+                        if (HasHit) break;
                     }
             
-                    Vector3f PixBaseColor = material.color.xyz();
-                    float PixMetalness = material.metallic;
-                    float PixRoughness = material.roughness;
-                    float PixAmbiantOcclusion = 1.f;
-            
-                    if (material.colorTexture != UINT64_MAX)
+                    SunlightVisibility = HasHit ? 0.f : 1.f;
+                }
+        
+                Vector3f PixBaseColor = material.color.xyz();
+                float PixMetalness = material.metallic;
+                float PixRoughness = material.roughness;
+                float PixAmbiantOcclusion = 1.f;
+        
+                if (material.colorTexture != UINT64_MAX)
+                {
+                    if (m_Scene->textures[material.colorTexture].ComponentCount() == 4 )
+                    {
+                        ImageBuffer<Vector4t<uint8_t>> ColorTexBuffer(m_Scene->textures[material.colorTexture]);
+                        PixBaseColor = ReadBuffer(
+                            ColorTexBuffer,
+                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(ColorTexBuffer.Width())), 
+                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(ColorTexBuffer.Height()))
+                            ).xyz() * PixBaseColor;
+                    }
+                    else
                     {
                         ImageBuffer<Vector3t<uint8_t>> ColorTexBuffer(m_Scene->textures[material.colorTexture]);
                         PixBaseColor = ReadBuffer(
                             ColorTexBuffer,
-                            static_cast<uint32_t>(UVs.x * static_cast<float>(ColorTexBuffer.Width())), 
-                            static_cast<uint32_t>(UVs.y * static_cast<float>(ColorTexBuffer.Height()))
+                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(ColorTexBuffer.Width())), 
+                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(ColorTexBuffer.Height()))
                             ) * PixBaseColor;
                     }
-                    if (material.metallicRoughnessTexture != UINT64_MAX)
+                }
+                if (material.metallicRoughnessTexture != UINT64_MAX)
+                {
+                    if (m_Scene->textures[material.metallicRoughnessTexture].ComponentCount() == 4 )
+                    {
+                        ImageBuffer<Vector4t<uint8_t>> MetallicRoughnessTexBuffer(m_Scene->textures[material.metallicRoughnessTexture]);
+                        Vector3f mr = ReadBuffer(
+                            MetallicRoughnessTexBuffer,
+                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(MetallicRoughnessTexBuffer.Width())), 
+                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(MetallicRoughnessTexBuffer.Height()))
+                            ).xyz();
+                        PixMetalness = mr.z;
+                        PixRoughness = mr.y;
+                    }
+                    else
                     {
                         ImageBuffer<Vector3t<uint8_t>> MetallicRoughnessTexBuffer(m_Scene->textures[material.metallicRoughnessTexture]);
                         Vector3f mr = ReadBuffer(
                             MetallicRoughnessTexBuffer,
-                            static_cast<uint32_t>(UVs.x * static_cast<float>(MetallicRoughnessTexBuffer.Width())), 
-                            static_cast<uint32_t>(UVs.y * static_cast<float>(MetallicRoughnessTexBuffer.Height()))
+                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(MetallicRoughnessTexBuffer.Width())), 
+                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(MetallicRoughnessTexBuffer.Height()))
                             );
                         PixMetalness = mr.z;
                         PixRoughness = mr.y;
                     }
-                    if (material.occlusionTexture != UINT64_MAX)
+                }
+                if (material.occlusionTexture != UINT64_MAX)
+                {
+                    ImageBuffer<Vector3t<uint8_t>> AOTexBuffer(m_Scene->textures[material.occlusionTexture]);
+                    PixAmbiantOcclusion = ReadBuffer(
+                        AOTexBuffer,
+                        static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(AOTexBuffer.Width())), 
+                        static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(AOTexBuffer.Height()))
+                        ).x;
+                }
+        
+                // Clamp roughness
+                PixRoughness = std::max(PixRoughness, 0.004f);
+        
+                // Hit point Material settings
+                Vector3f DiffuseColor = LinearInterpolate(PixBaseColor, Vector3f(0), PixBaseColor);
+                Vector3f F0 = LinearInterpolate(Vector3f(0.04f), PixBaseColor, PixMetalness);
+                float Alpha = PixRoughness * PixRoughness;
+        
+                Vector3f LocalNormal = Vector3f(0,0,1);
+                Vector3f FragBiTangent = Cross(surface.Normal, surface.Tangent); // always re-derive B from N×T
+                Matrix3f FragTBN = Matrix3f(surface.Tangent, FragBiTangent, surface.Normal);
+               // FragTBN = Transpose(FragTBN);
+                
+                if (material.normalTexture != UINT64_MAX)
+                {
+                    if (m_Scene->textures[material.normalTexture].ComponentCount() == 4 )
                     {
-                        ImageBuffer<Vector3t<uint8_t>> AOTexBuffer(m_Scene->textures[material.occlusionTexture]);
-                        PixAmbiantOcclusion = ReadBuffer(
-                            AOTexBuffer,
-                            static_cast<uint32_t>(UVs.x * static_cast<float>(AOTexBuffer.Width())), 
-                            static_cast<uint32_t>(UVs.y * static_cast<float>(AOTexBuffer.Height()))
-                            ).x;
-                    }
-            
-                    // Clamp roughness
-                    PixRoughness = std::max(PixRoughness, 0.004f);
-            
-                    // Hit point Material settings
-                    Vector3f DiffuseColor = LinearInterpolate(PixBaseColor, Vector3f(0), PixBaseColor);
-                    Vector3f F0 = LinearInterpolate(Vector3f(0.04f), PixBaseColor, PixMetalness);
-                    float Alpha = PixRoughness * PixRoughness;
-            
-                    Vector3f LocalNormal = Vector3f(0,0,1);
-                    Vector3f FragBiTangent;
-                    Matrix3f FragTBN;
-                    if (Mesh->HasTangents())
-                    {
-                        FragBiTangent = Cross(Normal, Tangent); // always re-derive B from N×T
-                        FragTBN = Matrix3f(Tangent, FragBiTangent, Normal);
-                        FragTBN = Transpose(FragTBN);
+                        ImageBuffer<Vector4t<uint8_t>> NormalTexBuffer(m_Scene->textures[material.normalTexture]);
+                        LocalNormal = ReadBuffer(
+                            NormalTexBuffer,
+                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(NormalTexBuffer.Width())), 
+                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(NormalTexBuffer.Height()))
+                            ).xyz();
                     }
                     else
                     {
-                        Tangent = RotationX * Normal;
-                        FragBiTangent = Cross(Normal, Tangent); // always re-derive B from N×T
-                        FragTBN = Matrix3f(Tangent, FragBiTangent, Normal);
-                        FragTBN = Transpose(FragTBN);
+                        ImageBuffer<Vector3t<uint8_t>> NormalTexBuffer(m_Scene->textures[material.normalTexture]);
+                        LocalNormal = ReadBuffer(
+                            NormalTexBuffer,
+                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(NormalTexBuffer.Width())), 
+                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(NormalTexBuffer.Height()))
+                            );
                     }
-                    if (material.normalTexture != UINT64_MAX)
-                    {
-                        if (m_Scene->textures[material.normalTexture].ComponentCount() == 4 )
-                        {
-                            ImageBuffer<Vector4t<uint8_t>> NormalTexBuffer(m_Scene->textures[material.normalTexture]);
-                            LocalNormal = ReadBuffer(
-                                NormalTexBuffer,
-                                static_cast<uint32_t>(UVs.x * static_cast<float>(NormalTexBuffer.Width())), 
-                                static_cast<uint32_t>(UVs.y * static_cast<float>(NormalTexBuffer.Height()))
-                                ).xyz();
-                        }
-                        else
-                        {
-                            ImageBuffer<Vector3t<uint8_t>> NormalTexBuffer(m_Scene->textures[material.normalTexture]);
-                            LocalNormal = ReadBuffer(
-                                NormalTexBuffer,
-                                static_cast<uint32_t>(UVs.x * static_cast<float>(NormalTexBuffer.Width())), 
-                                static_cast<uint32_t>(UVs.y * static_cast<float>(NormalTexBuffer.Height()))
-                                );
-                        }
-                        LocalNormal = LocalNormal * 2.f - 1.f; // 0:1 normalized to normalized space (-1, 1)
-                        Normal = Normalize(FragTBN * LocalNormal);
-                    }
+                    LocalNormal = LocalNormal * 2.f - 1.f; // 0:1 normalized to normalized space (-1, 1)
+                    surface.Normal = Normalize(FragTBN * LocalNormal);
+                }
 
-                    Vector3f finalColor = Vector3f(0);
+                Vector3f finalColor = 0.f;
 
-                    // Direct lighting
-                    {
-                    Vector3f n = Normal;
-                    Vector3f v = Normalize(m_RayTracingCamera.GetWorldPosition() - Position);
+                // Direct lighting
+                {
+                    Vector3f n = surface.Normal;
+                    Vector3f v = Normalize(m_RayTracingCamera.GetWorldPosition() - surface.Position);
                     Vector3f l = Normalize(m_LightDirection);
                     Vector3f h = Normalize(v + l);
                 
@@ -1251,96 +1260,98 @@ public:
 
                         finalColor += Reflectance * Light;
                     }
-                    }
-            
-                    // Indirect lighting
-                    {
-                        Vector3f LocalTangent = (RotationX * LocalNormal);
-                        Vector3f LocalBiTangent = Cross(LocalNormal, LocalTangent);
-                        Matrix3f LocalTBN = Matrix3f(LocalTangent, LocalBiTangent, LocalNormal);
-                        LocalTBN = Transpose(LocalTBN);
-                    
-                    
-                        Vector3f v = Normalize(m_RayTracingCamera.GetWorldPosition() - Position);
-                        Matrix3f TBN =  FragTBN * LocalTBN;
-                        Matrix3f InvTBN = Transpose(TBN);
-
-                        Vector3f vNormalSpace = InvTBN * v;
-                    
-                        Vector3f sum = Vector3f(0);
-                        for (size_t i = 0; i < m_IndirectSampleCount; ++i)
-                        {
-                            float u1 = uniform( rng );
-                            float u2 = uniform( rng );
-                            
-                            Vector3f SampledFace = Rendering::SampleGGXVNDF_Intel2023(vNormalSpace, Alpha, Alpha, u1, u2);
-                            Vector3f ne = Normalize(TBN * SampledFace);
-                            Vector3f l = Reflect(v, ne);
-                            Vector3f n = Normal;
-                            Vector3f h = Normalize(v + l);
-                            
-                            float VdotH = Dot(h, v);
-                            Vector3f F = Rendering::FresnelSchlick(VdotH, F0);
-                            float G1 = Rendering::G1_Heitz2014_EQ98(h, n, v, Alpha);
-                            float G2 = Rendering::G2_Heitz2014_EQ99(h, n, v, l, Alpha);
-                            
-                            Vector3f ReflectanceDielectrical = Rendering::fDielectricalIndirect(DiffuseColor, G2 / G1, F);
-                            Vector3f ReflectanceMetallic = Rendering::fMetallicIndirect(DiffuseColor, G2 / G1, F);
-
-                            Vector3f Reflectance = LinearInterpolate(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
-                            
-                            Ray IndirectLightRay = {
-                                .origin = PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + l * 0.01f, 
-                                .direction = l, 
-                                .distance = 50.f
-                            };
-                            TraceRayTLAS IndirectLightRayTracerTLAS(*m_CPUSceneTLAS, IndirectLightRay);
-                    
-                            Vector3f IndirectLight(0);
-                            Hit ClosestIndirectHit{}; size_t IndirectHitMaterialId;
-                            for (BVHHit TLASHit : IndirectLightRayTracerTLAS)
-                            {
-                                const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
-                        
-                                TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, Elt.WorldToModel);
-                        
-                                for (Hit Hit : IndirectLightRayTracerBLAS)
-                                {                    
-                                    // BLAS Any Hit   
-                                }
+                }
+        
+                // Indirect lighting
+                if (m_RenderIndirectLight)
+                {
+                    Vector3f LocalTangent = (RotationX * LocalNormal);
+                    Vector3f LocalBiTangent = Cross(LocalNormal, LocalTangent);
+                    Matrix3f LocalTBN = Matrix3f(LocalTangent, LocalBiTangent, LocalNormal);
+                    LocalTBN = Transpose(LocalTBN);
                 
-                                if (Hit Closest = IndirectLightRayTracerBLAS.ClosestHit(); Closest)
-                                {
-                                    // BLAS Closest Hit
-                                    ClosestIndirectHit = Closest;
-                                    IndirectHitMaterialId = Elt.MaterialIndex;
-                                }
-                                else
-                                {
-                                    // Miss
-                                }
-                            }
+                
+                    Vector3f v = Normalize(m_RayTracingCamera.GetWorldPosition() - surface.Position);
+                    Matrix3f TBN =  FragTBN * LocalTBN;
+                    Matrix3f InvTBN = Transpose(TBN);
+
+                    Vector3f vNormalSpace = InvTBN * v;
+                
+                    Vector3f sum = Vector3f(0);
+                    for (size_t i = 0; i < m_IndirectSampleCount; ++i)
+                    {
+                        float u1 = uniform( rng );
+                        float u2 = uniform( rng );
+                        
+                        Vector3f SampledFace = Rendering::SampleGGX(Vector3f(0, 0, 1), Alpha, Alpha, u1, u2);
+                        Vector3f ne = Normalize(TBN * SampledFace);
+                        Vector3f l = Reflect(-v, ne);
+                        Vector3f n = surface.Normal;
+                        Vector3f h = Normalize(v + l);
+                        
+                        float VdotH = Dot(h, v);
+                        Vector3f F = Rendering::FresnelSchlick(VdotH, F0);
+                        float G1 = Rendering::G1_Heitz2014_EQ98(h, n, v, Alpha);
+                        float G2 = Rendering::G2_Heitz2014_EQ99(h, n, v, l, Alpha);
+                        
+                        Vector3f ReflectanceDielectrical = Rendering::fDielectricalIndirect(DiffuseColor, G2 / G1, F);
+                        Vector3f ReflectanceMetallic = Rendering::fMetallicIndirect(DiffuseColor, G2 / G1, F);
+
+                        Vector3f Reflectance = LinearInterpolate(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
+                        
+                        Ray IndirectLightRay = {
+                            .origin = PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + l * 0.01f, 
+                            .direction = l, 
+                            .distance = 50.f
+                        };
+                        TraceRayTLAS IndirectLightRayTracerTLAS(*m_CPUSceneTLAS, IndirectLightRay);
+                
+                        Vector3f IndirectLight(0);
+                        Hit ClosestIndirectHit{}; size_t IndirectHitMaterialId;
+                        for (BVHHit TLASHit : IndirectLightRayTracerTLAS)
+                        {
+                            const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
                     
-                            if (ClosestIndirectHit.IsValid())
+                            TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, Elt.WorldToModel);
+                    
+                            for (Hit Hit : IndirectLightRayTracerBLAS)
+                            {                    
+                                // BLAS Any Hit   
+                            }
+            
+                            if (Hit Closest = IndirectLightRayTracerBLAS.ClosestHit(); Closest)
                             {
-                                if (m_Scene->materials[IndirectHitMaterialId].flags & GLTF::Material::Emissive)
-                                {
-                                    IndirectLight = m_Scene->materials[IndirectHitMaterialId].emissive.xyz();
-                                }
+                                if (ClosestIndirectHit && ClosestIndirectHit.t < Closest.t) continue;
+                                
+                                // BLAS Closest Hit
+                                ClosestIndirectHit = Closest;
+                                IndirectHitMaterialId = Elt.MaterialIndex;
                             }
                             else
                             {
-                                IndirectLight = m_AmbientColor * m_AmbientIntensity;
+                                // Miss
                             }
-                        
-                            sum += (G1 > 0.0f && G2 > 0.0f) ? Reflectance * IndirectLight : Vector3f(0.0f);
+                        }
+                
+                        if (ClosestIndirectHit.IsValid())
+                        {
+                            if (m_Scene->materials[IndirectHitMaterialId].flags & GLTF::Material::Emissive)
+                            {
+                                IndirectLight = m_Scene->materials[IndirectHitMaterialId].emissive.xyz() * 1000.0f;
+                            }
+                        }
+                        else
+                        {
+                            IndirectLight = m_AmbientColor * m_AmbientIntensity;
                         }
                     
-                        finalColor += sum / static_cast<float>(m_IndirectSampleCount);
+                        sum += (G1 > 0.0f && G2 > 0.0f) ? Reflectance * IndirectLight : Vector3f(0.0f);
                     }
-            
-                    Color = finalColor;
+                
+                    finalColor += (sum * PixAmbiantOcclusion) / static_cast<float>(m_IndirectSampleCount);
                 }
+                
+                Color = finalColor;
 
                 WriteBuffer(TargetImage, x, y, Color);
             }
@@ -1356,6 +1367,8 @@ private:
     float m_LightIntensity;
     Math::Vector3f m_AmbientColor;
     float m_AmbientIntensity;
+    bool m_RenderSunlight;
+    bool m_RenderIndirectLight;
     int m_IndirectSampleCount = 128;
 
     bool m_DrawDebugRays;
@@ -1365,6 +1378,7 @@ private:
     bool m_DrawDebugRayTraversalIndirectLight;
     bool m_DrawDebugRayTraversalShadowMap;
     bool m_DebugFreezeRTCamera;
+    bool m_DebugFreezeRandomSequence;
     Vector2t<int> m_DebugRayCoordinates;
     
     std::optional<GLTF::CPUScene> m_Scene;
