@@ -633,7 +633,7 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Vector3<DataType, ThreadCount> Reflect(const Vector3<DataType, ThreadCount>& a, const Vector3<DataType, ThreadCount>& b)
     {
-        return a - b * (Dot(a, b) / Dot(b,b));
+        return a - b * (static_cast<DataType>(2) * Dot(a, b) / Dot(b,b));
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
@@ -1107,6 +1107,6 @@ namespace Math::Simt
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Vector4<DataType, ThreadCount> Reflect(const Vector3<DataType, ThreadCount>& a, const Vector4<DataType, ThreadCount>& b)
     {
-        return a - b * (Dot(a, b) / Dot(b,b));
+        return a - b * (static_cast<DataType>(2) * Dot(a, b) / Dot(b,b));
     }
 }
