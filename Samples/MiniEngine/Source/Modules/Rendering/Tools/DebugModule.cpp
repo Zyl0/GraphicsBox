@@ -21,6 +21,7 @@ namespace Rendering::Debug
         m_DrawFrustum.emplace(PipelineFromFile("Debug Frustum", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Debug/Frustum.glsl"));
         m_DrawBox.emplace(PipelineFromFile("Debug Box", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Debug/Box.glsl"));
         m_DrawRay.emplace(PipelineFromFile("Debug Ray", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Debug/Ray.glsl"));
+        m_DrawLine.emplace(PipelineFromFile("Debug Line", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "Debug/Line.glsl"));
         m_VAO.emplace();
     }
 
@@ -33,6 +34,7 @@ namespace Rendering::Debug
         m_DrawFrustum.reset();
         m_DrawBox.reset();
         m_DrawRay.reset();
+        m_DrawLine.reset();
         m_VAO.reset();
     }
 
@@ -163,6 +165,49 @@ namespace Rendering::Debug
 
         UnBind(*m_VAO);
         UnBind(*m_DrawRay);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glEnable(GL_CULL_FACE);
+    }
+
+    void Module::DrawLine(const Math::Matrix4f& Camera, Math::Point3f A, Math::Point3f B, const Math::Vector3f& Color) const
+    {
+        glDisable(GL_CULL_FACE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        Bind(*m_DrawLine);
+        Bind(*m_VAO);
+
+        SetUniform(*m_DrawLine, "useCameraBuffer", false);
+        SetUniform(*m_DrawLine, "CameraWorldToProj", Camera);
+        SetUniform(*m_DrawLine, "A", A);
+        SetUniform(*m_DrawLine, "B", B);
+        SetUniform(*m_DrawLine, "Color", Color);
+
+        glDrawArrays(GL_LINES, 0, 2);
+
+        UnBind(*m_VAO);
+        UnBind(*m_DrawLine);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glEnable(GL_CULL_FACE);
+    }
+
+    void Module::DrawLine(const StorageBuffer& CameraBuffer, uint32_t Camera, Math::Point3f A, Math::Point3f B, const Math::Vector3f& Color) const
+    {        
+        glDisable(GL_CULL_FACE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        Bind(*m_DrawLine);
+        Bind(*m_VAO);
+
+        SetUniform(*m_DrawLine, "useCameraBuffer", true);
+        SetUniform(0, CameraBuffer);
+        SetUniform(*m_DrawLine, "TargetCamera", Camera);
+        SetUniform(*m_DrawLine, "A", A);
+        SetUniform(*m_DrawLine, "B", B);
+        SetUniform(*m_DrawLine, "Color", Color);
+
+        glDrawArrays(GL_LINES, 0, 2);
+
+        UnBind(*m_VAO);
+        UnBind(*m_DrawLine);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glEnable(GL_CULL_FACE);
     }

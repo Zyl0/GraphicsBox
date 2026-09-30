@@ -35,7 +35,9 @@ namespace Rendering::Debug
         void DrawBox(const StorageBuffer& CameraBuffer, uint32_t Camera, const Math::Box3f& Box, const Math::Vector3f& Color, const Math::Matrix4f& Transform = Math::Matrix4f::Identity()) const;
         void DrawRay(const Math::Matrix4f& WorldToProj, Math::Point3f Origin, float Distance, Math::Vector3f Direction, float HitDistance) const;
         void DrawRay(const StorageBuffer& CameraBuffer, Math::Point3f Origin, float Distance, Math::Vector3f Direction, float HitDistance) const;
-
+        void DrawLine(const Math::Matrix4f& Camera, Math::Point3f A, Math::Point3f B, const Math::Vector3f& Color) const;
+        void DrawLine(const StorageBuffer& CameraBuffer, uint32_t Camera, Math::Point3f A, Math::Point3f B, const Math::Vector3f& Color) const;
+        
         INLINE void DrawRay(const Math::Matrix4f& WorldToProj, const Ray& Ray, float HitDistance)
         {
             DrawRay(WorldToProj, Ray.origin, Ray.distance, Ray.direction, HitDistance);
@@ -49,6 +51,7 @@ namespace Rendering::Debug
         std::optional<Pipeline> m_DrawFrustum;
         std::optional<Pipeline> m_DrawBox;
         std::optional<Pipeline> m_DrawRay;
+        std::optional<Pipeline> m_DrawLine;
         std::optional<VertexArrayObject> m_VAO;
     };
 }
