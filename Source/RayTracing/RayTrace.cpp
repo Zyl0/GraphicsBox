@@ -90,6 +90,55 @@ Math::Vector4f VertexInterpolateTriangle(const Hit& Hit, Math::Vector4f a, Math:
     return a * (1.f - Hit.u - Hit.v) + b * Hit.u + c * Hit.v;
 }
 
+SurfaceHit HitInterpolateProperties(const Mesh& mesh, const Hit& Hit, const Math::Matrix4f* Transform)
+{
+    SurfaceHit surface;
+    surface.Tangent = {0.0f};
+    surface.TextureCoordinates = {0.0f};
+    
+    switch (mesh.GetMeshType())
+    {
+    case Mesh::POINTS:
+    case Mesh::LINE_STRIP:
+    case Mesh::LINE_LOOP:
+    case Mesh::LINES:
+    case Mesh::LINE_STRIP_ADJACENCY:
+    case Mesh::LINES_ADJACENCY:
+    case Mesh::PATCHES:
+    case Mesh::QUAD_STRIP:
+    case Mesh::QUADS:
+    case Mesh::_Count:
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported vertex type. Expected triangles")
+
+    case Mesh::TRIANGLE_STRIP_ADJACENCY:
+    case Mesh::TRIANGLES_ADJACENCY:
+    case Mesh::TRIANGLE_STRIP:
+    case Mesh::TRIANGLE_FAN:
+    case Mesh::TRIANGLES:
+        Mesh::ConstFace face(mesh, Hit.face);
+        Mesh::ConstVertex a = face[0];
+        Mesh::ConstVertex b = face[1];
+        Mesh::ConstVertex c = face[2];
+        
+        if (Transform != nullptr)
+        {
+            Vector4f PositionH = ((*Transform) * Vector4f(VertexInterpolateTriangle(Hit, a.Position(), b.Position(), c.Position()), 1.0f));
+            surface.Position = PositionH.xyz() / PositionH.w;
+            surface.Normal = Normalize(((*Transform) * Vector4f(VertexInterpolateTriangle(Hit, a.Normal(), b.Normal(), c.Normal()), 0.0f)).xyz());
+            if (mesh.HasTangents()) surface.Tangent = Normalize(((*Transform) * Vector4f(VertexInterpolateTriangle(Hit, a.Tangent(), b.Tangent(), c.Tangent()), 0.0f)).xyz());
+        }
+        else
+        {
+            surface.Position = Normalize(VertexInterpolateTriangle(Hit, a.Position(), b.Position(), c.Position()));
+            surface.Normal = Normalize(VertexInterpolateTriangle(Hit, a.Normal(), b.Normal(), c.Normal()));
+            if (mesh.HasTangents()) surface.Tangent = Normalize(VertexInterpolateTriangle(Hit, a.Tangent(), b.Tangent(), c.Tangent()));
+        }
+        if (mesh.HasTextureCoordinates()) surface.TextureCoordinates = VertexInterpolateTriangle(Hit, a.TextureCoordinate(), b.TextureCoordinate(), c.TextureCoordinate());
+    }
+    
+    return surface;
+}
+
 TraceRay::TraceRay(const Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel):
     MeshFaces(Mesh),
     Current(MeshFaces.begin()),

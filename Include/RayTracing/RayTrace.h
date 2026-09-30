@@ -91,6 +91,13 @@ Math::Vector3f VertexInterpolateTriangle(const Hit& Hit, Math::Vector3f a, Math:
 // Face Vertex data interpolation for trianges
 Math::Vector4f VertexInterpolateTriangle(const Hit& Hit, Math::Vector4f a, Math::Vector4f b, Math::Vector4f c);
 
+struct SurfaceHit
+{
+    Math::Point3f Position;
+    Math::Vector3f Normal, Tangent;
+    Math::Vector2f TextureCoordinates;
+} HitInterpolateProperties(const Mesh& mesh, const Hit& Hit, const Math::Matrix4f* Transform = nullptr);
+
 class TraceRay
 {
 public:    
