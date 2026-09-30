@@ -27,6 +27,13 @@ public:
     INLINE void RotateDegrees(float Pitch, float Yaw) {RotateRadians(Math::Radians(Pitch), Math::Radians(Yaw));}
 
     void SetRotationRadians(float Pitch, float Yaw);
+    
+    void SetRotationRadians(float x, float y, float z);
+    INLINE void SetRotationDegrees(float x, float y, float z) {SetRotationRadians(Math::Radians(x), Math::Radians(y), Math::Radians(z));}
+    
+    void RotateRadians(float x, float y, float z);
+
+    INLINE void RotateDegrees(float x, float y, float z) {RotateRadians(Math::Radians(x), Math::Radians(y), Math::Radians(z));}
 
     INLINE void SetRotationDegrees(float Pitch, float Yaw) {SetRotationRadians(Math::Radians(Pitch), Math::Radians(Yaw));}
 
@@ -81,4 +88,5 @@ private:
 
     float m_Pitch = 0;
     float m_Yaw = 0;
+    float m_Roll = 0;
 };

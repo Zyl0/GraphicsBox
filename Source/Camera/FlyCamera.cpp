@@ -50,6 +50,38 @@ void FlyCamera::SetRotationRadians(float Pitch, float Yaw)
     UpdateView();
 }
 
+void FlyCamera::SetRotationRadians(float x, float y, float z)
+{
+    m_Pitch = y;
+    m_Yaw   = z;
+    m_Roll  = x;
+    
+    Rotation() = Math::QuaternionF(m_Pitch, m_Yaw, m_Roll);
+    
+    Direction().x = cos(m_Yaw) * cos(m_Pitch);
+    Direction().y = sin(m_Pitch);
+    Direction().z = sin(m_Yaw) * cos(m_Pitch);
+
+    Right() = Normalize(Cross(Math::Vector3f(0,1,0), Direction()));
+    Up()    = Normalize(Cross(Direction(), Right()));
+}
+
+void FlyCamera::RotateRadians(float x, float y, float z)
+{
+    m_Pitch += y;
+    m_Yaw   += z;
+    m_Roll  += x;
+    
+    Rotation() = Math::QuaternionF(m_Pitch, m_Yaw, m_Roll);
+    
+    Direction().x = cos(m_Yaw) * cos(m_Pitch);
+    Direction().y = sin(m_Pitch);
+    Direction().z = sin(m_Yaw) * cos(m_Pitch);
+
+    Right() = Normalize(Cross(Math::Vector3f(0,1,0), Direction()));
+    Up()    = Normalize(Cross(Direction(), Right()));
+}
+
 void FlyCamera::SetProjection(unsigned Width, unsigned Height, float FieldOfView, float NearDistance, float FarDistance)
 {
     AspectRatio() = static_cast<float>(Width) / static_cast<float>(Height);
