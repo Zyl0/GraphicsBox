@@ -221,7 +221,7 @@ namespace GLTF
             static_cast<float>(material.emissive_factor[2]),
             1.0f
         );
-        if (Magnitude(MaterialObject.emissive) > 0)
+        if (Magnitude(MaterialObject.emissive.xyz()) > 0)
         {
             MaterialObject.flags = MaterialObject.flags | GLTF::Material::Emissive;
         }

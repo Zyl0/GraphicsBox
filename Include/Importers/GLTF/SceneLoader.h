@@ -70,7 +70,7 @@ namespace GLTF
             // F0 = specular
             // alpha = roughness ^ 2
             UseSpecularGlossinessPBRExt =       1 << 8,
-            Emissive =                          1 << 0,
+            Emissive =                          1 << 9,
         } flags = None;
 
         Texture colorTexture = UINT64_MAX;

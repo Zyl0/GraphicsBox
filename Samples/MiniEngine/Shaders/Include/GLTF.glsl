@@ -16,6 +16,6 @@
 // F0 = specular
 // alpha = roughness ^ 2
 #define GLTF_Mat_UseSpecularGlossinessPBRExt       (1 << 8)
-#define GLTF_Mat_Emissive                          (1 << 0)
+#define GLTF_Mat_Emissive                          (1 << 9)
 
 #endif // INCLUDE_GUARD_GLTF_GGX
