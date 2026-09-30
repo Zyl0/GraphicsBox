@@ -484,7 +484,10 @@ end
         project_dir = path.join(gb_SourceDependencyDir, "ImGuizmo")
         
         -- Project includes
-        includedirs (project_dir)
+        includedirs {
+            project_dir,
+            path.join(gb_SourceDependencyDir, "imgui"),
+        }
 
         -- Project files
         files {
