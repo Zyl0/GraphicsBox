@@ -308,13 +308,13 @@ namespace Math
     }
 
     template<typename type>
-    Transform4t<type> operator *(const Transform4t<type> &A, const Matrix4t<type> &B)
+    Matrix4t<type> operator *(const Transform4t<type> &A, const Matrix4t<type> &B)
     {
         return static_cast<Matrix4t<type>>(A) * B;
     }
 
     template<typename type>
-    Transform4t<type> operator *(const Matrix4t<type> &A, const Transform4t<type> &B)
+    Matrix4t<type> operator *(const Matrix4t<type> &A, const Transform4t<type> &B)
     {
         return A * static_cast<Matrix4t<type>>(B);
     }

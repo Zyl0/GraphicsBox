@@ -18,23 +18,14 @@ uniform mat4 TargetMatrixWorldToProj;
 void main()
 {
     const vec3 frustum[8] = vec3[](
-        // vec3( -1, -1, -1 ),
-        // vec3( -1, -1, 1 ),
-        // vec3( -1, 1, -1 ),
-        // vec3( -1, 1, 1 ),
-        // vec3( 1, -1, -1 ),
-        // vec3( 1, -1, 1 ),
-        // vec3( 1, 1, -1 ),
-        // vec3( 1, 1, 1 )
-
         vec3( -1, -1,  1 ),
         vec3(  1, -1,  1 ),
         vec3(  1,  1,  1 ),
         vec3( -1,  1,  1 ),
-        vec3( -1, -1, -1 ),
-        vec3(  1, -1, -1 ),
-        vec3(  1,  1, -1 ),
-        vec3( -1,  1, -1 )
+        vec3( -1, -1,  0 ),
+        vec3(  1, -1,  0 ),
+        vec3(  1,  1,  0 ),
+        vec3( -1,  1,  0 )
     );
 
     const uint indices[24] = {
@@ -54,12 +45,16 @@ void main()
     if (useCameraBuffer == true)
     {
         vec4 SourceWorldPosition = ProjToWorld(cameras[SourceCamera], vec4(frustum[indices[gl_VertexID]], 1));
-
+        SourceWorldPosition.xyz /= SourceWorldPosition.w;
+        SourceWorldPosition.w = 1.0;
         gl_Position = WorldToProj(cameras[TargetCamera], SourceWorldPosition);
     }
     else
     {
-        gl_Position = TargetMatrixWorldToProj * SourceMatrixProjToWorld * vec4(frustum[indices[gl_VertexID]], 1);
+        vec4 SourceWorldPosition = SourceMatrixProjToWorld * vec4(frustum[indices[gl_VertexID]], 1);
+        SourceWorldPosition.xyz /= SourceWorldPosition.w;
+        SourceWorldPosition.w = 1.0;
+        gl_Position = TargetMatrixWorldToProj * SourceWorldPosition;
     }
 }
 
