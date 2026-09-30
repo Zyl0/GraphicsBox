@@ -304,20 +304,23 @@ void Mesh::GenerateNormals()
 }
 
 Math::Vector3f GenerateVertexTangentForTriangle(
-    const Math::Vector3f &A,
-    const Math::Vector3f &B,
-    const Math::Vector3f &C,
-    const Math::Vector2f &UVA,
-    const Math::Vector2f &UVB,
-    const Math::Vector2f &UVC
+    const Math::Vector3f &P0,
+    const Math::Vector3f &P1,
+    const Math::Vector3f &P2,
+    const Math::Vector2f &UVP0,
+    const Math::Vector2f &UVP1,
+    const Math::Vector2f &UVP2
     )
 {
-    Math::Vector3f ab = B - A;
-    Math::Vector3f ac = C - A;
+    Math::Vector3f ab = P1 - P0;
+    Math::Vector3f ac = P2 - P0;
 
-    Math::Vector2f deltaUV1 = UVB - UVA;
-    Math::Vector2f deltaUV2 = UVC - UVA;
+    Math::Vector2f deltaUV1 = UVP1 - UVP0;
+    Math::Vector2f deltaUV2 = UVP2 - UVP0;
 
+    float det = deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y;
+    if (abs(det) < 0.0001f) return Math::Vector3f(0.0f, 0.0f, 0.0f);
+    
     float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
     
     Math::Vector3f t;
@@ -368,22 +371,52 @@ void Mesh::GenerateTangents()
     case TRIANGLE_STRIP:
     case TRIANGLES:
         m_tangents.resize(m_normals.size());
+        for (size_t i = 0; i < m_normals.size(); ++i)
+        {
+            m_tangents[i] = {0,0,0};
+        }
         
         {
-            Faces faces(*this);
-            for (auto face : faces)
+            // Accumulate face tangents into the vertices
+            if (false && !m_texture_coordinates.empty())
             {
-                Math::Vector3f a = face[0].Position();
-                Math::Vector3f b = face[1].Position();
-                Math::Vector3f c = face[2].Position();
+                Faces faces(*this);
+                for (auto face : faces)
+                {
+                    Math::Vector3f a = face[0].Position();
+                    Math::Vector3f b = face[1].Position();
+                    Math::Vector3f c = face[2].Position();
 
-                Math::Vector2f UVA = face[0].TextureCoordinate();
-                Math::Vector2f UVB = face[1].TextureCoordinate();
-                Math::Vector2f UVC = face[2].TextureCoordinate();
+                    Math::Vector2f UVA = face[0].TextureCoordinate();
+                    Math::Vector2f UVB = face[1].TextureCoordinate();
+                    Math::Vector2f UVC = face[2].TextureCoordinate();
 
-                face[0].Tangent() = GenerateVertexTangentForTriangle(a, b, c, UVA, UVB, UVC);
-                face[1].Tangent() = GenerateVertexTangentForTriangle(b, c, a, UVB, UVC, UVA);
-                face[2].Tangent() = GenerateVertexTangentForTriangle(c, a, b, UVC, UVA, UVB);
+                    Math::Vector3f Tangent = GenerateVertexTangentForTriangle(a, b, c, UVA, UVB, UVC);
+                    face[0].Tangent() += Tangent;
+                    face[1].Tangent() += Tangent;
+                    face[2].Tangent() += Tangent;
+                }
+            }
+        
+            // Orthogonalize and Normalize
+            for (size_t i = 0; i < m_tangents.size(); ++i)
+            {
+                Math::Vector3f& n = m_normals[i];
+                Math::Vector3f& t = m_tangents[i];
+                
+                // If a vertex had no valid triangles attached, give it a fallback tangent
+                if (t.x == 0.0f && t.y == 0.0f && t.z == 0.0f) 
+                {
+                    Math::Vector3f refAxis = (std::abs(n.y) < 0.9f) ? Math::Vector3f(0, 1, 0) : Math::Vector3f(0, 0, 1);
+                    t = refAxis;
+                }
+                
+                // Gram-Schmidt orthogonalization: t = t - n * dot(n, t)
+                float dotNT = (n.x * t.x) + (n.y * t.y) + (n.z * t.z);
+                t.x -= n.x * dotNT;
+                t.y -= n.y * dotNT;
+                t.z -= n.z * dotNT;
+                t = Normalize(t);
             }
         }
         break;
@@ -921,9 +954,8 @@ void Mesh::CommitMesh()
     AssertOrWarnCall(!m_positions.empty(), bIsInEditMode = false; return;, "Attempted to generate gpu mesh buffers of an empty mesh.");
     AssertOrError(m_normals.empty()             || m_positions.size() == m_normals.size(), "Impossible to commit mesh. Mesh vertex buffers missmatch.");
     AssertOrError(m_texture_coordinates.empty() || m_positions.size() == m_texture_coordinates.size(), "Impossible to commit mesh. Mesh vertex buffers missmatch.");
-
-    if(!m_texture_coordinates.empty() && m_tangents.empty())
-        GenerateTangents();
+    
+    GenerateTangents();
     
     bIsInEditMode = false;
     
