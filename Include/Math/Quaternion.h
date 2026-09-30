@@ -36,6 +36,8 @@ namespace Math
         Vector3t<type> GetAngles() const;
 
         void SetRotationMatrix(const Matrix3t<type> &m);
+        
+        void SetRotationMatrix(const Matrix4t<type> &m);
 
         /**
          * \brief rotate a vector 
@@ -147,6 +149,52 @@ namespace Math
 
     template <typename type>
     void QuaternionT<type>::SetRotationMatrix(const Matrix3t<type>& m)
+    {
+        type m00 = m(0,0);
+        type m11 = m(1,1);
+        type m22 = m(2,2);
+        type sum = m00 + m11 + m22;
+
+        if(sum > static_cast<type>(0))
+        {
+            w = sqrt(sum + static_cast<type>(1)) * static_cast<type>(0.5);
+            type f = static_cast<type>(0.25) / w;
+
+            x = (m(2,1) - m(1,2)) * f;
+            y = (m(0,2) - m(2,0)) * f;
+            z = (m(1,0) - m(0,1)) * f;
+        }
+        else if((m00 > m11) && (m00 > m22))
+        {
+            x = sqrt(m00 - m11 - m22 + static_cast<type>(1)) * static_cast<type>(0.5);
+            type f = static_cast<type>(0.25) / x;
+            
+            y = (m(1,0) - m(0,1)) * f;
+            z = (m(0,2) - m(2,0)) * f;
+            w = (m(2,1) - m(1,2)) * f;
+        }
+        else if(m11 > m22)
+        {
+            y = sqrt(m11 - m00 - m22 + static_cast<type>(1)) * static_cast<type>(0.5);
+            type f = static_cast<type>(0.25) / y;
+            
+            x = (m(1,0) - m(0,1)) * f;
+            z = (m(2,1) - m(1,2)) * f;
+            w = (m(0,2) - m(2,0)) * f;
+        }
+        else
+        {
+            z = sqrt(m22 - m00 - m11 + static_cast<type>(1)) * static_cast<type>(0.5);
+            type f = static_cast<type>(0.25) / z;
+            
+            x = (m(0,2) - m(2,0)) * f;
+            y = (m(2,1) - m(1,2)) * f;
+            w = (m(1,0) - m(0,1)) * f;
+        }
+    }
+    
+    template <typename type>
+    void QuaternionT<type>::SetRotationMatrix(const Matrix4t<type>& m)
     {
         type m00 = m(0,0);
         type m11 = m(1,1);
