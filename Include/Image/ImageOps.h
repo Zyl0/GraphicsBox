@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "Math/Vector.h"
+#include "Shared/Traits.h"
 #include "Image.h"
 #include "Sampler.h"
 
@@ -15,9 +16,9 @@ struct ImageBuffer
 {
     using Type = TexelType;
     static constexpr bool IsScalarType = std::is_arithmetic_v<Type>;
-    static constexpr bool IsMathVector2Type = std::is_same_v<Type, Math::Vector2t<typename Type::Type>>;
-    static constexpr bool IsMathVector3Type = std::is_same_v<Type, Math::Vector3t<typename Type::Type>>;
-    static constexpr bool IsMathVector4Type = std::is_same_v<Type, Math::Vector4t<typename Type::Type>>;
+    static constexpr bool IsMathVector2Type = is_instantiation_of_v<Math::Vector2t, Type>;
+    static constexpr bool IsMathVector3Type = is_instantiation_of_v<Math::Vector3t, Type>;
+    static constexpr bool IsMathVector4Type = is_instantiation_of_v<Math::Vector4t, Type>;
     static constexpr bool IsMathVectorType = (IsMathVector2Type || IsMathVector3Type || IsMathVector3Type);
     
     ImageBuffer(const Image& Image);
@@ -39,7 +40,7 @@ struct ImageBuffer
     void* Data() const { return m_Data; }
     Math::Vector2t<uint32_t> MipSize(uint32_t MipLevel) const;
     size_t MipDataSize(uint32_t MipLevel) const;
-    void* MipData(uint32_t MipLevel);
+    void* MipData(uint32_t MipLevel) const;
     
     TexelType Read(uint32_t x, uint32_t y) const;
     void Write(uint32_t x, uint32_t y, TexelType data);
@@ -184,19 +185,20 @@ size_t ImageBuffer<TexelType>::MipDataSize(uint32_t MipLevel) const
 }
 
 template <typename TexelType>
-void* ImageBuffer<TexelType>::MipData(uint32_t MipLevel)
+void* ImageBuffer<TexelType>::MipData(uint32_t MipLevel) const
 {
     if (MipLevel == 0) return Data();
     
     size_t texelCount = 0;
     uint32_t width = m_Width, height = m_Height;
-    for (size_t i = 0; i < m_Mips; i++)
+    for (size_t i = 0; i < std::min(m_Mips, MipLevel) - 1; i++)
     {
         texelCount += (width * height);
         width /= 2u; height /= 2u;
     }
     
-    return texelCount * PixelSize();
+    size_t offset = texelCount * PixelSize();
+    return (static_cast<uint8_t*>(Data()) + offset);
 }
 
 template <typename TexelType>
@@ -348,7 +350,7 @@ template <typename TexelType>
 TexelType ImageBuffer<TexelType>::Read(uint32_t x, uint32_t y, uint32_t mip) const
 {
     Math::Vector2t<uint32_t> size = MipSize(mip);
-    TexelType* Mip = MipData(mip);
+    const TexelType* Mip = static_cast<const TexelType*>(MipData(mip));
     
 #ifndef CONFIG_RELEASE
     AssertOrError(x < size.x && y < size.y, "Pixel index out of range")
@@ -429,7 +431,7 @@ template <typename TexelType>
 void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, uint32_t mip, TexelType data)
 {
     Math::Vector2t<uint32_t> size = MipSize(mip);
-    TexelType* Mip = MipData(mip);
+    TexelType* Mip = static_cast<TexelType*>(MipData(mip));
     
 #ifndef CONFIG_RELEASE
     AssertOrError(x < size.x && y < size.y, "Pixel index out of range")

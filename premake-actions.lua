@@ -2372,8 +2372,8 @@ local function UpdateImageOperationsHeader()
                 suffix = "D"
             end
 
-            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& ImageBuffer& Image);\n")
-            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& ImageBuffer& Image, ".. targetType.." ClearValue);\n")
+            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& Image);\n")
+            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& Image, ".. targetType.." ClearValue);\n")
             f:write("".. targetType.." ReadBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y);\n")
             f:write("".. targetType.." ReadBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y, uint32_t mip);\n")
             f:write("void WriteBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y, ".. targetType.." value);\n")
@@ -2382,8 +2382,8 @@ local function UpdateImageOperationsHeader()
             f:write("\n")
             
             for vectorSize = 2,4 do
-                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& ImageBuffer& Image);\n")
-                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& ImageBuffer& Image, Math::Vector"..vectorSize.."t<".. targetType.."> ClearValue);\n")
+                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image);\n")
+                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, Math::Vector"..vectorSize.."t<".. targetType.."> ClearValue);\n")
                 f:write("Math::Vector"..vectorSize.."t<".. targetType.."> ReadBuffer"..suffix.."(const ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y);\n")
                 f:write("Math::Vector"..vectorSize.."t<".. targetType.."> ReadBuffer"..suffix.."(const ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y, uint32_t mip);\n")
                 f:write("void WriteBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y, Math::Vector"..vectorSize.."t<".. targetType.."> value);\n")
@@ -2415,12 +2415,12 @@ local function UpdateImageOperationsHeader()
                 suffix = "D"
             end
             
-            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& ImageBuffer& Image)\n")
+            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& Image)\n")
             f:write("{\n")
             f:write("    std::memset(Image.Data(), 0, Image.DataSize());\n")
             f:write("}\n")
             f:write("\n")
-            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& ImageBuffer& Image, ".. targetType.." ClearValue)\n")
+            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& Image, ".. targetType.." ClearValue)\n")
             f:write("{\n")
             f:write("    ClearValue = _Image::Encode(ClearValue, Image.ComponentEncoding());\n")
             f:write("    ".. sourceType.." value = _Image::ConvertRangesAware<"..sourceType..", "..targetType..">(ClearValue);\n")
@@ -2489,12 +2489,12 @@ local function UpdateImageOperationsHeader()
             f:write("\n")
             
             for vectorSize = 2,4 do
-                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& ImageBuffer& Image)\n")
+                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image)\n")
                 f:write("{\n")
                 f:write("    std::memset(Image.Data(), 0, Image.DataSize());\n")
                 f:write("}\n")
                 f:write("\n")
-                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& ImageBuffer& Image, Math::Vector"..vectorSize.."t<".. targetType.."> ClearValue)\n")
+                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, Math::Vector"..vectorSize.."t<".. targetType.."> ClearValue)\n")
                 f:write("{\n")
                 f:write("    ClearValue = _Image::Encode(ClearValue, Image.ComponentEncoding());\n")
                 f:write("    Math::Vector"..vectorSize.."t<" .. sourceType .. "> value;\n")
