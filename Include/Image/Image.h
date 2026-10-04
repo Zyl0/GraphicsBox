@@ -69,7 +69,7 @@ struct Image
     };
 
     Image();
-    Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, Encoding ComponentEncoding = Linear, const void* Data = nullptr);
+    Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, Encoding ComponentEncoding = Linear, const void* Data = nullptr, bool UseMip = false);
     ~Image();
 
     Image(const Image& Other);
@@ -82,6 +82,7 @@ struct Image
 
     uint32_t Width() const { return m_Width; }
     uint32_t Height() const { return m_Height; }
+    uint32_t MipCount() const { return m_Mips; }
     Type ComponentType() const { return m_ComponentType; }
     Layout ComponentLayout() const { return m_ComponentLayout; }
     Encoding ComponentEncoding() const { return m_ComponentEncoding; }
@@ -91,6 +92,9 @@ struct Image
     uint32_t ComponentCount() const;
     size_t DataSize() const;
     void* Data() const { return m_Data; }
+    Math::Vector2t<uint32_t> MipSize(uint32_t MipLevel) const;
+    size_t MipDataSize(uint32_t MipLevel) const;
+    void* MipData(uint32_t MipLevel);
 
     friend void swap(Image& first, Image& second) noexcept
     {
@@ -103,7 +107,9 @@ struct Image
     }
 
 private:
-    uint32_t m_Width, m_Height;
+    size_t TotalDataSie() const;
+    
+    uint32_t m_Width, m_Height, m_Mips;
     Type m_ComponentType;
     Layout m_ComponentLayout;
     Encoding m_ComponentEncoding;

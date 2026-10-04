@@ -1931,11 +1931,11 @@ local function GetHighestSIMD_x86_ISA()
 end
 
 local function UpdateMathSIMTHeadersX86(ISA, HeaderName)
-    local out_file = path.join(gb_IntermediatesDir, "generated", "MathSimt", HeaderName .. ".h")
-    local out_functions_file = path.join(gb_IntermediatesDir, "generated", "MathSimt", HeaderName .. "_Functions.h")
+    local out_file = path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt", HeaderName .. ".h")
+    local out_functions_file = path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt", HeaderName .. "_Functions.h")
     
-    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "MathSimt")) then
-        os.mkdir(path.join(gb_IntermediatesDir, "generated", "MathSimt"))
+    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt")) then
+        os.mkdir(path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt"))
     end
 
     local ISA_Limit = GetHighestSIMD_x86_ISA()
@@ -2150,10 +2150,10 @@ local function maxVal(list)
     return maxVal
 end
 
-local function UpdateVectorFile()
-    local out_file = path.join(gb_IntermediatesDir, "generated", "Math", "_VectorFunc.h")
-    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Math")) then
-        os.mkdir(path.join(gb_IntermediatesDir, "generated", "Math"))
+local function UpdateMathVectorHeader()
+    local out_file = path.join(gb_IntermediatesDir, "generated", "Include", "Math", "_VectorFunc.h")
+    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Include", "Math")) then
+        os.mkdir(path.join(gb_IntermediatesDir, "generated", "Include", "Math"))
     end
 
     local f = io.open(out_file, "w")
@@ -2349,6 +2349,245 @@ local function UpdateVectorFile()
     f:close()
 end
 
+local function UpdateImageOperationsHeader()
+    local out_file = path.join(gb_IntermediatesDir, "generated", "Include", "Image", "_ImageOps.h")
+    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Include", "Image")) then
+        os.mkdir(path.join(gb_IntermediatesDir, "generated", "Include", "Image"))
+    end
+
+    local WorkingTypes = {"float", "double"}
+    local PrimitiveTypes = {"uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "float", "double"}
+    local vectorMembers = {"x", "y", "z", "w"}
+
+    local f = io.open(out_file, "w")
+
+    f:write("#pragma once\n")
+    f:write("\n")
+    f:write("#include \"Image/ImageOps.h\"\n")
+    f:write("\n")
+    for i0, targetType in ipairs(WorkingTypes) do
+        for i1, sourceType in ipairs(PrimitiveTypes) do
+            local suffix = ""
+            if targetType == "double" then
+                suffix = "D"
+            end
+
+            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& ImageBuffer& Image);\n")
+            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& ImageBuffer& Image, ".. targetType.." ClearValue);\n")
+            f:write("".. targetType.." ReadBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y);\n")
+            f:write("".. targetType.." ReadBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y, uint32_t mip);\n")
+            f:write("void WriteBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y, ".. targetType.." value);\n")
+            f:write("void WriteBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y, uint32_t mip, ".. targetType.." value);\n")
+            f:write("void GenerateMips"..suffix.."(ImageBuffer<" .. sourceType .. ">& Image);\n")
+            f:write("\n")
+            
+            for vectorSize = 2,4 do
+                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& ImageBuffer& Image);\n")
+                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& ImageBuffer& Image, Math::Vector"..vectorSize.."t<".. targetType.."> ClearValue);\n")
+                f:write("Math::Vector"..vectorSize.."t<".. targetType.."> ReadBuffer"..suffix.."(const ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y);\n")
+                f:write("Math::Vector"..vectorSize.."t<".. targetType.."> ReadBuffer"..suffix.."(const ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y, uint32_t mip);\n")
+                f:write("void WriteBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y, Math::Vector"..vectorSize.."t<".. targetType.."> value);\n")
+                f:write("void WriteBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y, uint32_t mip, Math::Vector"..vectorSize.."t<".. targetType.."> value);\n")
+                f:write("void GenerateMips"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image);\n")
+                f:write("\n")
+            end
+        end
+    end
+
+    f:close()
+
+    out_file = path.join(gb_IntermediatesDir, "generated", "Source", "Image", "_ImageOps.cpp")
+    if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Source", "Image")) then
+        os.mkdir(path.join(gb_IntermediatesDir, "generated", "Source", "Image"))
+    end
+
+    local f = io.open(out_file, "w")
+
+    f:write("#include \"Image/_ImageOps.h\"\n")
+    f:write("\n")
+    f:write("#include \"_TexelOps.h\"\n")
+    f:write("#include <cstring>\n")
+    f:write("\n")
+    for i0, targetType in ipairs(WorkingTypes) do
+        for i1, sourceType in ipairs(PrimitiveTypes) do
+            local suffix = ""
+            if targetType == "double" then
+                suffix = "D"
+            end
+            
+            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& ImageBuffer& Image)\n")
+            f:write("{\n")
+            f:write("    std::memset(Image.Data(), 0, Image.DataSize());\n")
+            f:write("}\n")
+            f:write("\n")
+            f:write("void ClearBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& ImageBuffer& Image, ".. targetType.." ClearValue)\n")
+            f:write("{\n")
+            f:write("    ClearValue = _Image::Encode(ClearValue, Image.ComponentEncoding());\n")
+            f:write("    ".. sourceType.." value = _Image::ConvertRangesAware<"..sourceType..", "..targetType..">(ClearValue);\n")
+            f:write("    \n")
+            f:write("    for (uint32_t y = 0; y < Image.Height(); ++y)\n")
+            f:write("    for (uint32_t x = 0; x < Image.Width(); ++x)\n")
+            f:write("    {\n")
+            f:write("        Image.Write(x, y, value);\n")
+            f:write("    }\n")
+            f:write("}\n")
+            f:write("\n")
+            f:write("".. targetType.." ReadBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y)\n")
+            f:write("{\n")
+            f:write("    "..sourceType.." sample = Image.Read(x, y);\n")
+            f:write("    "..targetType.." result = _Image::ConvertRangesAware<"..targetType..", "..sourceType..">(sample);\n")
+            f:write("    return _Image::Decode(result, Image.ComponentEncoding());\n")
+            f:write("}\n")
+            f:write("\n")
+            f:write("".. targetType.." ReadBuffer"..suffix.."(const ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y, uint32_t mip)\n")
+            f:write("{\n")
+            f:write("    "..sourceType.." sample = Image.Read(x, y, mip);\n")
+            f:write("    "..targetType.." result = _Image::ConvertRangesAware<"..targetType..", "..sourceType..">(sample);\n")
+            f:write("    return _Image::Decode(result, Image.ComponentEncoding());\n")
+            f:write("}\n")
+            f:write("\n")
+            f:write("void WriteBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y, ".. targetType.." value)\n")
+            f:write("{\n")
+            f:write("    value = _Image::Encode(value, Image.ComponentEncoding());\n")
+            f:write("    "..sourceType.." result = _Image::ConvertRangesAware<"..sourceType..", "..targetType..">(value);\n")
+            f:write("    Image.Write(x, y, result);\n")
+            f:write("}\n")
+            f:write("\n")
+            f:write("void WriteBuffer"..suffix.."(ImageBuffer<" .. sourceType .. ">& Image, uint32_t x, uint32_t y, uint32_t mip, ".. targetType.." value)\n")
+            f:write("{\n")
+            f:write("    value = _Image::Encode(value, Image.ComponentEncoding());\n")
+            f:write("    "..sourceType.." result = _Image::ConvertRangesAware<"..sourceType..", "..targetType..">(value);\n")
+            f:write("    Image.Write(x, y, mip, result);\n")
+            f:write("}\n")
+            f:write("\n")
+            f:write("void GenerateMips"..suffix.."(ImageBuffer<" .. sourceType .. ">& Image)\n")
+            f:write("{\n")
+            f:write("    uint32_t width = Image.Width(), height = Image.Height(), mipCount = Image.MipCount();\n")
+            f:write("    \n")
+            f:write("    for (uint32_t i = 0; i < (mipCount - 1); i++)\n")
+            f:write("    {\n")
+            f:write("        for (uint32_t y = 0; y < height; y += 2)\n")
+            f:write("        for (uint32_t x = 0; x < width; x += 2)\n")
+            f:write("        {\n")
+            f:write("            " .. targetType .. " sum{};\n")
+            f:write("            \n")
+            f:write("            uint32_t xa = x, xb = (x + 1) == width ? x : x + 1;\n")
+            f:write("            uint32_t ya = y, yb = (y + 1) == height ? y : y + 1;\n")
+            f:write("            \n")
+            f:write("            sum += ReadBuffer"..suffix.."(Image, xa, ya, i);\n")
+            f:write("            sum += ReadBuffer"..suffix.."(Image, xb, ya, i);\n")
+            f:write("            sum += ReadBuffer"..suffix.."(Image, xa, yb, i);\n")
+            f:write("            sum += ReadBuffer"..suffix.."(Image, xb, yb, i);\n")
+            f:write("            \n")
+            f:write("            " .. targetType .. " res =  sum /= 4;\n")
+            f:write("            WriteBuffer"..suffix.."(Image, x / 2u, y / 2u, i + 1, res);\n")
+            f:write("        }\n")
+            f:write("        \n")
+            f:write("        width /= 2u; height /= 2u;\n")
+            f:write("    }\n")
+            f:write("}\n")
+            f:write("\n")
+            
+            for vectorSize = 2,4 do
+                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& ImageBuffer& Image)\n")
+                f:write("{\n")
+                f:write("    std::memset(Image.Data(), 0, Image.DataSize());\n")
+                f:write("}\n")
+                f:write("\n")
+                f:write("void ClearBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& ImageBuffer& Image, Math::Vector"..vectorSize.."t<".. targetType.."> ClearValue)\n")
+                f:write("{\n")
+                f:write("    ClearValue = _Image::Encode(ClearValue, Image.ComponentEncoding());\n")
+                f:write("    Math::Vector"..vectorSize.."t<" .. sourceType .. "> value;\n")
+                for member = 1,vectorSize do
+                    f:write("    value."..vectorMembers[member].." = _Image::ConvertRangesAware<"..sourceType..", "..targetType..">(ClearValue."..vectorMembers[member]..");\n")
+                end
+                f:write("    \n")
+                f:write("    for (uint32_t y = 0; y < Image.Height(); ++y)\n")
+                f:write("    for (uint32_t x = 0; x < Image.Width(); ++x)\n")
+                f:write("    {\n")
+                f:write("        Image.Write(x, y, value);\n")
+                f:write("    }\n")
+                f:write("}\n")
+                f:write("\n")
+                f:write("Math::Vector"..vectorSize.."t<".. targetType.."> ReadBuffer"..suffix.."(const ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y)\n")
+                f:write("{\n")
+                f:write("    auto sample = Image.Read(x, y);\n")
+                f:write("    \n")
+                f:write("    Math::Vector"..vectorSize.."t<" .. targetType .. "> result;\n")
+                for member = 1,vectorSize do
+                    f:write("    result."..vectorMembers[member].." = _Image::ConvertRangesAware<"..targetType..", "..sourceType..">(sample."..vectorMembers[member]..");\n")
+                end
+                f:write("    \n")
+                f:write("    return _Image::Decode(result, Image.ComponentEncoding());\n")
+                f:write("}\n")
+                f:write("\n")
+                f:write("Math::Vector"..vectorSize.."t<".. targetType.."> ReadBuffer"..suffix.."(const ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y, uint32_t mip)\n")
+                f:write("{\n")
+                f:write("    auto sample = Image.Read(x, y, mip);\n")
+                f:write("    \n")
+                f:write("    Math::Vector"..vectorSize.."t<" .. targetType .. "> result;\n")
+                for member = 1,vectorSize do
+                    f:write("    result."..vectorMembers[member].." = _Image::ConvertRangesAware<"..targetType..", "..sourceType..">(sample."..vectorMembers[member]..");\n")
+                end
+                f:write("    \n")
+                f:write("    return _Image::Decode(result, Image.ComponentEncoding());\n")
+                f:write("}\n")
+                f:write("\n")
+                f:write("void WriteBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y, Math::Vector"..vectorSize.."t<".. targetType.."> value)\n")
+                f:write("{\n")
+                f:write("    value = _Image::Encode(value, Image.ComponentEncoding());\n")
+                f:write("    Math::Vector"..vectorSize.."t<" .. sourceType .. "> result;\n")
+                for member = 1,vectorSize do
+                    f:write("    result."..vectorMembers[member].." = _Image::ConvertRangesAware<"..sourceType..", "..targetType..">(value."..vectorMembers[member]..");\n")
+                end
+                f:write("    Image.Write(x, y, result);\n")
+                f:write("}\n")
+                f:write("\n")
+                f:write("void WriteBuffer"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image, uint32_t x, uint32_t y, uint32_t mip, Math::Vector"..vectorSize.."t<".. targetType.."> value)\n")
+                f:write("{\n")
+                f:write("    value = _Image::Encode(value, Image.ComponentEncoding());\n")
+                f:write("    Math::Vector"..vectorSize.."t<" .. sourceType .. "> result;\n")
+                for member = 1,vectorSize do
+                    f:write("    result."..vectorMembers[member].." = _Image::ConvertRangesAware<"..sourceType..", "..targetType..">(value."..vectorMembers[member]..");\n")
+                end
+                f:write("    Image.Write(x, y, mip, result);\n")
+                f:write("}\n")
+                f:write("\n")
+                f:write("void GenerateMips"..suffix.."(ImageBuffer<Math::Vector"..vectorSize.."t<" .. sourceType .. ">>& Image)\n")
+                f:write("{\n")
+                f:write("    uint32_t width = Image.Width(), height = Image.Height(), mipCount = Image.MipCount();\n")
+                f:write("    \n")
+                f:write("    for (uint32_t i = 0; i < (mipCount - 1); i++)\n")
+                f:write("    {\n")
+                f:write("        for (uint32_t y = 0; y < height; y += 2)\n")
+                f:write("        for (uint32_t x = 0; x < width; x += 2)\n")
+                f:write("        {\n")
+                f:write("            Math::Vector"..vectorSize.."t<" .. targetType .. "> sum{};\n")
+                f:write("            \n")
+                f:write("            uint32_t xa = x, xb = (x + 1) == width ? x : x + 1;\n")
+                f:write("            uint32_t ya = y, yb = (y + 1) == height ? y : y + 1;\n")
+                f:write("            \n")
+                f:write("            sum += ReadBuffer"..suffix.."(Image, xa, ya, i);\n")
+                f:write("            sum += ReadBuffer"..suffix.."(Image, xb, ya, i);\n")
+                f:write("            sum += ReadBuffer"..suffix.."(Image, xa, yb, i);\n")
+                f:write("            sum += ReadBuffer"..suffix.."(Image, xb, yb, i);\n")
+                f:write("            \n")
+                f:write("            Math::Vector"..vectorSize.."t<" .. targetType .. "> res =  sum /= 4;\n")
+                f:write("            WriteBuffer"..suffix.."(Image, x / 2u, y / 2u, i + 1, res);\n")
+                f:write("        }\n")
+                f:write("        \n")
+                f:write("        width /= 2u; height /= 2u;\n")
+                f:write("    }\n")
+                f:write("}\n")
+                f:write("\n")
+            end
+        end
+    end
+    
+
+    f:close()
+end
+
 local function UpdateConfig()
     local f = io.open("premake-config.lua", "w")
     
@@ -2411,7 +2650,15 @@ newaction {
     trigger = "update-math",
     description = "update generated math headers",
     execute = function ()
-        UpdateVectorFile()
+        UpdateMathVectorHeader()
+    end
+}
+
+newaction {
+    trigger = "update-image",
+    description = "update generated image manipulation headers",
+    execute = function ()
+        UpdateImageOperationsHeader()
     end
 }
 
@@ -2454,7 +2701,8 @@ newaction {
             UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "_Types_SSE")
         end
 
-        UpdateVectorFile()
+        UpdateMathVectorHeader()
+        UpdateImageOperationsHeader()
 
         UpdateConfig()
         

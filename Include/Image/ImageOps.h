@@ -4,6 +4,7 @@
 
 #include "Math/Vector.h"
 #include "Image.h"
+#include "Sampler.h"
 
 #ifndef CONFIG_RELEASE
 #include "Shared/Assertion.h"
@@ -26,6 +27,7 @@ struct ImageBuffer
 
     uint32_t Width() const { return m_Width; }
     uint32_t Height() const { return m_Height; }
+    uint32_t MipCount() const { return m_Mips; }
     Image::Type ComponentType() const { return m_ComponentType; }
     Image::Layout ComponentLayout() const { return m_ComponentLayout; }
     Image::Encoding ComponentEncoding() const { return m_ComponentEncoding; }
@@ -35,14 +37,21 @@ struct ImageBuffer
     uint32_t ComponentCount() const {return Image::ComponentCount(m_ComponentLayout);}
     size_t DataSize() const {return m_Width * m_Height * PixelSize();}
     void* Data() const { return m_Data; }
+    Math::Vector2t<uint32_t> MipSize(uint32_t MipLevel) const;
+    size_t MipDataSize(uint32_t MipLevel) const;
+    void* MipData(uint32_t MipLevel);
     
     TexelType Read(uint32_t x, uint32_t y) const;
     void Write(uint32_t x, uint32_t y, TexelType data);
+    
+    TexelType Read(uint32_t x, uint32_t y, uint32_t mip) const;
+    void Write(uint32_t x, uint32_t y, uint32_t mip, TexelType data);
 
 private:
     TexelType* m_Data;
     uint32_t m_Width;
     uint32_t m_Height;
+    uint32_t m_Mips;
     Image::Layout m_ComponentLayout;
     Image::Type m_ComponentType;
     Image::Encoding m_ComponentEncoding;
@@ -117,6 +126,7 @@ ImageBuffer<TexelType>::ImageBuffer(const Image& Image)
     m_Data = static_cast<TexelType*>(Image.Data());
     m_Width = Image.Width();
     m_Height = Image.Height();
+    m_Mips = Image.MipCount();
     m_ComponentLayout = Image.ComponentLayout();
     m_ComponentType = Image.ComponentType();
     m_ComponentEncoding = Image.ComponentEncoding();
@@ -127,6 +137,7 @@ ImageBuffer<TexelType>::ImageBuffer(const ImageBuffer& Other):
     m_Data(Other.m_Data),
     m_Width(Other.m_Width),
     m_Height(Other.m_Height),
+    m_Mips(Other.m_Mips),
     m_ComponentLayout(Other.m_ComponentLayout),
     m_ComponentType(Other.m_ComponentType),
     m_ComponentEncoding(Other.m_ComponentEncoding)
@@ -141,10 +152,51 @@ ImageBuffer<TexelType>& ImageBuffer<TexelType>::operator=(const ImageBuffer& Oth
     m_Data = Other.m_Data;
     m_Width = Other.m_Width;
     m_Height = Other.m_Height;
+    m_Mips = Other.m_Mips;
     m_ComponentLayout = Other.m_ComponentLayout;
     m_ComponentType = Other.m_ComponentType;
     m_ComponentEncoding = Other.m_ComponentEncoding;
     return *this;
+}
+
+template <typename TexelType>
+Math::Vector2t<uint32_t> ImageBuffer<TexelType>::MipSize(uint32_t MipLevel) const
+{
+    Math::Vector2t<uint32_t> mipSize = MipSize(MipLevel);
+    return (mipSize.x * mipSize.y * PixelSize());
+}
+
+template <typename TexelType>
+size_t ImageBuffer<TexelType>::MipDataSize(uint32_t MipLevel) const
+{
+    if (MipLevel == 0) return Data();
+    
+    size_t texelCount = 0;
+    uint32_t width = m_Width, height = m_Height;
+    for (size_t i = 0; i < std::min(m_Mips, MipLevel) - 1; i++)
+    {
+        texelCount += (width * height);
+        width /= 2u; height /= 2u;
+    }
+    
+    size_t offset = texelCount * PixelSize();
+    return (static_cast<uint8_t*>(Data()) + offset);
+}
+
+template <typename TexelType>
+void* ImageBuffer<TexelType>::MipData(uint32_t MipLevel)
+{
+    if (MipLevel == 0) return Data();
+    
+    size_t texelCount = 0;
+    uint32_t width = m_Width, height = m_Height;
+    for (size_t i = 0; i < m_Mips; i++)
+    {
+        texelCount += (width * height);
+        width /= 2u; height /= 2u;
+    }
+    
+    return texelCount * PixelSize();
 }
 
 template <typename TexelType>
@@ -214,7 +266,7 @@ TexelType ImageBuffer<TexelType>::Read(uint32_t x, uint32_t y) const
                 sample.w = m_Data[y * m_Width + x].x;
                 sample.x = m_Data[y * m_Width + x].w;
                 sample.y = m_Data[y * m_Width + x].z;
-                sample.z = m_Data[y * m_Width + x].x;
+                sample.z = m_Data[y * m_Width + x].y;
             
                 return sample;
             }
@@ -253,6 +305,8 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, TexelType data)
             m_Data[y * m_Width + x].x = data.z;
             break;
         }
+        
+        return;
     }
     
     if constexpr (IsMathVector4Type)
@@ -280,19 +334,176 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, TexelType data)
             m_Data[y * m_Width + x].x = data.w;
             m_Data[y * m_Width + x].w = data.x;
             m_Data[y * m_Width + x].z = data.y;
-            m_Data[y * m_Width + x].x = data.z;
+            m_Data[y * m_Width + x].y = data.z;
             break;
         }
+        
+        return;
     }
     
     m_Data[y * m_Width + x] = data;
 }
 
-void ClearBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer);
-void ClearBuffer(ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer);
+template <typename TexelType>
+TexelType ImageBuffer<TexelType>::Read(uint32_t x, uint32_t y, uint32_t mip) const
+{
+    Math::Vector2t<uint32_t> size = MipSize(mip);
+    TexelType* Mip = MipData(mip);
+    
+#ifndef CONFIG_RELEASE
+    AssertOrError(x < size.x && y < size.y, "Pixel index out of range")
+#endif // CONFIG_RELEASE
+    
+    if constexpr (IsMathVector3Type)
+    {
+        switch (m_ComponentLayout)
+        {
+        case Image::R:
+        case Image::RG:
+        case Image::RGBA:
+        case Image::ARGB:
+        case Image::ABGR:
+            UNREACHABLE;
+            break;
+            
+        case Image::RGB: 
+            break;
+            
+        case Image::BGR:
+            TexelType sample;
+            
+            sample.x = Mip[y * size.x + x].z;
+            sample.y = Mip[y * size.x + x].y;
+            sample.z = Mip[y * size.x + x].x;
+            
+            return sample;
+        }
+    }
+    
+    if constexpr (IsMathVector4Type)
+    {
+        switch (m_ComponentLayout)
+        {
+        case Image::R:
+        case Image::RG:
+        case Image::RGB:
+        case Image::BGR:
+            UNREACHABLE;
+            break;
+            
+        case Image::RGBA:
+            break;
+            
+        case Image::ARGB:
+            {
+                TexelType sample;
+            
+                sample.w = Mip[y * size.x + x].x;
+                sample.x = Mip[y * size.x + x].y;
+                sample.y = Mip[y * size.x + x].z;
+                sample.z = Mip[y * size.x + x].w;
+            
+                return sample;
+            }
+        break;
+            
+        case Image::ABGR:
+            {
+                TexelType sample;
+            
+                sample.w = Mip[y * size.x + x].x;
+                sample.x = Mip[y * size.x + x].w;
+                sample.y = Mip[y * size.x + x].z;
+                sample.z = Mip[y * size.x + x].y;
+            
+                return sample;
+            }
+        break;
+        }
+    }
+        
+    return Mip[y * size.x + x];
+}
 
-Math::Vector3f ReadBuffer(const ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y);
-Math::Vector4f ReadBuffer(const ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y);
+template <typename TexelType>
+void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, uint32_t mip, TexelType data)
+{
+    Math::Vector2t<uint32_t> size = MipSize(mip);
+    TexelType* Mip = MipData(mip);
+    
+#ifndef CONFIG_RELEASE
+    AssertOrError(x < size.x && y < size.y, "Pixel index out of range")
+#endif // CONFIG_RELEASE
+    
+    if constexpr (IsMathVector3Type)
+    {
+        switch (m_ComponentLayout)
+        {
+        case Image::R:
+        case Image::RG:
+        case Image::RGBA:
+        case Image::ARGB:
+        case Image::ABGR:
+            UNREACHABLE;
+            break;
+            
+        case Image::RGB:
+            break;
+            
+        case Image::BGR:
+            Mip[y * size.x + x].z = data.x;
+            Mip[y * size.x + x].y = data.y;
+            Mip[y * size.x + x].x = data.z;
+            break;
+        }
+        
+        return;
+    }
+    
+    if constexpr (IsMathVector4Type)
+    {
+        switch (m_ComponentLayout)
+        {
+        case Image::R:
+        case Image::RG:
+        case Image::RGB:
+        case Image::BGR:
+            UNREACHABLE;
+            break;
+            
+        case Image::RGBA:
+            break;
+            
+        case Image::ARGB:       
+            Mip[y * size.x + x].x = data.w;
+            Mip[y * size.x + x].y = data.x;
+            Mip[y * size.x + x].z = data.y;
+            Mip[y * size.x + x].w = data.z;
+            break;
+            
+        case Image::ABGR:       
+            Mip[y * size.x + x].x = data.w;
+            Mip[y * size.x + x].w = data.x;
+            Mip[y * size.x + x].z = data.y;
+            Mip[y * size.x + x].y = data.z;
+            break;
+        }
+        
+        return;
+    }
+    
+    Mip[y * m_Width + x] = data;
+}
 
-void WriteBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y, Math::Vector3f data);
-void WriteBuffer(ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y, Math::Vector4f data);
+
+struct SurfaceSampler
+{
+    float dudx, dvdx, dudy, dvdy;
+};
+
+void GenerateMips(const Image& image);
+
+Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math::Vector2f uvs, uint32_t mip = 0);
+Math::Vector4f SampleImage(const Image& image, const SurfaceSampler& surface, const ImageSampler& sampler, Math::Vector2f uvs);
+
+#include "Image/_ImageOps.h"

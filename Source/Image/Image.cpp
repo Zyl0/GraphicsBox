@@ -12,6 +12,21 @@
 #include "Shared/Annotations.h"
 #include "Shared/Assertion.h"
 
+static uint32_t ImageMipCount(uint32_t width, uint32_t height)
+{
+    uint32_t w = width;
+    uint32_t h = height;
+    uint32_t levels = 1;
+    while (w > 1u || h > 1u)
+    {
+        w = std::max(1u, w / 2u);
+        h = std::max(1u, h / 2u);
+        levels = levels + 1;
+    }
+
+    return levels;
+}
+
 uint32_t Image::ChannelSize(Type ComponentType)
 {
     switch (ComponentType)
@@ -60,12 +75,13 @@ Image::Image():
 {
 }
 
-Image::Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, Encoding ComponentEncoding, const void* Data) :
+Image::Image(uint32_t Width, uint32_t Height, Type ComponentType, Layout ComponentLayout, Encoding ComponentEncoding, const void* Data, bool UseMip) :
     m_Width(Width), m_Height(Height),
+    m_Mips(UseMip ? ImageMipCount(Width, Height) : 1),
     m_ComponentType(ComponentType),
     m_ComponentLayout(ComponentLayout),
     m_ComponentEncoding(ComponentEncoding),
-    m_Data(m_Width * m_Height > 0 ? malloc(DataSize()) : nullptr)
+    m_Data(m_Width * m_Height > 0 ? malloc(TotalDataSie()) : nullptr)
 {
     if (Data != nullptr && m_Data != nullptr)
     {
@@ -185,6 +201,54 @@ uint32_t Image::ComponentCount() const
 size_t Image::DataSize() const
 {
     return static_cast<size_t>(m_Width) * m_Height * PixelSize();
+}
+
+Math::Vector2t<uint32_t> Image::MipSize(uint32_t MipLevel) const
+{
+    if (MipLevel == 0) return {m_Width, m_Height};
+    
+    uint32_t width = m_Width, height = m_Height;
+    for (size_t i = 0; i < std::min(MipLevel, m_Mips); i++)
+    {
+        width /= 2u; height /= 2u;
+    }
+    
+    return {width, height};
+}
+
+size_t Image::MipDataSize(uint32_t MipLevel) const
+{
+    Math::Vector2t<uint32_t> mipSize = MipSize(MipLevel);
+    return (mipSize.x * mipSize.y * PixelSize());
+}
+
+void* Image::MipData(uint32_t MipLevel)
+{
+    if (MipLevel == 0) return Data();
+    
+    size_t texelCount = 0;
+    uint32_t width = m_Width, height = m_Height;
+    for (size_t i = 0; i < std::min(m_Mips, MipLevel) - 1; i++)
+    {
+        texelCount += (width * height);
+        width /= 2u; height /= 2u;
+    }
+    
+    size_t offset = texelCount * PixelSize();
+    return (static_cast<uint8_t*>(Data()) + offset);
+}
+
+size_t Image::TotalDataSie() const
+{
+    size_t texelCount = 0;
+    uint32_t width = m_Width, height = m_Height;
+    for (size_t i = 0; i < m_Mips; i++)
+    {
+        texelCount += (width * height);
+        width /= 2u; height /= 2u;
+    }
+    
+    return texelCount * PixelSize();
 }
 
 static Image LoadImageDDSFromMemory(const uint8_t* data, size_t size)

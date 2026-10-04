@@ -107,6 +107,11 @@ namespace sRGB
     float OETF(float linear, float gamma, float alpha);
     float EOTF(float sRGB);
     float EOTF(float sRGB, float gamma, float alpha);
+    
+    double OETF(double linear);
+    double OETF(double linear, double gamma, double alpha);
+    double EOTF(double sRGB);
+    double EOTF(double sRGB, double gamma, double alpha);
 }
 
 namespace DciP3D65
@@ -203,6 +208,18 @@ namespace ArriLogC
 
     template <typename EI = EI800>
     INLINE float GArriLogCToGLinear(float logC)
+    {
+        return (logC > (EI::e * EI::cut + EI::f)) ? (pow(10, (logC - EI::d) / EI::c) - 2) / EI::a : (logC - EI::f) / EI::e;
+    }
+    
+    template <typename EI = EI800>
+    INLINE double GLinearToGArriLogC(double linear)
+    {
+        return (linear > EI::cut) ? EI::c * log10(EI::a * linear + EI::b) + EI::d : EI::e * linear + EI::f;
+    }
+
+    template <typename EI = EI800>
+    INLINE double GArriLogCToGLinear(double logC)
     {
         return (logC > (EI::e * EI::cut + EI::f)) ? (pow(10, (logC - EI::d) / EI::c) - 2) / EI::a : (logC - EI::f) / EI::e;
     }

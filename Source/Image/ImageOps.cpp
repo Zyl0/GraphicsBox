@@ -6,610 +6,1086 @@
 #include "Memory/Functions.h"
 #include "Shared/Assertion.h"
 
-namespace _Image
+#include "_TexelOps.h"
+
+void GenerateMips(const Image& image)
 {
-    template <class T>
-    constexpr bool IsMathVector2Type = std::is_same_v<T, Math::Vector2t<typename T::Type>>;
-        
-    template <class T>
-    constexpr bool IsMathVector3Type = std::is_same_v<T, Math::Vector3t<typename T::Type>>;
-        
-    template <class T>
-    constexpr bool IsMathVector4Type = std::is_same_v<T, Math::Vector4t<typename T::Type>>;
-        
-    template <class T>
-    constexpr bool IsMathVectorType = (IsMathVector2Type<T> || IsMathVector3Type<T> || IsMathVector3Type<T>);
-        
-    
-    template <typename ToType, typename FromType> 
-    ToType ConvertRangesAware(const FromType& From)
+    switch (image.ComponentLayout())
     {
-        static_assert(sizeof(ToType) == 0, "Data convertion is no handled");
-    }
-    
-    template <> 
-    INLINE uint8_t ConvertRangesAware<uint8_t, uint8_t>(const uint8_t& From)
-    {
-        return From;
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, int8_t>(const int8_t& From)
-    {
-        return int8_to_uint8(From);
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, uint16_t>(const uint16_t& From)
-    {
-        return From >> 8;
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, int16_t>(const int16_t& From)
-    {
-        return int16_to_uint16(From) >> 8;
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, uint32_t>(const uint32_t& From)
-    {
-        return From >> 24;
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, int32_t>(const int32_t& From)
-    {
-        return int32_to_uint32(From) >> 24;
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, uint64_t>(const uint64_t& From)
-    {
-        return From >> 56;
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, int64_t>(const int64_t& From)
-    {
-        return int64_to_uint64(From) >> 56;
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, float>(const float& From)
-    {
-        return static_cast<uint8_t>(Math::Saturate(From) * static_cast<float>(UINT8_MAX));
-    }
-    template <> uint8_t ConvertRangesAware<uint8_t, double>(const double& From)
-    {
-        return static_cast<uint8_t>(Math::Saturate(From) * static_cast<double>(UINT8_MAX));
-    }
-    
-    template <> int8_t ConvertRangesAware<int8_t, uint8_t>(const uint8_t& From)
-    {
-        return uint8_to_int8(From);
-    }
-    template <> 
-    INLINE int8_t ConvertRangesAware<int8_t, int8_t>(const int8_t& From)
-    {
-        return From;
-    }
-    template <> int8_t ConvertRangesAware<int8_t, uint16_t>(const uint16_t& From)
-    {
-        return uint8_to_int8(From >> 8);
-    }
-    template <> int8_t ConvertRangesAware<int8_t, int16_t>(const int16_t& From)
-    {
-        return From >> 8;
-    }
-    template <> int8_t ConvertRangesAware<int8_t, uint32_t>(const uint32_t& From)
-    {
-        return uint8_to_int8(From >> 24);
-    }
-    template <> int8_t ConvertRangesAware<int8_t, int32_t>(const int32_t& From)
-    {
-        return From >> 24;
-    }
-    template <> int8_t ConvertRangesAware<int8_t, uint64_t>(const uint64_t& From)
-    {
-        return uint8_to_int8(From >> 56);
-    }
-    template <> int8_t ConvertRangesAware<int8_t, int64_t>(const int64_t& From)
-    {
-        return From >> 56;
-    }
-    template <> int8_t ConvertRangesAware<int8_t, float>(const float& From)
-    {
-        return uint8_to_int8(static_cast<uint8_t>(Math::Saturate(From) * static_cast<float>(UINT8_MAX)));
-    }
-    template <> int8_t ConvertRangesAware<int8_t, double>(const double& From)
-    {
-        return uint8_to_int8(static_cast<uint8_t>(Math::Saturate(From) * static_cast<double>(UINT8_MAX)));
-    }
-    
-    template <> uint16_t ConvertRangesAware<uint16_t, uint8_t>(const uint8_t& From)
-    {
-        return From << 8;
-    }
-    template <> uint16_t ConvertRangesAware<uint16_t, int8_t>(const int8_t& From)
-    {
-        return static_cast<uint16_t>(int8_to_uint8(From)) << 8;
-    }
-    template <> 
-    INLINE uint16_t ConvertRangesAware<uint16_t, uint16_t>(const uint16_t& From)
-    {
-        return From;
-    }
-    template <> uint16_t ConvertRangesAware<uint16_t, int16_t>(const int16_t& From)
-    {
-        return int16_to_uint16(From);
-    }
-    template <> uint16_t ConvertRangesAware<uint16_t, uint32_t>(const uint32_t& From)
-    {
-        return From >> 16;
-    }
-    template <> uint16_t ConvertRangesAware<uint16_t, int32_t>(const int32_t& From)
-    {
-        return int32_to_uint32(From) >> 16;
-    }
-    template <> uint16_t ConvertRangesAware<uint16_t, uint64_t>(const uint64_t& From)
-    {
-        return From >> 48;
-    }
-    template <> uint16_t ConvertRangesAware<uint16_t, int64_t>(const int64_t& From)
-    {
-        return int64_to_uint64(From) >> 48;
-    }
-    template <> uint16_t ConvertRangesAware<uint16_t, float>(const float& From)
-    {
-        return static_cast<uint16_t>(Math::Saturate(From) * static_cast<float>(UINT16_MAX));
-    }
-    template <> uint16_t ConvertRangesAware<uint16_t, double>(const double& From)
-    {
-        return static_cast<uint16_t>(Math::Saturate(From) * static_cast<double>(UINT16_MAX));
-    }
-    
-    template <> int16_t ConvertRangesAware<int16_t, uint8_t>(const uint8_t& From)
-    {
-        return static_cast<int16_t>(uint8_to_int8(From)) << 8u;
-    }
-    template <> int16_t ConvertRangesAware<int16_t, int8_t>(const int8_t& From)
-    {
-        return static_cast<uint16_t>(From) << 8u;
-    }
-    template <> int16_t ConvertRangesAware<int16_t, uint16_t>(const uint16_t& From)
-    {
-        return uint16_to_int16(From);
-    }
-    template <> 
-    INLINE int16_t ConvertRangesAware<int16_t, int16_t>(const int16_t& From)
-    {
-        return From;
-    }
-    template <> int16_t ConvertRangesAware<int16_t, uint32_t>(const uint32_t& From)
-    {
-        return uint16_to_int16(From >> 16);
-    }
-    template <> int16_t ConvertRangesAware<int16_t, int32_t>(const int32_t& From)
-    {
-        return (From >> 16);
-    }
-    template <> int16_t ConvertRangesAware<int16_t, uint64_t>(const uint64_t& From)
-    {
-        return uint16_to_int16(From >> 48);
-    }
-    template <> int16_t ConvertRangesAware<int16_t, int64_t>(const int64_t& From)
-    {
-        return (From >> 48);
-    }
-    template <> int16_t ConvertRangesAware<int16_t, float>(const float& From)
-    {
-        return uint16_to_int16(static_cast<uint16_t>(Math::Saturate(From) * static_cast<float>(UINT16_MAX)));
-    }
-    template <> int16_t ConvertRangesAware<int16_t, double>(const double& From)
-    {
-        return uint16_to_int16(static_cast<uint16_t>(Math::Saturate(From) * static_cast<double>(UINT16_MAX)));
-    }
-    
-    template <> uint32_t ConvertRangesAware<uint32_t, uint8_t>(const uint8_t& From)
-    {
-        return From << 24;
-    }
-    template <> uint32_t ConvertRangesAware<uint32_t, int8_t>(const int8_t& From)
-    {
-        return uint8_to_int8(From) << 24;
-    }
-    template <> uint32_t ConvertRangesAware<uint32_t, uint16_t>(const uint16_t& From)
-    {
-        return From << 16;
-    }
-    template <> uint32_t ConvertRangesAware<uint32_t, int16_t>(const int16_t& From)
-    {
-        return int16_to_uint16(From) << 16;
-    }
-    template <> 
-    INLINE uint32_t ConvertRangesAware<uint32_t, uint32_t>(const uint32_t& From)
-    {
-        return From;
-    }
-    template <> uint32_t ConvertRangesAware<uint32_t, int32_t>(const int32_t& From)
-    {
-        return int32_to_uint32(From);
-    }
-    template <> uint32_t ConvertRangesAware<uint32_t, uint64_t>(const uint64_t& From)
-    {
-        return From >> 32;
-    }
-    template <> uint32_t ConvertRangesAware<uint32_t, int64_t>(const int64_t& From)
-    {
-        return int64_to_uint64(From) >> 32;
-    }
-    template <> uint32_t ConvertRangesAware<uint32_t, float>(const float& From)
-    {
-        return static_cast<uint32_t>(Math::Saturate(From) * static_cast<float>(UINT32_MAX));
-    }
-    template <> uint32_t ConvertRangesAware<uint32_t, double>(const double& From)
-    {
-        return static_cast<uint32_t>(Math::Saturate(From) * static_cast<double>(UINT32_MAX));
-    }
-    
-    template <> int32_t ConvertRangesAware<int32_t, uint8_t>(const uint8_t& From)
-    {
-        return uint8_to_int8(From) << 24;
-    }
-    template <> int32_t ConvertRangesAware<int32_t, int8_t>(const int8_t& From)
-    {
-        return From << 24;
-    }
-    template <> int32_t ConvertRangesAware<int32_t, uint16_t>(const uint16_t& From)
-    {
-        return uint16_to_int16(From) << 16;
-    }
-    template <> int32_t ConvertRangesAware<int32_t, int16_t>(const int16_t& From)
-    {
-        return From << 16;
-    }
-    template <> int32_t ConvertRangesAware<int32_t, uint32_t>(const uint32_t& From)
-    {
-        return uint32_to_int32(From);
-    }
-    template <> 
-    INLINE int32_t ConvertRangesAware<int32_t, int32_t>(const int32_t& From)
-    {
-        return From;
-    }
-    template <> int32_t ConvertRangesAware<int32_t, uint64_t>(const uint64_t& From)
-    {
-        return uint64_to_int64(From) >> 32;
-    }
-    template <> int32_t ConvertRangesAware<int32_t, int64_t>(const int64_t& From)
-    {
-        return From >> 32;
-    }
-    template <> int32_t ConvertRangesAware<int32_t, float>(const float& From)
-    {
-        return uint32_to_int32(static_cast<uint32_t>(Math::Saturate(From) * static_cast<float>(UINT32_MAX)));
-    }
-    template <> int32_t ConvertRangesAware<int32_t, double>(const double& From)
-    {
-        return uint32_to_int32(static_cast<uint32_t>(Math::Saturate(From) * static_cast<double>(UINT32_MAX)));
-    }
-    
-    template <> uint64_t ConvertRangesAware<uint64_t, uint8_t>(const uint8_t& From)
-    {
-        return From << 56;
-    }
-    template <> uint64_t ConvertRangesAware<uint64_t, int8_t>(const int8_t& From)
-    {
-        return int8_to_uint8(From) << 56;
-    }
-    template <> uint64_t ConvertRangesAware<uint64_t, uint16_t>(const uint16_t& From)
-    {
-        return From << 48;
-    }
-    template <> uint64_t ConvertRangesAware<uint64_t, int16_t>(const int16_t& From)
-    {
-        return uint16_to_int16(From) << 48;
-    }
-    template <> uint64_t ConvertRangesAware<uint64_t, uint32_t>(const uint32_t& From)
-    {
-        return From << 32;
-    }
-    template <> uint64_t ConvertRangesAware<uint64_t, int32_t>(const int32_t& From)
-    {
-        return uint32_to_int32(From) << 32;
-    }
-    template <> 
-    INLINE uint64_t ConvertRangesAware<uint64_t, uint64_t>(const uint64_t& From)
-    {
-        return From;
-    }
-    template <> uint64_t ConvertRangesAware<uint64_t, int64_t>(const int64_t& From)
-    {
-        return uint64_to_int64(From);
-    }
-    template <> uint64_t ConvertRangesAware<uint64_t, float>(const float& From)
-    {
-        return static_cast<uint64_t>(Math::Saturate(From) * static_cast<float>(UINT64_MAX));
-    }
-    template <> uint64_t ConvertRangesAware<uint64_t, double>(const double& From)
-    {
-        return static_cast<uint64_t>(Math::Saturate(From) * static_cast<double>(UINT64_MAX));
-    }
-    
-    template <> int64_t ConvertRangesAware<int64_t, uint8_t>(const uint8_t& From)
-    {
-        return uint8_to_int8(From) << 56;
-    }
-    template <> int64_t ConvertRangesAware<int64_t, int8_t>(const int8_t& From)
-    {
-        return From << 56;
-    }
-    template <> int64_t ConvertRangesAware<int64_t, uint16_t>(const uint16_t& From)
-    {
-        return uint16_to_int16(From) << 48;
-    }
-    template <> int64_t ConvertRangesAware<int64_t, int16_t>(const int16_t& From)
-    {
-        return From << 48;
-    }
-    template <> int64_t ConvertRangesAware<int64_t, uint32_t>(const uint32_t& From)
-    {
-        return uint32_to_int32(From) << 32;
-    }
-    template <> int64_t ConvertRangesAware<int64_t, int32_t>(const int32_t& From)
-    {
-        return From << 32;
-    }
-    template <> int64_t ConvertRangesAware<int64_t, uint64_t>(const uint64_t& From)
-    {
-        return uint64_to_int64(From);
-    }
-    template <> 
-    INLINE int64_t ConvertRangesAware<int64_t, int64_t>(const int64_t& From)
-    {
-        return From;
-    }
-    template <> int64_t ConvertRangesAware<int64_t, float>(const float& From)
-    {
-        return uint64_to_int64(static_cast<uint64_t>(Math::Saturate(From) * static_cast<float>(UINT64_MAX)));
-    }
-    template <> int64_t ConvertRangesAware<int64_t, double>(const double& From)
-    {
-        return uint64_to_int64(static_cast<uint64_t>(Math::Saturate(From) * static_cast<double>(UINT64_MAX)));
-    }
-    
-    template <> float ConvertRangesAware<float, uint8_t>(const uint8_t& From)
-    {
-        return static_cast<float>(From) / static_cast<float>(UINT8_MAX);
-    }
-    template <> float ConvertRangesAware<float, int8_t>(const int8_t& From)
-    {
-        return static_cast<float>(int8_to_uint8(From)) / static_cast<float>(UINT8_MAX);
-    }
-    template <> float ConvertRangesAware<float, uint16_t>(const uint16_t& From)
-    {
-        return static_cast<float>(From) / static_cast<float>(UINT16_MAX);
-    }
-    template <> float ConvertRangesAware<float, int16_t>(const int16_t& From)
-    {
-        return static_cast<float>(int16_to_uint16(From)) / static_cast<float>(UINT16_MAX);
-    }
-    template <> float ConvertRangesAware<float, uint32_t>(const uint32_t& From)
-    {
-        return static_cast<float>(From) / static_cast<float>(UINT32_MAX);
-    }
-    template <> float ConvertRangesAware<float, int32_t>(const int32_t& From)
-    {
-        return static_cast<float>(int32_to_uint32(From)) / static_cast<float>(UINT32_MAX);
-    }
-    template <> float ConvertRangesAware<float, uint64_t>(const uint64_t& From)
-    {
-        return static_cast<float>(From) / static_cast<float>(UINT64_MAX);
-    }
-    template <> float ConvertRangesAware<float, int64_t>(const int64_t& From)
-    {
-        return static_cast<float>(int64_to_uint64(From)) / static_cast<float>(UINT64_MAX);
-    }
-    template <> 
-    INLINE float ConvertRangesAware<float, float>(const float& From)
-    {
-        return From;
-    }
-    template <> 
-    INLINE float ConvertRangesAware<float, double>(const double& From)
-    {
-        return static_cast<float>(From);
-    }
-    
-    template <> double ConvertRangesAware<double, int8_t>(const int8_t& From)
-    {
-        return static_cast<double>(int8_to_uint8(From)) / static_cast<double>(UINT8_MAX);
-    }
-    template <> double ConvertRangesAware<double, uint16_t>(const uint16_t& From)
-    {
-        return static_cast<double>(From) / static_cast<double>(UINT16_MAX);
-    }
-    template <> double ConvertRangesAware<double, int16_t>(const int16_t& From)
-    {
-        return static_cast<double>(int16_to_uint16(From)) / static_cast<double>(UINT16_MAX);
-    }
-    template <> double ConvertRangesAware<double, uint32_t>(const uint32_t& From)
-    {
-        return static_cast<double>(From) / static_cast<double>(UINT32_MAX);
-    }
-    template <> double ConvertRangesAware<double, int32_t>(const int32_t& From)
-    {
-        return static_cast<double>(int32_to_uint32(From)) / static_cast<double>(UINT32_MAX);
-    }
-    template <> double ConvertRangesAware<double, uint64_t>(const uint64_t& From)
-    {
-        return static_cast<double>(From) / static_cast<double>(UINT64_MAX);
-    }
-    template <> double ConvertRangesAware<double, int64_t>(const int64_t& From)
-    {
-        return static_cast<double>(int64_to_uint64(From)) / static_cast<double>(UINT64_MAX);
-    }
-    template <> 
-    INLINE double ConvertRangesAware<double, float>(const float& From)
-    {
-        return static_cast<double>(From);
-    }
-    template <> 
-    INLINE double ConvertRangesAware<double, double>(const double& From)
-    {
-        return From;
-    }
-
-    Math::Vector3f Decode(Math::Vector3f Encoded, Image::Encoding Encoding)
-    {
-        switch (Encoding)
+    case Image::R:
+        switch (image.ComponentType())
         {
-        case Image::Linear:
+        case Image::UnsignedByte:
+            {
+                ImageBuffer<uint8_t> buffer = {image};
+                GenerateMips(buffer);
+            }
             break;
-
-        case Image::sRGB:
-            Encoded.x = sRGB::EOTF(Encoded.x);
-            Encoded.y = sRGB::EOTF(Encoded.y);
-            Encoded.z = sRGB::EOTF(Encoded.z);
+            
+        case Image::Byte:
+            {
+                ImageBuffer<int8_t> buffer = {image};
+                GenerateMips(buffer);
+            }
             break;
-
-        case Image::LogC:
-            Encoded.x = ArriLogC::GArriLogCToGLinear(Encoded.x);
-            Encoded.y = ArriLogC::GArriLogCToGLinear(Encoded.y);
-            Encoded.z = ArriLogC::GArriLogCToGLinear(Encoded.z);
+            
+        case Image::UnsignedShort:
+            {
+                ImageBuffer<uint16_t> buffer = {image};
+                GenerateMips(buffer);
+            }
             break;
-
-        case Image::PQ:
-        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported encoding")
+            
+        case Image::Short:
+            {
+                ImageBuffer<int16_t> buffer = {image};
+                GenerateMips(buffer);
+            }
+            break;
+            
+        case Image::UnsignedInt:
+            {
+                ImageBuffer<uint32_t> buffer = {image};
+                GenerateMips(buffer);
+            }
+            break;
+            
+        case Image::Int:
+            {
+                ImageBuffer<int32_t> buffer = {image};
+                GenerateMips(buffer);
+            }
+            break;
+            
+        case Image::Float:
+            {
+                ImageBuffer<float> buffer = {image};
+                GenerateMips(buffer);
+            }
+            break;
+            
+        case Image::Double:
+            {
+                ImageBuffer<double> buffer = {image};
+                GenerateMips(buffer);
+            }
+            break;
         }
-        return Encoded;
+        break;
+        
+    case Image::RG:
+        switch (image.ComponentType())
+        {
+        case Image::UnsignedByte:
+            {
+                ImageBuffer<Math::Vector2t<uint8_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Byte:
+            {
+                ImageBuffer<Math::Vector2t<int8_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::UnsignedShort:
+            {
+                ImageBuffer<Math::Vector2t<uint16_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Short:
+            {
+                ImageBuffer<Math::Vector2t<int16_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::UnsignedInt:
+            {
+                ImageBuffer<Math::Vector2t<uint32_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Int:
+            {
+                ImageBuffer<Math::Vector2t<int32_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Float:
+            {
+                ImageBuffer<Math::Vector2t<float>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Double:
+            {
+                ImageBuffer<Math::Vector2t<double>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+        }
+        break;
+        
+    case Image::RGB:
+    case Image::BGR:
+        switch (image.ComponentType())
+        {
+        case Image::UnsignedByte:
+            {
+                ImageBuffer<Math::Vector3t<uint8_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Byte:
+            {
+                ImageBuffer<Math::Vector3t<int8_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::UnsignedShort:
+            {
+                ImageBuffer<Math::Vector3t<uint16_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Short:
+            {
+                ImageBuffer<Math::Vector3t<int16_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::UnsignedInt:
+            {
+                ImageBuffer<Math::Vector3t<uint32_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Int:
+            {
+                ImageBuffer<Math::Vector3t<int32_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Float:
+            {
+                ImageBuffer<Math::Vector3t<float>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Double:
+            {
+                ImageBuffer<Math::Vector3t<double>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+        }
+        break;
+        
+    case Image::RGBA:
+    case Image::ARGB:
+    case Image::ABGR:
+        switch (image.ComponentType())
+        {
+        case Image::UnsignedByte:
+            {
+                ImageBuffer<Math::Vector4t<uint8_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Byte:
+            {
+                ImageBuffer<Math::Vector4t<int8_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::UnsignedShort:
+            {
+                ImageBuffer<Math::Vector4t<uint16_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Short:
+            {
+                ImageBuffer<Math::Vector4t<int16_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::UnsignedInt:
+            {
+                ImageBuffer<Math::Vector4t<uint32_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Int:
+            {
+                ImageBuffer<Math::Vector4t<int32_t>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Float:
+            {
+                ImageBuffer<Math::Vector4t<float>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+            
+        case Image::Double:
+            {
+                ImageBuffer<Math::Vector4t<double>> buffer = {image};
+                GenerateMips(buffer);
+            }
+        break;
+        }
+        break;
     }
+}
+
+Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math::Vector2f uvs, uint32_t mip)
+{
+    Math::Vector2t<uint32_t> size = image.MipSize(mip);
     
-    Math::Vector4f Decode(Math::Vector4f Encoded, Image::Encoding Encoding)
-    {
-        switch (Encoding)
-        {
-        case Image::Linear:
-            break;
-
-        case Image::sRGB:
-            Encoded.x = sRGB::EOTF(Encoded.x);
-            Encoded.y = sRGB::EOTF(Encoded.y);
-            Encoded.z = sRGB::EOTF(Encoded.z);
-            break;
-
-        case Image::LogC:
-            Encoded.x = ArriLogC::GArriLogCToGLinear(Encoded.x);
-            Encoded.y = ArriLogC::GArriLogCToGLinear(Encoded.y);
-            Encoded.z = ArriLogC::GArriLogCToGLinear(Encoded.z);
-            break;
-
-        case Image::PQ:
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported encoding")
-            }
-        return Encoded;
-    }
-
-    Math::Vector3f Encode(Math::Vector3f Linear, Image::Encoding Encoding)
-    {
-        switch (Encoding)
-        {
-        case Image::Linear:
-            break;
-
-        case Image::sRGB:
-            Linear.x = sRGB::OETF(Linear.x);
-            Linear.y = sRGB::OETF(Linear.y);
-            Linear.z = sRGB::OETF(Linear.z);
-            break;
-
-        case Image::LogC:
-            Linear.x = ArriLogC::GLinearToGArriLogC(Linear.x);
-            Linear.y = ArriLogC::GLinearToGArriLogC(Linear.y);
-            Linear.z = ArriLogC::GLinearToGArriLogC(Linear.z);
-            break;
-
-        case Image::PQ:
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported encoding")
-            }
-        return Linear;
-    }
+    Math::Vector4f sample{};
+    uvs.x = _Image::ApplyWarping(uvs.x, sampler.WarpU);
+    uvs.y = _Image::ApplyWarping(uvs.y, sampler.WarpV);
     
-    Math::Vector4f Encode(Math::Vector4f Linear, Image::Encoding Encoding)
+    uint32_t x, y;
+    switch (sampler.BaseFilter)
     {
-        switch (Encoding)
+    case ImageSampler::F_Nearest:
+        x = std::min(size.x - 1, static_cast<uint32_t>(std::round(uvs.x * static_cast<float>(size.x))));
+        y = std::min(size.y - 1, static_cast<uint32_t>(std::round(uvs.y * static_cast<float>(size.y))));
+        switch (image.ComponentLayout())
         {
-        case Image::Linear:
-            break;
-
-        case Image::sRGB:
-            Linear.x = sRGB::OETF(Linear.x);
-            Linear.y = sRGB::OETF(Linear.y);
-            Linear.z = sRGB::OETF(Linear.z);
-            break;
-
-        case Image::LogC:
-            Linear.x = ArriLogC::GLinearToGArriLogC(Linear.x);
-            Linear.y = ArriLogC::GLinearToGArriLogC(Linear.y);
-            Linear.z = ArriLogC::GLinearToGArriLogC(Linear.z);
-            break;
-
-        case Image::PQ:
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported encoding")
+        case Image::R:
+            switch (image.ComponentType())
+            {
+            case Image::UnsignedByte:
+                {
+                    ImageBuffer<uint8_t> buffer = {image};
+                    sample.x = ReadBuffer(buffer, x, y);
+                }
+                break;
+                
+            case Image::Byte:
+                {
+                    ImageBuffer<int8_t> buffer = {image};
+                    sample.x = ReadBuffer(buffer, x, y);
+                }
+                break;
+                
+            case Image::UnsignedShort:
+                {
+                    ImageBuffer<uint16_t> buffer = {image};
+                    sample.x = ReadBuffer(buffer, x, y);
+                }
+                break;
+                
+            case Image::Short:
+                {
+                    ImageBuffer<int16_t> buffer = {image};
+                    sample.x = ReadBuffer(buffer, x, y);
+                }
+                break;
+                
+            case Image::UnsignedInt:
+                {
+                    ImageBuffer<uint32_t> buffer = {image};
+                    sample.x = ReadBuffer(buffer, x, y);
+                }
+                break;
+                
+            case Image::Int:
+                {
+                    ImageBuffer<int32_t> buffer = {image};
+                    sample.x = ReadBuffer(buffer, x, y);
+                }
+                break;
+                
+            case Image::Float:
+                {
+                    ImageBuffer<float> buffer = {image};
+                    sample.x = ReadBuffer(buffer, x, y);
+                }
+                break;
+                
+            case Image::Double:
+                {
+                    ImageBuffer<double> buffer = {image};
+                    sample.x = ReadBuffer(buffer, x, y);
+                }
+                break;
+                
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image type")
             }
-        return Linear;
+            break;
+            
+        case Image::RG:
+            switch (image.ComponentType())
+            {
+            case Image::UnsignedByte:
+                {
+                    ImageBuffer<Math::Vector2t<uint8_t>> buffer = {image};
+                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    sample.x = s.x;
+                    sample.y = s.y;
+                }
+            break;
+                
+            case Image::Byte:
+                {
+                    ImageBuffer<Math::Vector2t<int8_t>> buffer = {image};
+                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    sample.x = s.x;
+                    sample.y = s.y;
+                }
+            break;
+                
+            case Image::UnsignedShort:
+                {
+                    ImageBuffer<Math::Vector2t<uint16_t>> buffer = {image};
+                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    sample.x = s.x;
+                    sample.y = s.y;
+                }
+            break;
+                
+            case Image::Short:
+                {
+                    ImageBuffer<Math::Vector2t<int16_t>> buffer = {image};
+                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    sample.x = s.x;
+                    sample.y = s.y;
+                }
+            break;
+                
+            case Image::UnsignedInt:
+                {
+                    ImageBuffer<Math::Vector2t<uint32_t>> buffer = {image};
+                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    sample.x = s.x;
+                    sample.y = s.y;
+                }
+            break;
+                
+            case Image::Int:
+                {
+                    ImageBuffer<Math::Vector2t<int32_t>> buffer = {image};
+                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    sample.x = s.x;
+                    sample.y = s.y;
+                }
+            break;
+                
+            case Image::Float:
+                {
+                    ImageBuffer<Math::Vector2t<float>> buffer = {image};
+                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    sample.x = s.x;
+                    sample.y = s.y;
+                }
+            break;
+                
+            case Image::Double:
+                {
+                    ImageBuffer<Math::Vector2t<double>> buffer = {image};
+                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    sample.x = s.x;
+                    sample.y = s.y;
+                }
+            break;
+                
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image type")
+            }
+            break;
+            
+        case Image::RGB:
+        case Image::BGR:
+            switch (image.ComponentType())
+            {
+            case Image::UnsignedByte:
+                {
+                    ImageBuffer<Math::Vector3t<uint8_t>> buffer = {image};
+                    sample.xyz() = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Byte:
+                {
+                    ImageBuffer<Math::Vector3t<int8_t>> buffer = {image};
+                    sample.xyz() = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::UnsignedShort:
+                {
+                    ImageBuffer<Math::Vector3t<uint16_t>> buffer = {image};
+                    sample.xyz() = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Short:
+                {
+                    ImageBuffer<Math::Vector3t<int16_t>> buffer = {image};
+                    sample.xyz() = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::UnsignedInt:
+                {
+                    ImageBuffer<Math::Vector3t<uint32_t>> buffer = {image};
+                    sample.xyz() = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Int:
+                {
+                    ImageBuffer<Math::Vector3t<int32_t>> buffer = {image};
+                    sample.xyz() = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Float:
+                {
+                    ImageBuffer<Math::Vector3t<float>> buffer = {image};
+                    sample.xyz() = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Double:
+                {
+                    ImageBuffer<Math::Vector3t<double>> buffer = {image};
+                    sample.xyz() = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image type")
+            }
+            break;
+            
+        case Image::RGBA:
+        case Image::ARGB:
+        case Image::ABGR:
+            switch (image.ComponentType())
+            {
+            case Image::UnsignedByte:
+                {
+                    ImageBuffer<Math::Vector4t<uint8_t>> buffer = {image};
+                    sample = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Byte:
+                {
+                    ImageBuffer<Math::Vector4t<int8_t>> buffer = {image};
+                    sample = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::UnsignedShort:
+                {
+                    ImageBuffer<Math::Vector4t<uint16_t>> buffer = {image};
+                    sample = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Short:
+                {
+                    ImageBuffer<Math::Vector4t<int16_t>> buffer = {image};
+                    sample = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::UnsignedInt:
+                {
+                    ImageBuffer<Math::Vector4t<uint32_t>> buffer = {image};
+                    sample = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Int:
+                {
+                    ImageBuffer<Math::Vector4t<int32_t>> buffer = {image};
+                    sample = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Float:
+                {
+                    ImageBuffer<Math::Vector4t<float>> buffer = {image};
+                    sample = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            case Image::Double:
+                {
+                    ImageBuffer<Math::Vector4t<double>> buffer = {image};
+                    sample = ReadBuffer(buffer, x, y);
+                }
+            break;
+                
+            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image type")
+            }
+            break;
+        }
+
+        break;
+    case ImageSampler::F_Cubic:
+    case ImageSampler::F_Linear:
+        {
+            float lin_x = std::min(uvs.x * static_cast<float>(size.x), (float)(size.x - 1));
+            float lin_y = std::min(uvs.y * static_cast<float>(size.y), (float)(size.y - 1));
+        
+            float x0 = std::floor(lin_x);
+            float y0 = std::floor(lin_y);
+            float x1 = std::min(x0 + 1, (float)(size.x - 1));
+            float y1 = std::min(y0 + 1, (float)(size.y - 1));
+            
+            float x_w = (sampler.BaseFilter == ImageSampler::F_Cubic) ? Math::SmoothStep(lin_x - x0) : lin_x - x0;
+            float y_w = (sampler.BaseFilter == ImageSampler::F_Cubic) ? Math::SmoothStep(lin_y - y0) : lin_y - y0;
+        
+            switch (image.ComponentLayout())
+            {
+            case Image::R:
+                {
+                    float sampleA{}, sampleB{};
+                    switch (image.ComponentType())
+                    {
+                    case Image::UnsignedByte:
+                        {
+                            ImageBuffer<uint8_t> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Byte:
+                        {
+                            ImageBuffer<int8_t> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::UnsignedShort:
+                        {
+                            ImageBuffer<uint16_t> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Short:
+                        {
+                            ImageBuffer<int16_t> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::UnsignedInt:
+                        {
+                            ImageBuffer<uint32_t> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);;
+                            sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);;
+                            sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Int:
+                        {
+                            ImageBuffer<int32_t> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Float:
+                        {
+                            ImageBuffer<float> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Double:
+                        {
+                            ImageBuffer<double> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                        
+                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image type")
+                    }
+                }break;
+            
+            case Image::RG:
+                {
+                    Math::Vector2f sampleA, sampleB, sampleC;
+                    switch (image.ComponentType())
+                    {
+                    case Image::UnsignedByte:
+                        {
+                            ImageBuffer<Math::Vector2t<uint8_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                            sample.x = sampleC.x;
+                            sample.y = sampleC.y;
+                        }
+                    break;
+                
+                    case Image::Byte:
+                        {
+                            ImageBuffer<Math::Vector2t<int8_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                            sample.x = sampleC.x;
+                            sample.y = sampleC.y;
+                        }
+                    break;
+                
+                    case Image::UnsignedShort:
+                        {
+                            ImageBuffer<Math::Vector2t<uint16_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                            sample.x = sampleC.x;
+                            sample.y = sampleC.y;
+                        }
+                    break;
+                
+                    case Image::Short:
+                        {
+                            ImageBuffer<Math::Vector2t<int16_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                            sample.x = sampleC.x;
+                            sample.y = sampleC.y;
+                        }
+                    break;
+                
+                    case Image::UnsignedInt:
+                        {
+                            ImageBuffer<Math::Vector2t<uint32_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                            sample.x = sampleC.x;
+                            sample.y = sampleC.y;
+                        }
+                    break;
+                
+                    case Image::Int:
+                        {
+                            ImageBuffer<Math::Vector2t<int32_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                            sample.x = sampleC.x;
+                            sample.y = sampleC.y;
+                        }
+                    break;
+                
+                    case Image::Float:
+                        {
+                            ImageBuffer<Math::Vector2t<float>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                            sample.x = sampleC.x;
+                            sample.y = sampleC.y;
+                        }
+                    break;
+                
+                    case Image::Double:
+                        {
+                            ImageBuffer<Math::Vector2t<double>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                            sample.x = sampleC.x;
+                            sample.y = sampleC.y;
+                        }
+                    break;
+                        
+                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image type")
+                    }
+                }break;
+            
+            case Image::RGB:
+            case Image::BGR:
+                {
+                    Math::Vector3f sampleA, sampleB;
+                    switch (image.ComponentType())
+                    {
+                    case Image::UnsignedByte:
+                        {
+                            ImageBuffer<Math::Vector3t<uint8_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Byte:
+                        {
+                            ImageBuffer<Math::Vector3t<int8_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::UnsignedShort:
+                        {
+                            ImageBuffer<Math::Vector3t<uint16_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Short:
+                        {
+                            ImageBuffer<Math::Vector3t<int16_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::UnsignedInt:
+                        {
+                            ImageBuffer<Math::Vector3t<uint32_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Int:
+                        {
+                            ImageBuffer<Math::Vector3t<int32_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Float:
+                        {
+                            ImageBuffer<Math::Vector3t<float>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Double:
+                        {
+                            ImageBuffer<Math::Vector3t<double>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                        
+                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image type")
+                    }
+                }break;
+            
+            case Image::RGBA:
+            case Image::ARGB:
+            case Image::ABGR:
+                {
+                    Math::Vector4f sampleA, sampleB;
+                    switch (image.ComponentType())
+                    {
+                    case Image::UnsignedByte:
+                        {
+                            ImageBuffer<Math::Vector4t<uint8_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Byte:
+                        {
+                            ImageBuffer<Math::Vector4t<int8_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::UnsignedShort:
+                        {
+                            ImageBuffer<Math::Vector4t<uint16_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Short:
+                        {
+                            ImageBuffer<Math::Vector4t<int16_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::UnsignedInt:
+                        {
+                            ImageBuffer<Math::Vector4t<uint32_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Int:
+                        {
+                            ImageBuffer<Math::Vector4t<int32_t>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Float:
+                        {
+                            ImageBuffer<Math::Vector4t<float>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                
+                    case Image::Double:
+                        {
+                            ImageBuffer<Math::Vector4t<double>> buffer = {image};
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
+                        
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
+                        }
+                    break;
+                        
+                    SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported image type")
+                    }
+                }break;
+            }
+        }
+        break;
     }
 }
 
-void ClearBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer)
+Math::Vector4f SampleImage(const Image& image, const SurfaceSampler& surface, const ImageSampler& sampler, Math::Vector2f uvs)
 {
-    for (uint32_t y = 0; y < ImageBuffer.Height(); ++y)
-    for (uint32_t x = 0; x < ImageBuffer.Width(); ++x)
+    float dUdx = surface.dudx * static_cast<float>(image.Width());
+    float dVdx = surface.dvdx * static_cast<float>(image.Height());
+    float dUdy = surface.dudy * static_cast<float>(image.Width());
+    float dVdy = surface.dvdy * static_cast<float>(image.Height());
+    
+    float rho_x = std::sqrt(dUdx * dUdx + dVdx * dVdx);
+    float rho_y = std::sqrt(dUdy * dUdy + dVdy * dVdy);
+    float rho = std::max(rho_x, rho_y);
+    float lambda = (rho == 0.0f) ? -1000.0f : std::log2(rho);
+    
+    if (lambda <= 0.0f)
     {
-        ImageBuffer.Write(x, y, 0);
+        ImageSampler sampler2 = sampler;
+        sampler2.BaseFilter = sampler.Magnification;
+        return SampleImage(image, sampler2, uvs);
     }
-}
-
-void ClearBuffer(ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer)
-{
-    for (uint32_t y = 0; y < ImageBuffer.Height(); ++y)
-    for (uint32_t x = 0; x < ImageBuffer.Width(); ++x)
+    else
     {
-        ImageBuffer.Write(x, y, 0);
+        ImageSampler sampler2 = sampler;
+        sampler2.BaseFilter = sampler.Minification;
+        
+        lambda = Math::Clamp(lambda, 0.0f, static_cast<float>(image.MipCount() - 1));
+        
+        uint32_t level0 = static_cast<int>(std::floor(lambda));
+        uint32_t level1 = std::min(level0 + 1u, image.MipCount() - 1);
+        
+        float l0_w = lambda - static_cast<float>(level0), l1_w = 1 - lambda;
+        
+        switch (sampler.MipMode)
+        {
+        case ImageSampler::F_Nearest:
+            return SampleImage(image, sampler2, uvs, l0_w < 0.5 ? level0 : level1);
+                
+        case ImageSampler::F_Linear:
+        case ImageSampler::F_Cubic:
+            return Math::LinearInterpolate(
+                SampleImage(image, sampler2, uvs, level0),
+                SampleImage(image, sampler2, uvs, level1),
+                sampler.MipMode == ImageSampler::F_Cubic ? Math::SmoothStep(l0_w) : l0_w
+                );
+            
+        SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported mip mode")
+        }
     }
-}
-
-Math::Vector3f ReadBuffer(const ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y)
-{
-    auto sample = ImageBuffer.Read(x, y);
-    Math::Vector3f result;
-    result.x = _Image::ConvertRangesAware<float, uint8_t>(sample.x);
-    result.y = _Image::ConvertRangesAware<float, uint8_t>(sample.y);
-    result.z = _Image::ConvertRangesAware<float, uint8_t>(sample.z);
-
-    result = _Image::Decode(result, ImageBuffer.ComponentEncoding());
-
-    return result;
-}
-
-Math::Vector4f ReadBuffer(const ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y)
-{
-    auto sample = ImageBuffer.Read(x, y);
-    Math::Vector4f result;
-    result.x = _Image::ConvertRangesAware<float, uint8_t>(sample.x);
-    result.y = _Image::ConvertRangesAware<float, uint8_t>(sample.y);
-    result.z = _Image::ConvertRangesAware<float, uint8_t>(sample.z);
-    result.w = _Image::ConvertRangesAware<float, uint8_t>(sample.w);
-
-    result = _Image::Decode(result, ImageBuffer.ComponentEncoding());
-
-    return result;
-}
-
-void WriteBuffer(ImageBuffer<Math::Vector3t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y, Math::Vector3f data)
-{
-    data = _Image::Encode(data, ImageBuffer.ComponentEncoding());
-
-    Math::Vector3t<uint8_t> result;
-    result.x = _Image::ConvertRangesAware<uint8_t, float>(data.x);
-    result.y = _Image::ConvertRangesAware<uint8_t, float>(data.y);
-    result.z = _Image::ConvertRangesAware<uint8_t, float>(data.z);
-    ImageBuffer.Write(x, y, result);
-}
-
-void WriteBuffer(ImageBuffer<Math::Vector4t<uint8_t>>& ImageBuffer, uint32_t x, uint32_t y, Math::Vector4f data)
-{
-    data = _Image::Encode(data, ImageBuffer.ComponentEncoding());
-
-    Math::Vector4t<uint8_t> result;
-    result.x = _Image::ConvertRangesAware<uint8_t, float>(data.x);
-    result.y = _Image::ConvertRangesAware<uint8_t, float>(data.y);
-    result.z = _Image::ConvertRangesAware<uint8_t, float>(data.z);
-    result.w = _Image::ConvertRangesAware<uint8_t, float>(data.w);
-    ImageBuffer.Write(x, y, result);
 }

@@ -169,7 +169,7 @@ solution "GraphicsBox"
     flags { "NoPCH" }
 
     -- generated code
-    includedirs(path.join(gb_IntermediatesDir, "generated"))
+    includedirs(path.join(gb_IntermediatesDir, "generated", "Include"))
 
      -- Platforms specific setup
     filter "system:linux"
@@ -541,7 +541,7 @@ group "Utilites"
             path.join(gb_SrcDir, "Math", "**.hpp"),
             path.join(gb_SrcDir, "Math", "**.c"),
             path.join(gb_SrcDir, "Math", "**.cpp"),
-            files (path.join(gb_IntermediatesDir, "generated", "Math", "_VectorFunc.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "Include", "Math", "_VectorFunc.h"))
         }
 
 
@@ -570,18 +570,18 @@ group "Utilites"
         }
 
         if gbUseSIMD_X86_SSE == true then
-            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_SSE.h"))
-            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_SSE_Functions.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt", "_Types_SSE.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt", "_Types_SSE_Functions.h"))
         end
 
         if gbUseSIMD_X86_AVX == true then
-            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX.h"))
-            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX_Functions.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt", "_Types_AVX.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt", "_Types_AVX_Functions.h"))
         end
 
         if gbUseSIMD_X86_AVX512 == true then
-            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX512.h"))
-            files (path.join(gb_IntermediatesDir, "generated", "MathSimt", "_Types_AVX512_Functions.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt", "_Types_AVX512.h"))
+            files (path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt", "_Types_AVX512_Functions.h"))
         end
 
     project "Modeling"
@@ -621,7 +621,8 @@ group "Utilites"
             path.join(gb_SourceDependencyDir, "TinyDDS"),
             path.join(gb_SourceDependencyDir, "TinyEXR"),
             path.join(gb_SourceDependencyDir, "stb"),
-            path.join(gb_IncludeDir, "Image")
+            path.join(gb_IncludeDir, "Image"),
+            path.join(gb_SrcDir, "Image")
         }
 
         -- Project files
@@ -632,6 +633,8 @@ group "Utilites"
             path.join(gb_SrcDir, "Image", "**.hpp"),
             path.join(gb_SrcDir, "Image", "**.c"),
             path.join(gb_SrcDir, "Image", "**.cpp"),
+            path.join(gb_IntermediatesDir, "generated", "Include", "Image", "_ImageOps.h"),
+            path.join(gb_IntermediatesDir, "generated", "Source", "Image", "_ImageOps.cpp")
         }
 
         -- Dependencies
