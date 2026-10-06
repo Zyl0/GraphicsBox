@@ -283,56 +283,56 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::UnsignedByte:
                 {
                     ImageBuffer<uint8_t> buffer = {image};
-                    sample.x = ReadBuffer(buffer, x, y);
+                    sample.x = ReadBuffer(buffer, x, y, mip);
                 }
                 break;
                 
             case Image::Byte:
                 {
                     ImageBuffer<int8_t> buffer = {image};
-                    sample.x = ReadBuffer(buffer, x, y);
+                    sample.x = ReadBuffer(buffer, x, y, mip);
                 }
                 break;
                 
             case Image::UnsignedShort:
                 {
                     ImageBuffer<uint16_t> buffer = {image};
-                    sample.x = ReadBuffer(buffer, x, y);
+                    sample.x = ReadBuffer(buffer, x, y, mip);
                 }
                 break;
                 
             case Image::Short:
                 {
                     ImageBuffer<int16_t> buffer = {image};
-                    sample.x = ReadBuffer(buffer, x, y);
+                    sample.x = ReadBuffer(buffer, x, y, mip);
                 }
                 break;
                 
             case Image::UnsignedInt:
                 {
                     ImageBuffer<uint32_t> buffer = {image};
-                    sample.x = ReadBuffer(buffer, x, y);
+                    sample.x = ReadBuffer(buffer, x, y, mip);
                 }
                 break;
                 
             case Image::Int:
                 {
                     ImageBuffer<int32_t> buffer = {image};
-                    sample.x = ReadBuffer(buffer, x, y);
+                    sample.x = ReadBuffer(buffer, x, y, mip);
                 }
                 break;
                 
             case Image::Float:
                 {
                     ImageBuffer<float> buffer = {image};
-                    sample.x = ReadBuffer(buffer, x, y);
+                    sample.x = ReadBuffer(buffer, x, y, mip);
                 }
                 break;
                 
             case Image::Double:
                 {
                     ImageBuffer<double> buffer = {image};
-                    sample.x = ReadBuffer(buffer, x, y);
+                    sample.x = ReadBuffer(buffer, x, y, mip);
                 }
                 break;
                 
@@ -346,7 +346,7 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::UnsignedByte:
                 {
                     ImageBuffer<Math::Vector2t<uint8_t>> buffer = {image};
-                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    Math::Vector2f s = ReadBuffer(buffer, x, y, mip);
                     sample.x = s.x;
                     sample.y = s.y;
                 }
@@ -355,7 +355,7 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::Byte:
                 {
                     ImageBuffer<Math::Vector2t<int8_t>> buffer = {image};
-                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    Math::Vector2f s = ReadBuffer(buffer, x, y, mip);
                     sample.x = s.x;
                     sample.y = s.y;
                 }
@@ -364,7 +364,7 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::UnsignedShort:
                 {
                     ImageBuffer<Math::Vector2t<uint16_t>> buffer = {image};
-                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    Math::Vector2f s = ReadBuffer(buffer, x, y, mip);
                     sample.x = s.x;
                     sample.y = s.y;
                 }
@@ -373,7 +373,7 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::Short:
                 {
                     ImageBuffer<Math::Vector2t<int16_t>> buffer = {image};
-                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    Math::Vector2f s = ReadBuffer(buffer, x, y, mip);
                     sample.x = s.x;
                     sample.y = s.y;
                 }
@@ -382,7 +382,7 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::UnsignedInt:
                 {
                     ImageBuffer<Math::Vector2t<uint32_t>> buffer = {image};
-                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    Math::Vector2f s = ReadBuffer(buffer, x, y, mip);
                     sample.x = s.x;
                     sample.y = s.y;
                 }
@@ -391,7 +391,7 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::Int:
                 {
                     ImageBuffer<Math::Vector2t<int32_t>> buffer = {image};
-                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    Math::Vector2f s = ReadBuffer(buffer, x, y, mip);
                     sample.x = s.x;
                     sample.y = s.y;
                 }
@@ -400,7 +400,7 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::Float:
                 {
                     ImageBuffer<Math::Vector2t<float>> buffer = {image};
-                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    Math::Vector2f s = ReadBuffer(buffer, x, y, mip);
                     sample.x = s.x;
                     sample.y = s.y;
                 }
@@ -409,7 +409,7 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::Double:
                 {
                     ImageBuffer<Math::Vector2t<double>> buffer = {image};
-                    Math::Vector2f s = ReadBuffer(buffer, x, y);
+                    Math::Vector2f s = ReadBuffer(buffer, x, y, mip);
                     sample.x = s.x;
                     sample.y = s.y;
                 }
@@ -426,56 +426,56 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::UnsignedByte:
                 {
                     ImageBuffer<Math::Vector3t<uint8_t>> buffer = {image};
-                    sample.xyz() = ReadBuffer(buffer, x, y);
+                    sample.xyz() = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Byte:
                 {
                     ImageBuffer<Math::Vector3t<int8_t>> buffer = {image};
-                    sample.xyz() = ReadBuffer(buffer, x, y);
+                    sample.xyz() = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::UnsignedShort:
                 {
                     ImageBuffer<Math::Vector3t<uint16_t>> buffer = {image};
-                    sample.xyz() = ReadBuffer(buffer, x, y);
+                    sample.xyz() = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Short:
                 {
                     ImageBuffer<Math::Vector3t<int16_t>> buffer = {image};
-                    sample.xyz() = ReadBuffer(buffer, x, y);
+                    sample.xyz() = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::UnsignedInt:
                 {
                     ImageBuffer<Math::Vector3t<uint32_t>> buffer = {image};
-                    sample.xyz() = ReadBuffer(buffer, x, y);
+                    sample.xyz() = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Int:
                 {
                     ImageBuffer<Math::Vector3t<int32_t>> buffer = {image};
-                    sample.xyz() = ReadBuffer(buffer, x, y);
+                    sample.xyz() = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Float:
                 {
                     ImageBuffer<Math::Vector3t<float>> buffer = {image};
-                    sample.xyz() = ReadBuffer(buffer, x, y);
+                    sample.xyz() = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Double:
                 {
                     ImageBuffer<Math::Vector3t<double>> buffer = {image};
-                    sample.xyz() = ReadBuffer(buffer, x, y);
+                    sample.xyz() = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
@@ -491,56 +491,56 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
             case Image::UnsignedByte:
                 {
                     ImageBuffer<Math::Vector4t<uint8_t>> buffer = {image};
-                    sample = ReadBuffer(buffer, x, y);
+                    sample = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Byte:
                 {
                     ImageBuffer<Math::Vector4t<int8_t>> buffer = {image};
-                    sample = ReadBuffer(buffer, x, y);
+                    sample = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::UnsignedShort:
                 {
                     ImageBuffer<Math::Vector4t<uint16_t>> buffer = {image};
-                    sample = ReadBuffer(buffer, x, y);
+                    sample = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Short:
                 {
                     ImageBuffer<Math::Vector4t<int16_t>> buffer = {image};
-                    sample = ReadBuffer(buffer, x, y);
+                    sample = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::UnsignedInt:
                 {
                     ImageBuffer<Math::Vector4t<uint32_t>> buffer = {image};
-                    sample = ReadBuffer(buffer, x, y);
+                    sample = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Int:
                 {
                     ImageBuffer<Math::Vector4t<int32_t>> buffer = {image};
-                    sample = ReadBuffer(buffer, x, y);
+                    sample = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Float:
                 {
                     ImageBuffer<Math::Vector4t<float>> buffer = {image};
-                    sample = ReadBuffer(buffer, x, y);
+                    sample = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
             case Image::Double:
                 {
                     ImageBuffer<Math::Vector4t<double>> buffer = {image};
-                    sample = ReadBuffer(buffer, x, y);
+                    sample = ReadBuffer(buffer, x, y, mip);
                 }
             break;
                 
@@ -574,12 +574,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedByte:
                         {
                             ImageBuffer<uint8_t> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -587,12 +587,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Byte:
                         {
                             ImageBuffer<int8_t> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -600,12 +600,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedShort:
                         {
                             ImageBuffer<uint16_t> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -613,12 +613,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Short:
                         {
                             ImageBuffer<int16_t> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -626,12 +626,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedInt:
                         {
                             ImageBuffer<uint32_t> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);;
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);;
                             sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);;
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);;
                             sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -639,12 +639,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Int:
                         {
                             ImageBuffer<int32_t> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -652,12 +652,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Float:
                         {
                             ImageBuffer<float> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -665,12 +665,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Double:
                         {
                             ImageBuffer<double> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.x = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.x = Math::LinearInterpolate(sample.x, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -687,12 +687,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedByte:
                         {
                             ImageBuffer<Math::Vector2t<uint8_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                             sample.x = sampleC.x;
                             sample.y = sampleC.y;
@@ -702,12 +702,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Byte:
                         {
                             ImageBuffer<Math::Vector2t<int8_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                             sample.x = sampleC.x;
                             sample.y = sampleC.y;
@@ -717,12 +717,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedShort:
                         {
                             ImageBuffer<Math::Vector2t<uint16_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                             sample.x = sampleC.x;
                             sample.y = sampleC.y;
@@ -732,12 +732,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Short:
                         {
                             ImageBuffer<Math::Vector2t<int16_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                             sample.x = sampleC.x;
                             sample.y = sampleC.y;
@@ -747,12 +747,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedInt:
                         {
                             ImageBuffer<Math::Vector2t<uint32_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                             sample.x = sampleC.x;
                             sample.y = sampleC.y;
@@ -762,12 +762,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Int:
                         {
                             ImageBuffer<Math::Vector2t<int32_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                             sample.x = sampleC.x;
                             sample.y = sampleC.y;
@@ -777,12 +777,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Float:
                         {
                             ImageBuffer<Math::Vector2t<float>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                             sample.x = sampleC.x;
                             sample.y = sampleC.y;
@@ -792,12 +792,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Double:
                         {
                             ImageBuffer<Math::Vector2t<double>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sampleC = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sampleC = Math::LinearInterpolate(sampleC, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                             sample.x = sampleC.x;
                             sample.y = sampleC.y;
@@ -817,12 +817,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedByte:
                         {
                             ImageBuffer<Math::Vector3t<uint8_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -830,12 +830,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Byte:
                         {
                             ImageBuffer<Math::Vector3t<int8_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -843,12 +843,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedShort:
                         {
                             ImageBuffer<Math::Vector3t<uint16_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -856,12 +856,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Short:
                         {
                             ImageBuffer<Math::Vector3t<int16_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -869,12 +869,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedInt:
                         {
                             ImageBuffer<Math::Vector3t<uint32_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -882,12 +882,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Int:
                         {
                             ImageBuffer<Math::Vector3t<int32_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -895,12 +895,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Float:
                         {
                             ImageBuffer<Math::Vector3t<float>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -908,12 +908,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Double:
                         {
                             ImageBuffer<Math::Vector3t<double>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample.xyz() = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample.xyz() = Math::LinearInterpolate(sample.xyz(), Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -932,12 +932,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedByte:
                         {
                             ImageBuffer<Math::Vector4t<uint8_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -945,12 +945,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Byte:
                         {
                             ImageBuffer<Math::Vector4t<int8_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -958,12 +958,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedShort:
                         {
                             ImageBuffer<Math::Vector4t<uint16_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -971,12 +971,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Short:
                         {
                             ImageBuffer<Math::Vector4t<int16_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -984,12 +984,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::UnsignedInt:
                         {
                             ImageBuffer<Math::Vector4t<uint32_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -997,12 +997,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Int:
                         {
                             ImageBuffer<Math::Vector4t<int32_t>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -1010,12 +1010,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Float:
                         {
                             ImageBuffer<Math::Vector4t<float>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -1023,12 +1023,12 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
                     case Image::Double:
                         {
                             ImageBuffer<Math::Vector4t<double>> buffer = {image};
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y0, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y0, mip);
                             sample = Math::LinearInterpolate(sampleA, sampleB, x_w);
                         
-                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1);
-                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1);
+                            sampleA = ReadBuffer(buffer, (uint32_t)x0, (uint32_t)y1, mip);
+                            sampleB = ReadBuffer(buffer, (uint32_t)x1, (uint32_t)y1, mip);
                             sample = Math::LinearInterpolate(sample, Math::LinearInterpolate(sampleA, sampleB, x_w), y_w);
                         }
                     break;
@@ -1040,6 +1040,8 @@ Math::Vector4f SampleImage(const Image& image, const ImageSampler& sampler, Math
         }
         break;
     }
+    
+    return sample;
 }
 
 Math::Vector4f SampleImage(const Image& image, const SurfaceSampler& surface, const ImageSampler& sampler, Math::Vector2f uvs)
@@ -1079,11 +1081,14 @@ Math::Vector4f SampleImage(const Image& image, const SurfaceSampler& surface, co
                 
         case ImageSampler::F_Linear:
         case ImageSampler::F_Cubic:
-            return Math::LinearInterpolate(
-                SampleImage(image, sampler2, uvs, level0),
-                SampleImage(image, sampler2, uvs, level1),
-                sampler.MipMode == ImageSampler::F_Cubic ? Math::SmoothStep(l0_w) : l0_w
-                );
+            {
+                Math::Vector4f a = SampleImage(image, sampler2, uvs, level0), b = SampleImage(image, sampler2, uvs, level1);
+                return Math::LinearInterpolate(
+                   a,
+                   b,
+                   sampler.MipMode == ImageSampler::F_Cubic ? Math::SmoothStep(l0_w) : l0_w
+                   );
+            }
             
         SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported mip mode")
         }

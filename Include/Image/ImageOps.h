@@ -41,6 +41,7 @@ struct ImageBuffer
     Math::Vector2t<uint32_t> MipSize(uint32_t MipLevel) const;
     size_t MipDataSize(uint32_t MipLevel) const;
     void* MipData(uint32_t MipLevel) const;
+    Math::Vector2t<uint32_t> Size() const {return Math::Vector2t<uint32_t>(m_Width, m_Height);}
     
     TexelType Read(uint32_t x, uint32_t y) const;
     void Write(uint32_t x, uint32_t y, TexelType data);
@@ -163,25 +164,24 @@ ImageBuffer<TexelType>& ImageBuffer<TexelType>::operator=(const ImageBuffer& Oth
 template <typename TexelType>
 Math::Vector2t<uint32_t> ImageBuffer<TexelType>::MipSize(uint32_t MipLevel) const
 {
-    Math::Vector2t<uint32_t> mipSize = MipSize(MipLevel);
-    return (mipSize.x * mipSize.y * PixelSize());
+    if (MipLevel == 0) return {m_Width, m_Height};
+    
+    uint32_t width = m_Width, height = m_Height;
+    for (size_t i = 0; i < std::min(MipLevel, m_Mips); i++)
+    {
+        width /= 2u; height /= 2u;
+    }
+    
+    return {width, height};
 }
 
 template <typename TexelType>
 size_t ImageBuffer<TexelType>::MipDataSize(uint32_t MipLevel) const
 {
-    if (MipLevel == 0) return Data();
+    if (MipLevel == 0) return Data(Size());
     
-    size_t texelCount = 0;
-    uint32_t width = m_Width, height = m_Height;
-    for (size_t i = 0; i < std::min(m_Mips, MipLevel) - 1; i++)
-    {
-        texelCount += (width * height);
-        width /= 2u; height /= 2u;
-    }
-    
-    size_t offset = texelCount * PixelSize();
-    return (static_cast<uint8_t*>(Data()) + offset);
+    Math::Vector2t<uint32_t> mipSize = MipSize(MipLevel);
+    return (mipSize.x * mipSize.y * PixelSize());
 }
 
 template <typename TexelType>
@@ -191,7 +191,7 @@ void* ImageBuffer<TexelType>::MipData(uint32_t MipLevel) const
     
     size_t texelCount = 0;
     uint32_t width = m_Width, height = m_Height;
-    for (size_t i = 0; i < std::min(m_Mips, MipLevel) - 1; i++)
+    for (size_t i = 0; i < std::min(m_Mips - 1, MipLevel); i++)
     {
         texelCount += (width * height);
         width /= 2u; height /= 2u;
@@ -305,10 +305,8 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, TexelType data)
             m_Data[y * m_Width + x].z = data.x;
             m_Data[y * m_Width + x].y = data.y;
             m_Data[y * m_Width + x].x = data.z;
-            break;
+            return;
         }
-        
-        return;
     }
     
     if constexpr (IsMathVector4Type)
@@ -330,17 +328,15 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, TexelType data)
             m_Data[y * m_Width + x].y = data.x;
             m_Data[y * m_Width + x].z = data.y;
             m_Data[y * m_Width + x].w = data.z;
-            break;
+            return;
             
         case Image::ABGR:       
             m_Data[y * m_Width + x].x = data.w;
             m_Data[y * m_Width + x].w = data.x;
             m_Data[y * m_Width + x].z = data.y;
             m_Data[y * m_Width + x].y = data.z;
-            break;
+            return;
         }
-        
-        return;
     }
     
     m_Data[y * m_Width + x] = data;
@@ -456,10 +452,8 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, uint32_t mip, TexelTy
             Mip[y * size.x + x].z = data.x;
             Mip[y * size.x + x].y = data.y;
             Mip[y * size.x + x].x = data.z;
-            break;
+            return;
         }
-        
-        return;
     }
     
     if constexpr (IsMathVector4Type)
@@ -481,20 +475,19 @@ void ImageBuffer<TexelType>::Write(uint32_t x, uint32_t y, uint32_t mip, TexelTy
             Mip[y * size.x + x].y = data.x;
             Mip[y * size.x + x].z = data.y;
             Mip[y * size.x + x].w = data.z;
-            break;
+            return;
             
         case Image::ABGR:       
             Mip[y * size.x + x].x = data.w;
             Mip[y * size.x + x].w = data.x;
             Mip[y * size.x + x].z = data.y;
             Mip[y * size.x + x].y = data.z;
-            break;
+            return;
         }
         
-        return;
     }
     
-    Mip[y * m_Width + x] = data;
+    Mip[y * size.x + x] = data;
 }
 
 

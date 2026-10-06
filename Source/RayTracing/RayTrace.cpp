@@ -139,6 +139,82 @@ SurfaceHit HitInterpolateProperties(const Mesh& mesh, const Hit& Hit, const Math
     return surface;
 }
 
+SurfaceSampler CalcSurfaceSample(const Mesh& mesh, const Ray& ray, const Hit& Hit, Math::Vector2t<uint32_t> ViewportSize)
+{
+    if (!mesh.HasNormals() || !mesh.HasTextureCoordinates()) return {.dudx = 0,.dvdx = 0, .dudy = 0,.dvdy = 0}; // Degenerate triangle safety
+    
+    // TODO hit.face is supposed to return face index but returns face first vertex instead, investigate why.
+    // Mesh::ConstFaces faces(mesh);
+    // Mesh::ConstFace face = faces[Hit.face];
+    
+    Mesh::ConstFace face(mesh, Hit.face);
+    
+    Point3f v0 = face[0].Position(), v1 = face[1].Position(), v2 = face[2].Position();
+    Vector2f t0 = face[0].TextureCoordinate(), t1 = face[1].TextureCoordinate(), t2 = face[2].TextureCoordinate();
+    
+    // --- STEP 1: Calculate Triangle Geometric Properties ---
+    Vector3f e1 = v1 - v0;
+    Vector3f e2 = v2 - v0;
+    Vector3f unnormalized_normal = Cross(e1, e2);
+    
+    // Get the linear length (2x the Area)
+    float len = std::sqrt(Dot(unnormalized_normal, unnormalized_normal));
+    
+    // Safety check against the linear length (much safer to reason about)
+    if (len < 1e-12f) return {0,0, 0,0}; 
+    // Normalize it!
+    Vector3f normal = unnormalized_normal * (1.0f / len);
+    // --- STEP 2: Compute Texture Gradients on the Surface (∇U, ∇V) ---
+    float du1 = t1.x - t0.x;
+    float dv1 = t1.y - t0.y;
+    float du2 = t2.x - t0.x;
+    float dv2 = t2.y - t0.y;
+    // IMPORTANT DIFFERENCE: Because 'normal' is now normalized, 
+    // we only divide by 'len' instead of 'len_sq'
+    Vector3f c1 = Cross(e2, normal) * (1.0f / len);
+    Vector3f c2 = Cross(normal, e1) * (1.0f / len);
+    Vector3f grad_U = c1 * du1 + c2 * du2;
+    Vector3f grad_V = c1 * dv1 + c2 * dv2;
+    
+    // --- STEP 3: Approximate Ray Differentials (dDdx, dDdy) ---
+    // Without full camera matrices, we estimate how much the ray direction 
+    // changes if we move 1 pixel on the screen. 
+    // Assuming a standard ~90 degree FOV, the screen width is roughly 2.0 in tangent space.
+    Vector3f cam_up = {0.0f, 1.0f, 0.0f};
+    
+    // Fallback if looking straight up or down to avoid Cross-Product singularity
+    if (std::abs(ray.direction.y) > 0.99f) cam_up = {0.0f, 0.0f, 1.0f}; 
+    
+    Vector3f cam_right = Normalize(Cross(ray.direction, cam_up));
+    Vector3f cam_up_real = Cross(cam_right, ray.direction);
+    
+    // The derivative of the ray direction with respect to screen pixels X and Y
+    Vector3f dDdx = cam_right * (2.0f / (float)ViewportSize.x);
+    Vector3f dDdy = cam_up_real * (2.0f / (float)ViewportSize.y);
+    
+    // --- STEP 4: Compute Positional Surface Derivatives (dPdx, dPdy) ---
+    // How much does the actual 3D hit point slide along the triangle if 
+    // the ray direction shifts by 1 screen pixel?
+    float dot_ND = Dot(normal, ray.direction);
+    if (std::abs(dot_ND) < 1e-6f) return {.dudx = 0,.dvdx = 0, .dudy = 0,.dvdy = 0}; // Ray is parallel to surface
+    float t = Hit.t;
+    
+    // Analytical derivation of intersection plane gradients
+    float dot_N_dDdx = Dot(normal, dDdx);
+    Vector3f dPdx = (dDdx - ray.direction * (dot_N_dDdx / dot_ND)) * t;
+    float dot_N_dDdy = Dot(normal, dDdy);
+    Vector3f dPdy = (dDdy - ray.direction * (dot_N_dDdy / dot_ND)) * t;
+    
+    // --- STEP 5: Project Positional Derivatives onto Texture Gradients ---
+    // Chain Rule: (Change in U per 3D unit) * (Change in 3D units per screen pixel)
+    SurfaceSampler derivs;
+    derivs.dudx = Dot(grad_U, dPdx);
+    derivs.dudy = Dot(grad_U, dPdy);
+    derivs.dvdx = Dot(grad_V, dPdx);
+    derivs.dvdy = Dot(grad_V, dPdy);
+    return derivs;
+}
+
 TraceRay::TraceRay(const Mesh& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel):
     MeshFaces(Mesh),
     Current(MeshFaces.begin()),

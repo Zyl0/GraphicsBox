@@ -95,12 +95,15 @@ struct Image
     Math::Vector2t<uint32_t> MipSize(uint32_t MipLevel) const;
     size_t MipDataSize(uint32_t MipLevel) const;
     void* MipData(uint32_t MipLevel);
+    
+    void EnableMips();
 
     friend void swap(Image& first, Image& second) noexcept
     {
         using std::swap;
         swap(first.m_Width, second.m_Width);
         swap(first.m_Height, second.m_Height);
+        swap(first.m_Mips, second.m_Mips);
         swap(first.m_ComponentType, second.m_ComponentType);
         swap(first.m_ComponentLayout, second.m_ComponentLayout);
         swap(first.m_Data, second.m_Data);

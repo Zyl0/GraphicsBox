@@ -3,6 +3,7 @@
 #include <stack>
 
 #include "Types.h"
+#include "Image/ImageOps.h"
 #include "Math/Box.h"
 #include "Math/Transforms.h"
 #include "MathSimt/RMath.h"
@@ -97,6 +98,8 @@ struct SurfaceHit
     Math::Vector3f Normal, Tangent;
     Math::Vector2f TextureCoordinates;
 } HitInterpolateProperties(const Mesh& mesh, const Hit& Hit, const Math::Matrix4f* Transform = nullptr);
+
+SurfaceSampler CalcSurfaceSample(const Mesh& mesh, const Ray& ray, const Hit& Hit, Math::Vector2t<uint32_t> ViewportSize);
 
 class TraceRay
 {

@@ -17,10 +17,12 @@ static uint32_t ImageMipCount(uint32_t width, uint32_t height)
     uint32_t w = width;
     uint32_t h = height;
     uint32_t levels = 1;
-    while (w > 1u || h > 1u)
+    
+    // TODO GPU reduces the image until only one pixel remains, while here, we reduce it until one pixel remains rows or columns, maybe change this to mach gpu behaviour
+    while (w > 1u && h > 1u)
     {
-        w = std::max(1u, w / 2u);
-        h = std::max(1u, h / 2u);
+        w = std::max(1u, w >> 1);
+        h = std::max(1u, h >> 1);
         levels = levels + 1;
     }
 
@@ -67,10 +69,10 @@ uint32_t Image::PixelSize(Type ComponentType, Layout ComponentLayout)
     return ComponentCount(ComponentLayout) * ChannelSize(ComponentType);
 }
 
-Image::Image():
-    m_Width(0), m_Height(0),
+Image::Image() :
+    m_Width(0), m_Height(0), m_Mips(0),
     m_ComponentType(Byte),
-    m_ComponentLayout(R),
+    m_ComponentLayout(R), m_ComponentEncoding(Unencoded),
     m_Data(nullptr)
 {
 }
@@ -99,20 +101,22 @@ Image::~Image()
 Image::Image(const Image& Other): 
     m_Width(Other.m_Width),
     m_Height(Other.m_Height),
+    m_Mips(Other.m_Mips),
     m_ComponentType(Other.m_ComponentType),
     m_ComponentLayout(Other.m_ComponentLayout),
     m_ComponentEncoding(Other.m_ComponentEncoding),
-    m_Data(m_Width * m_Height > 0 ? malloc(DataSize()) : nullptr)
+    m_Data(m_Width * m_Height > 0 ? malloc(TotalDataSie()) : nullptr)
 {
     if (m_Data != nullptr && Other.m_Data != nullptr)
     {
-        memcpy(m_Data, Other.m_Data, DataSize());
+        memcpy(m_Data, Other.m_Data, TotalDataSie());
     }
 }
 
-Image::Image(Image&& Other) noexcept: 
+Image::Image(Image&& Other) noexcept :
     m_Width(Other.m_Width),
-    m_Height(Other.m_Height),
+    m_Height(Other.m_Height), 
+    m_Mips(Other.m_Mips),
     m_ComponentType(Other.m_ComponentType),
     m_ComponentLayout(Other.m_ComponentLayout),
     m_ComponentEncoding(Other.m_ComponentEncoding),
@@ -128,14 +132,15 @@ Image& Image::operator=(const Image& Other)
     
     m_Width = Other.m_Width;
     m_Height = Other.m_Height;
+    m_Mips = Other.m_Mips;
     m_ComponentType = Other.m_ComponentType;
     m_ComponentLayout = Other.m_ComponentLayout;
     m_ComponentEncoding = Other.m_ComponentEncoding;
-    m_Data = m_Width * m_Height > 0 ? malloc(DataSize()) : nullptr;
+    m_Data = m_Width * m_Height > 0 ? malloc(TotalDataSie()) : nullptr;
     
     if (m_Data != nullptr && Other.m_Data != nullptr)
     {
-        memcpy(m_Data, Other.m_Data, DataSize());
+        memcpy(m_Data, Other.m_Data, TotalDataSie());
     }
     
     return *this;
@@ -148,6 +153,7 @@ Image& Image::operator=(Image&& Other) noexcept
     
     m_Width = Other.m_Width;
     m_Height = Other.m_Height;
+    m_Mips = Other.m_Mips;
     m_ComponentType = Other.m_ComponentType;
     m_ComponentLayout = Other.m_ComponentLayout;
     m_ComponentEncoding = Other.m_ComponentEncoding;
@@ -228,7 +234,7 @@ void* Image::MipData(uint32_t MipLevel)
     
     size_t texelCount = 0;
     uint32_t width = m_Width, height = m_Height;
-    for (size_t i = 0; i < std::min(m_Mips, MipLevel) - 1; i++)
+    for (size_t i = 0; i < std::min(m_Mips - 1, MipLevel); i++)
     {
         texelCount += (width * height);
         width /= 2u; height /= 2u;
@@ -238,8 +244,21 @@ void* Image::MipData(uint32_t MipLevel)
     return (static_cast<uint8_t*>(Data()) + offset);
 }
 
+void Image::EnableMips()
+{
+    if (m_Mips != 1) return;
+    
+    m_Mips = ImageMipCount(m_Width, m_Height);
+    void* data = realloc(m_Data, TotalDataSie());
+    
+    AssertOrErrorCall(data != nullptr, m_Mips = 1; return;, "Failed to allocate for mip image")
+    m_Data = data;
+}
+
 size_t Image::TotalDataSie() const
 {
+    if (m_Mips == 1) return DataSize();
+    
     size_t texelCount = 0;
     uint32_t width = m_Width, height = m_Height;
     for (size_t i = 0; i < m_Mips; i++)
