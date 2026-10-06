@@ -125,7 +125,12 @@ public:
                 
                 m_Textures.reserve(m_Scene->textures.size());
                 for (size_t i = 0; i < m_Scene->textures.size(); i++)
+                {
                     m_Textures.emplace_back(m_Scene->textures[i]);
+                    
+                    m_Scene->textures[i].EnableMips();
+                    GenerateMips(m_Scene->textures[i]);
+                }
             }
             else
             {
@@ -958,7 +963,7 @@ public:
             0,1,0   // 0,sin(M_PI / 2.0), cos (M_PI / 2.0)
         );
         */
-        
+        ImageSampler sampler{};
         ImageBuffer<Vector3t<uint8_t>> TargetImage(*m_WriteImage);
         ClearBuffer(TargetImage);
 
@@ -1061,6 +1066,7 @@ public:
                 Vector3f Color{};
                 
                 SurfaceHit surface = HitInterpolateProperties(*Mesh, ClosestHit, ModelMatrix);
+                SurfaceSampler surfaceSampler = CalcSurfaceSample(*Mesh, PrimaryRay, ClosestHit, TargetImage.Size());
                 
                 if (false)
                 {
@@ -1095,11 +1101,6 @@ public:
                     // Rotate T_raw in the tangent plane by uvAngle
                     surface.Tangent = Normalize(cosA * T_raw + sinA * B_raw);
                 }
-            
-                // UVs in repeat mode 
-                // TODO rework image API with sampler
-                surface.TextureCoordinates.x = abs(fmod(surface.TextureCoordinates.x, 1.f));
-                surface.TextureCoordinates.y = abs(fmod(surface.TextureCoordinates.y, 1.f)); 
         
                 // Shadowmap test
                 float SunlightVisibility = 1.0f;
@@ -1137,58 +1138,17 @@ public:
         
                 if (material.colorTexture != UINT64_MAX)
                 {
-                    if (m_Scene->textures[material.colorTexture].ComponentCount() == 4 )
-                    {
-                        ImageBuffer<Vector4t<uint8_t>> ColorTexBuffer(m_Scene->textures[material.colorTexture]);
-                        PixBaseColor = ReadBuffer(
-                            ColorTexBuffer,
-                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(ColorTexBuffer.Width())), 
-                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(ColorTexBuffer.Height()))
-                            ).xyz() * PixBaseColor;
-                    }
-                    else
-                    {
-                        ImageBuffer<Vector3t<uint8_t>> ColorTexBuffer(m_Scene->textures[material.colorTexture]);
-                        PixBaseColor = ReadBuffer(
-                            ColorTexBuffer,
-                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(ColorTexBuffer.Width())), 
-                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(ColorTexBuffer.Height()))
-                            ) * PixBaseColor;
-                    }
+                    PixBaseColor = SampleImage(m_Scene->textures[material.colorTexture], surfaceSampler, sampler, surface.TextureCoordinates).xyz() * PixBaseColor;
                 }
                 if (material.metallicRoughnessTexture != UINT64_MAX)
                 {
-                    if (m_Scene->textures[material.metallicRoughnessTexture].ComponentCount() == 4 )
-                    {
-                        ImageBuffer<Vector4t<uint8_t>> MetallicRoughnessTexBuffer(m_Scene->textures[material.metallicRoughnessTexture]);
-                        Vector3f mr = ReadBuffer(
-                            MetallicRoughnessTexBuffer,
-                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(MetallicRoughnessTexBuffer.Width())), 
-                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(MetallicRoughnessTexBuffer.Height()))
-                            ).xyz();
-                        PixMetalness = mr.z;
-                        PixRoughness = mr.y;
-                    }
-                    else
-                    {
-                        ImageBuffer<Vector3t<uint8_t>> MetallicRoughnessTexBuffer(m_Scene->textures[material.metallicRoughnessTexture]);
-                        Vector3f mr = ReadBuffer(
-                            MetallicRoughnessTexBuffer,
-                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(MetallicRoughnessTexBuffer.Width())), 
-                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(MetallicRoughnessTexBuffer.Height()))
-                            );
-                        PixMetalness = mr.z;
-                        PixRoughness = mr.y;
-                    }
+                    Vector4f mr = SampleImage(m_Scene->textures[material.metallicRoughnessTexture], surfaceSampler, sampler, surface.TextureCoordinates);
+                    PixMetalness = mr.z;
+                    PixRoughness = mr.y;
                 }
                 if (material.occlusionTexture != UINT64_MAX)
                 {
-                    ImageBuffer<Vector3t<uint8_t>> AOTexBuffer(m_Scene->textures[material.occlusionTexture]);
-                    PixAmbiantOcclusion = ReadBuffer(
-                        AOTexBuffer,
-                        static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(AOTexBuffer.Width())), 
-                        static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(AOTexBuffer.Height()))
-                        ).x;
+                    PixAmbiantOcclusion = SampleImage(m_Scene->textures[material.occlusionTexture], surfaceSampler, sampler, surface.TextureCoordinates).x * PixAmbiantOcclusion;
                 }
         
                 // Clamp roughness
@@ -1206,25 +1166,9 @@ public:
                 
                 if (material.normalTexture != UINT64_MAX)
                 {
-                    if (m_Scene->textures[material.normalTexture].ComponentCount() == 4 )
-                    {
-                        ImageBuffer<Vector4t<uint8_t>> NormalTexBuffer(m_Scene->textures[material.normalTexture]);
-                        LocalNormal = ReadBuffer(
-                            NormalTexBuffer,
-                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(NormalTexBuffer.Width())), 
-                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(NormalTexBuffer.Height()))
-                            ).xyz();
-                    }
-                    else
-                    {
-                        ImageBuffer<Vector3t<uint8_t>> NormalTexBuffer(m_Scene->textures[material.normalTexture]);
-                        LocalNormal = ReadBuffer(
-                            NormalTexBuffer,
-                            static_cast<uint32_t>(surface.TextureCoordinates.x * static_cast<float>(NormalTexBuffer.Width())), 
-                            static_cast<uint32_t>(surface.TextureCoordinates.y * static_cast<float>(NormalTexBuffer.Height()))
-                            );
-                    }
+                    LocalNormal = SampleImage(m_Scene->textures[material.normalTexture], surfaceSampler, sampler, surface.TextureCoordinates).xyz();
                     LocalNormal = LocalNormal * 2.f - 1.f; // 0:1 normalized to normalized space (-1, 1)
+                    LocalNormal.x = -LocalNormal.x;
                     surface.Normal = Normalize(FragTBN * LocalNormal);
                 }
 
