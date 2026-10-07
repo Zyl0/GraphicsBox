@@ -45,7 +45,7 @@ namespace Rendering
         float C = NdotL;
 
         Math::Vector2f PartA = (G - C) / (G + C);
-        Math::Vector2f PartB = (C * (G + C) - 1) / (C * (G + C) + 1);
+        Math::Vector2f PartB = (C * (G + C) - 1.f) / (C * (G + C) + 1.f);
 
         return (1.f / 2) * (PartA * PartA) * (1.f + (PartB * PartB));
     }

@@ -41,14 +41,14 @@ namespace Math
 
         type* data(){return &x;}
 
-        Vector2t& operator *=(float s)
+        Vector2t& operator *=(type s)
         {
             x *= s;
             y *= s;
             return *this;
         }
 
-        Vector2t& operator /=(float s)
+        Vector2t& operator /=(type s)
         {
             x /= s;
             y /= s;
@@ -85,19 +85,19 @@ namespace Math
     };
     
     template<typename type>
-    inline Vector2t<type> operator +(const Vector2t<type>& v, float s)
+    inline Vector2t<type> operator +(const Vector2t<type>& v, type s)
         {return Vector2t(v.x + s, v.y + s);}
 
     template<typename type>
-    inline Vector2t<type> operator -(const Vector2t<type>& v, float s)
+    inline Vector2t<type> operator -(const Vector2t<type>& v, type s)
         {return Vector2t(v.x - s, v.y - s);}
 
     template<typename type>
-    inline Vector2t<type> operator *(const Vector2t<type>& v, float s)
+    inline Vector2t<type> operator *(const Vector2t<type>& v, type s)
         {return Vector2t(v.x * s, v.y * s);}
 
     template<typename type>
-    inline Vector2t<type> operator /(const Vector2t<type>& v, float s)
+    inline Vector2t<type> operator /(const Vector2t<type>& v, type s)
         {return Vector2t(v.x / s, v.y / s);}
     
     template<typename type>
@@ -204,7 +204,7 @@ namespace Math
         type* data()
             {return &x;}
 
-        Vector3t& operator *=(float s)
+        Vector3t& operator *=(type s)
         {
             x *= s;
             y *= s;
@@ -212,7 +212,7 @@ namespace Math
             return *this;
         }
 
-        Vector3t& operator /=(float s)
+        Vector3t& operator /=(type s)
         {
             x /= s;
             y /= s;
@@ -406,13 +406,13 @@ namespace Math
     }
 
     template<typename type>
-    float Distance( const Point3t<type>& a, const Point3t<type>& b )
+    type Distance( const Point3t<type>& a, const Point3t<type>& b )
     {
         return Magnitude(a - b);
     }
 
     template<typename type>
-    float SquareDistance( const Point3t<type>& a, const Point3t<type>& b )
+    type SquareDistance( const Point3t<type>& a, const Point3t<type>& b )
     {
         return SquareMagnitude(a - b);
     }
@@ -489,7 +489,7 @@ namespace Math
         type* data()        
             {return &x;}
 
-        Vector4t& operator *=(float s)
+        Vector4t& operator *=(type s)
         {
             x *= s;
             y *= s;
@@ -498,7 +498,7 @@ namespace Math
             return *this;
         }
 
-        Vector4t& operator /=(float s)
+        Vector4t& operator /=(type s)
         {
             x /= s;
             y /= s;
@@ -551,7 +551,7 @@ namespace Math
         {return Vector4t(v.x * s, v.y * s, v.z * s, v.w * s);}
 
     template<typename type>
-    inline Vector4t<type> operator /(const Vector4t<type>& v, float s)
+    inline Vector4t<type> operator /(const Vector4t<type>& v, type s)
         {return Vector4t(v.x / s, v.y / s, v.z / s, v.w / s);}
     
     template<typename type>
