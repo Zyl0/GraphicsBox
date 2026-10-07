@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <cstdint>
 #include <filesystem>
@@ -86,6 +86,7 @@ struct Image
     Type ComponentType() const { return m_ComponentType; }
     Layout ComponentLayout() const { return m_ComponentLayout; }
     Encoding ComponentEncoding() const { return m_ComponentEncoding; }
+    void SetComponentEncoding(Encoding encoding) { m_ComponentEncoding = encoding; }
 
     uint32_t ChannelSize() const;
     uint32_t PixelSize() const;
