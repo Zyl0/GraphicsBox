@@ -433,8 +433,10 @@ BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize)
     case Mesh::TRIANGLE_STRIP:
     case Mesh::TRIANGLE_FAN:
     case Mesh::TRIANGLES:
-        if (LeafSize == TriangleWave::kThreadCount)
+        if (LeafSize % TriangleWave::kThreadCount == 0)
         {
+            size_t WaveCount = LeafSize / TriangleWave::kThreadCount;
+            
             Mesh::ConstFaces Faces(Mesh);
             std::stack<uint32_t> IterationStack;
             IterationStack.push(blas.Head);
@@ -453,37 +455,47 @@ BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize)
                 {
                     // collect triangles in bucket
                     std::span<BLASElement> View = {blas.Elements.begin() + blas.Tree[NodeIndex].LeftIndex(), blas.Elements.begin() + blas.Tree[NodeIndex].RightIndex()};
+                    size_t begin = blas.Tree[NodeIndex].LeftIndex();
+                    size_t end = blas.Tree[NodeIndex].RightIndex();
                     
-                    uint32_t bucketIndex = blas.Meta.Waves.size(); 
-                    TriangleWave& wave = blas.Meta.Waves.emplace_back();
+                    size_t RequiredWaves = View.size() / TriangleWave::kThreadCount + (View.size() % TriangleWave::kThreadCount ? 1 : 0);
+                    AssertOrError(RequiredWaves <= WaveCount, "Wave count is too large")
                     
-                    // replace tree with
-                    wave.BucketBegin = blas.Tree[NodeIndex].LeftIndex();
-                    wave.BucketEnd = blas.Tree[NodeIndex].RightIndex();
-                    blas.Tree[NodeIndex].SetLeafBegin(bucketIndex);
-                    blas.Tree[NodeIndex].SetLeafEnd(bucketIndex + 1);
+                    size_t firstWave = blas.Meta.Waves.size();
+                    blas.Tree[NodeIndex].SetLeafBegin(static_cast<uint32_t>(firstWave));
+                    blas.Tree[NodeIndex].SetLeafEnd(static_cast<uint32_t>(firstWave + RequiredWaves));
                     
-                    // fill bucket data
-                    for (size_t i = 0; i < View.size(); i++)
+                    // A leaf can be made of one or more triangle waves
+                    for (size_t waveID = 0; waveID < RequiredWaves; waveID++)
                     {
-                        Mesh::ConstFace Face = Faces[View[i]];
-                        
-                        wave.A.x[i] = Face.Position(0).x;
-                        wave.A.y[i] = Face.Position(0).y;
-                        wave.A.z[i] = Face.Position(0).z;
-                        
-                        wave.B.x[i] = Face.Position(1).x;
-                        wave.B.y[i] = Face.Position(1).y;
-                        wave.B.z[i] = Face.Position(1).z;
-                        
-                        wave.C.x[i] = Face.Position(2).x;
-                        wave.C.y[i] = Face.Position(2).y;
-                        wave.C.z[i] = Face.Position(2).z;
-                        
-                        wave.Faces[i] = Face.FirstVertex();
-                        wave.Validity[i] = true;
-                    }
+                        TriangleWave& wave = blas.Meta.Waves.emplace_back();
                     
+                        // replace tree with
+                        wave.BucketBegin = begin + waveID * TriangleWave::kThreadCount;
+                        wave.BucketEnd = std::min(end, wave.BucketBegin + TriangleWave::kThreadCount);
+                    
+                        // fill bucket data
+                        for (size_t i = waveID * TriangleWave::kThreadCount, iend = (waveID + 1) * TriangleWave::kThreadCount; i < std::min(View.size(), iend); i++)
+                        {
+                            size_t local_i = i - waveID * TriangleWave::kThreadCount;
+                            Mesh::ConstFace Face = Faces[View[i]];
+                        
+                            wave.A.x[local_i] = Face.Position(0).x;
+                            wave.A.y[local_i] = Face.Position(0).y;
+                            wave.A.z[local_i] = Face.Position(0).z;
+                        
+                            wave.B.x[local_i] = Face.Position(1).x;
+                            wave.B.y[local_i] = Face.Position(1).y;
+                            wave.B.z[local_i] = Face.Position(1).z;
+                        
+                            wave.C.x[local_i] = Face.Position(2).x;
+                            wave.C.y[local_i] = Face.Position(2).y;
+                            wave.C.z[local_i] = Face.Position(2).z;
+                        
+                            wave.Faces[local_i] = Face.FirstVertex();
+                            wave.Validity[local_i] = true;
+                        }
+                    }
                 }
             }
         }
@@ -557,6 +569,8 @@ explore_bvh:
 trace_leaf:
     if (m_CurrentBVHHit)
     {
+        uint32_t BLASFaceEnd = m_Blas->Tree[m_CurrentBVHHit.NodeIndex].RightIndex();
+        
         // if SIMD mode
         if (!m_Blas->Meta.Waves.empty())
         {
@@ -568,7 +582,29 @@ trace_leaf:
             case Mesh::TRIANGLE_STRIP:
             case Mesh::TRIANGLE_FAN:
             case Mesh::TRIANGLES:
-                m_SIMDHits = IntersectTriangle(m_Blas->Meta.Waves[m_CurrentElementIndex], m_Ray);
+                for (uint32_t ElementIndex = m_CurrentElementIndex; ElementIndex < BLASFaceEnd; ElementIndex++)
+                {
+                    m_SIMDHits = IntersectTriangle(m_Blas->Meta.Waves[ElementIndex], m_Ray);
+                    
+                    if (m_SIMDHits.IsValid().Any())
+                    {
+                        uint32_t SIMDHitIndex = IndexOf(m_SIMDHits.t, Lowest(m_SIMDHits.t));
+                        Hit hit = m_SIMDHits.Elt(SIMDHitIndex);
+                        
+                        if (!m_ClosestHit || m_ClosestHit.t > hit.t)
+                        {
+                            m_ClosestHit = hit;
+                            
+                            Vector4f originWorld = ModelToWorld * Vector4f(m_Ray.origin, 1.0f); originWorld.xyz() /= originWorld.w;
+                            Vector4f tWorld = ModelToWorld * Vector4f(m_Ray.origin + m_ClosestHit.t * m_Ray.direction, 1.0f); tWorld.xyz() /= tWorld.w;
+                            m_ClosestHit.t = Magnitude(tWorld - originWorld);
+                            
+                            m_tmax = std::min(m_tmax, hit.t);
+                            m_CurrentElementIndex = ElementIndex + 1;
+                            return m_ClosestHit;
+                        }
+                    }
+                }
                 break;
         
             case Mesh::POINTS:
@@ -584,28 +620,12 @@ trace_leaf:
             SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported face type for ray tracing")
             }
             
-            if (m_SIMDHits.IsValid().None())
-            {
-                m_CurrentBVHHit = {};
-                m_CurrentElementIndex = std::numeric_limits<uint32_t>::max();
-                goto explore_bvh;
-            }
-            
-            uint32_t SIMDHitIndex = IndexOf(m_SIMDHits.t, Lowest(m_SIMDHits.t));
-            m_ClosestHit = m_SIMDHits.Elt(SIMDHitIndex);
-            m_tmax = std::min(m_tmax, m_ClosestHit.t);
-            
-            Vector4f originWorld = ModelToWorld * Vector4f(m_Ray.origin, 1.0f); originWorld.xyz() /= originWorld.w;
-            Vector4f tWorld = ModelToWorld * Vector4f(m_Ray.origin + m_ClosestHit.t * m_Ray.direction, 1.0f); tWorld.xyz() /= tWorld.w;
-            m_ClosestHit.t = Magnitude(tWorld - originWorld);
-            
             m_CurrentBVHHit = {};
             m_CurrentElementIndex = std::numeric_limits<uint32_t>::max();
-            return m_ClosestHit;
+            goto explore_bvh;
         }
         else
         {
-            uint32_t BLASFaceEnd = m_Blas->Tree[m_CurrentBVHHit.NodeIndex].RightIndex();
             Mesh::ConstFaces Faces(*(m_Blas->Meta.MeshRef));
             for (uint32_t ElementIndex = m_CurrentElementIndex; ElementIndex < BLASFaceEnd; ElementIndex++)
             {

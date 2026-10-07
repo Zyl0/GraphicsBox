@@ -161,7 +161,7 @@ public:
                     for (uint8_t group = 0, end = mesh.GetVertexGroups().size(); group < end; group++)
                     {
                         BLASTable[std::pair(meshIndex, group)] = m_CPUMeshesBLASs.size();
-                        m_CPUMeshesBLASs.emplace_back(BuildBLAS(mesh, group));
+                        m_CPUMeshesBLASs.emplace_back(BuildBLAS(mesh, group, 96));
                     }
                 }
                 auto stop= std::chrono::high_resolution_clock::now();
