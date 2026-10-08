@@ -19,6 +19,7 @@ public:
     using DefinesView = std::span < const Define >;
     template <size_t Count>
     using DefineArray = std::array<Define, Count>;
+    using DefineDynArray = std::vector<Define>;
 
     enum Type : uint8_t
     {

@@ -615,6 +615,10 @@ Shader::Shader(Type type, std::string_view Name, std::string_view SourceCode, Sh
         {
             shaderFinalSource.append(std::string("#define ").append(Define.first).append("\n"));
         }
+        else
+        {
+            shaderFinalSource.append(std::string("#define ").append(Define.first).append(" ")).append(Define.second).append("\n");
+        }
     }
     shaderFinalSource.append(shaderCode);
     
