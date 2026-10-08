@@ -1,8 +1,10 @@
 ﻿#include "Pipelines.h"
 
 #include <array>
+#include <stack>
 #include <vector>
 
+#include "Memory/Functions.h"
 #include "Shared/Annotations.h"
 
 static
@@ -335,4 +337,289 @@ bool PipelineUpdateFromString(Pipeline& pipeline, std::string_view source, Shade
     pipeline.Data(shaderRefs);
     
     return pipeline.IsComplete();
+}
+
+PipelineMatrix::Name PipelineMatrix::MatrixDesc::AddParameterName(std::string_view defineName)
+{
+    m_Parameters.emplace_back(std::pair<std::string_view, std::vector<std::string_view>>(defineName, {})); return m_Parameters.size() - 1;
+}
+
+PipelineMatrix::Name PipelineMatrix::MatrixDesc::AddParameterValue(Name parameterName, std::string_view defineValue)
+{
+    AssertOrError(parameterName < m_Parameters.size(), "No such parapmeter")
+
+    m_Parameters[parameterName].second.emplace_back(defineValue);
+    return m_Parameters[parameterName].second.size() - 1;
+}
+
+PipelineMatrix::Name PipelineMatrix::MatrixDesc::FindParameterName(std::string_view defineName) const
+{
+    for (Name i = 0; i < m_Parameters.size(); i++)
+    {
+        if (m_Parameters[i].first == defineName) return i;
+    }
+
+    return -1;
+}
+
+PipelineMatrix::Name PipelineMatrix::MatrixDesc::FindParameterValue(Name parameterName, std::string_view defineValue) const
+{
+    AssertOrError(parameterName < m_Parameters.size(), "No such parapmeter")
+
+    for (Name i = 0; i < m_Parameters[parameterName].second.size(); i++)
+    {
+        if (m_Parameters[parameterName].second[i] == defineValue) return i;
+    }
+
+    return -1;
+}
+
+std::string_view PipelineMatrix::MatrixDesc::GetParameterName(Name parameterName) const
+{
+    AssertOrError(parameterName < m_Parameters.size(), "No such parapmeter")
+
+    return m_Parameters[parameterName].first;
+}
+
+std::string_view PipelineMatrix::MatrixDesc::GetParameterValue(Name parameterName, uint64_t defineValue) const
+{
+    AssertOrError(parameterName < m_Parameters.size(), "No such parapmeter")
+    AssertOrError(defineValue < m_Parameters[parameterName].second.size(), "No such parameter value")
+
+    return m_Parameters[parameterName].second[defineValue];
+}
+
+void PipelineMatrix::VariantDesc::Set(const MatrixDesc& Ref)
+{
+    m_Parameters.resize(Ref.m_Parameters.size());
+
+    for (size_t i = 0; i < Ref.m_Parameters.size(); ++i)
+    {
+        m_Parameters[i] = 0;
+    }
+}
+
+void PipelineMatrix::VariantDesc::SetParameter(Name param, Name Value)
+{
+    AssertOrErrorCall(param < m_Parameters.size(),  return;, "No such parapmeter")
+
+    m_Parameters[param] = Value;
+}
+
+void PipelineMatrix::VariantDesc::UnsetParameter(Name param)
+{
+    AssertOrErrorCall(param < m_Parameters.size(),  return;, "No such parapmeter")
+
+    m_Parameters[param] = 0;
+}
+
+void PipelineMatrix::VariantDesc::Reset()
+{
+    for (size_t i = 0; i < m_Parameters.size(); ++i)
+        m_Parameters[i] = 0;
+}
+
+void PipelineMatrix::VariantDesc::Clear()
+{
+    m_Parameters.clear();
+}
+
+const Pipeline& PipelineMatrix::GetVariant(const VariantDesc& variant)
+{
+    uint32_t elt = m_Head;
+    size_t param = 0;
+    while ((elt & (1 << 31)) == 0)
+    {
+        elt = m_PipelineTree[elt + variant.m_Parameters[param++]];
+    }
+
+    return m_Pipelines[SetBoolAt(elt, 31, false)];
+}
+
+PipelineMatrix PipelineMatrixFromString(std::string_view label, Pipeline::Shaders shaders, std::string_view source,
+                                        const PipelineMatrix::MatrixDesc& paramMatrix, Shader::DefinesView Defines)
+{
+    std::vector<size_t> paramValuesCountStack(paramMatrix.m_Parameters.size());
+    size_t totalParamValuesCount = 1;
+
+    for (size_t i = 0; i < paramMatrix.m_Parameters.size(); i++)
+    {
+        const auto & parameter = paramMatrix.m_Parameters[i];
+        paramValuesCountStack[i] = parameter.second.size();
+        totalParamValuesCount *= parameter.second.size();
+    }
+
+    PipelineMatrix pipelines;
+    pipelines.m_ParameterMatrix = paramMatrix;
+
+    pipelines.m_Pipelines.reserve(totalParamValuesCount);
+    pipelines.m_PipelineTree.resize(totalParamValuesCount);
+
+    for (size_t i = 0; i < totalParamValuesCount; i++)
+    {
+        pipelines.m_PipelineTree[i] = SetBoolAt(static_cast<uint32_t>(i), 31, true);
+    }
+
+    // Construct tree by building through stack
+    // Recursively group parameter in reverse order of the paramValuesCountStack list so that
+    // when going through each layer of the parameter tree, we iterate on parameters in sequential order
+    // for easier iteration
+    size_t paramLayerSize = totalParamValuesCount;
+    size_t paramLayerOffset = 0;
+    pipelines.m_Head = 0;
+    if (!paramValuesCountStack.empty())
+    for (size_t i = paramValuesCountStack.size() - 1; i-- > 0;)
+    {
+        size_t paramCount = paramValuesCountStack[i];
+        size_t clusterCount = paramLayerSize / paramCount;
+        
+        paramLayerOffset += paramLayerSize;
+        // paramLayerSize = clusterCount;
+        pipelines.m_PipelineTree.resize(pipelines.m_PipelineTree.size() + clusterCount);
+
+        size_t currentCluster = paramLayerOffset - paramLayerSize;
+        for (size_t j = paramLayerOffset; j < paramLayerOffset + clusterCount; j++)
+        {
+            pipelines.m_PipelineTree[j] = currentCluster;
+            currentCluster += paramCount;
+        }
+
+        if (i == 0)
+        {
+            pipelines.m_Head = paramLayerOffset;
+        }
+    }
+
+    Shader::DefineDynArray variantDefines; variantDefines.resize(paramMatrix.m_Parameters.size() + Defines.size());
+    PipelineMatrix::VariantDesc variant; variant.Set(paramMatrix);
+    
+    struct LayerStack
+    {
+        size_t Start, End, At, Param;
+    };
+
+    std::stack<LayerStack> iterationStack;
+    iterationStack.push({.Start = pipelines.m_Head, .End = pipelines.m_PipelineTree.size(), .At = pipelines.m_Head, .Param = 0});
+
+    // Compile all variants using the tree to explore parameters
+    EngineLoggerLogF("Compiling pipeline matrix \"%.*s\" with \"%llu\" variant(s)", (int)(label.size()), label.data(), totalParamValuesCount);
+    while (iterationStack.empty() == false)
+    {
+continue_tree_iteration:
+        LayerStack& currentLayer = iterationStack.top();
+
+        if (pipelines.m_PipelineTree[currentLayer.Start] & (1 << 31))
+        {
+            // Leafs
+            // Compile the pipelines
+            for (size_t i = currentLayer.Start; i < currentLayer.End; i++)
+            {
+                uint32_t paramNode = pipelines.m_PipelineTree[i];
+                variant.SetParameter(currentLayer.Param, i - currentLayer.Start);
+
+                // Resolve defines
+                variantDefines.clear();
+                for (const auto& define : Defines) variantDefines.push_back(define);
+                for (size_t p = 0; p < variant.m_Parameters.size(); p++)
+                {
+                    variantDefines.emplace_back(paramMatrix.m_Parameters[p].first, paramMatrix.m_Parameters[p].second[variant.m_Parameters[p]]);
+                }
+
+                // Create pipeline
+                AssertOrError(pipelines.m_Pipelines.size() == SetBoolAt(paramNode, 31, false), "Out of order pipeline iteration")
+                pipelines.m_Pipelines.emplace_back(PipelineFromString(label, shaders, source, variantDefines));
+            }
+        }
+        else
+        {
+            // Node
+            // queue up next layers
+            if (currentLayer.At < currentLayer.End)
+            {
+                uint32_t paramNode = pipelines.m_PipelineTree[currentLayer.At];
+                variant.SetParameter(currentLayer.Param, currentLayer.At - currentLayer.Start);
+                ++currentLayer.At;
+
+                iterationStack.push({.Start = paramNode, .End = paramNode + paramValuesCountStack[currentLayer.Param + 1], .At = paramNode, .Param = currentLayer.Param + 1});
+                goto continue_tree_iteration;
+            }
+        }
+        
+        iterationStack.pop();
+    }
+
+    return pipelines;
+}
+
+bool PipelineMatrixUpdateFromString(PipelineMatrix& pipelines, std::string_view source, Shader::DefinesView Defines)
+{
+    std::vector<size_t> paramValuesCountStack(pipelines.m_ParameterMatrix.m_Parameters.size());
+    size_t totalParamValuesCount = 1;
+
+    for (size_t i = 0; i < pipelines.m_ParameterMatrix.m_Parameters.size(); i++)
+    {
+        const auto & parameter = pipelines.m_ParameterMatrix.m_Parameters[i];
+        paramValuesCountStack[i] = parameter.second.size();
+        totalParamValuesCount *= parameter.second.size();
+    }
+    
+    Shader::DefineDynArray variantDefines; variantDefines.resize(pipelines.m_ParameterMatrix.m_Parameters.size() + Defines.size());
+    PipelineMatrix::VariantDesc variant; variant.Set(pipelines.m_ParameterMatrix);
+    
+    struct LayerStack
+    {
+        size_t Start, End, At, Param;
+    };
+
+    std::stack<LayerStack> iterationStack;
+    iterationStack.push({.Start = pipelines.m_Head, .End = pipelines.m_PipelineTree.size(), .At = pipelines.m_Head, .Param = 0});
+
+    // Compile all variants using the tree to explore parameters
+    bool status = true;
+    EngineLoggerLogF("Recompiling pipeline matrix with \"%llu\" variant(s)",  totalParamValuesCount);
+    while (iterationStack.empty() == false)
+    {
+continue_tree_iteration:
+        LayerStack& currentLayer = iterationStack.top();
+
+        if (pipelines.m_PipelineTree[currentLayer.Start] & (1 << 31))
+        {
+            // Leafs
+            // Compile the pipelines
+            for (size_t i = currentLayer.Start; i < currentLayer.End; i++)
+            {
+                uint32_t paramNode = pipelines.m_PipelineTree[i];
+                variant.SetParameter(currentLayer.Param, i - currentLayer.Start);
+
+                // Resolve defines
+                variantDefines.clear();
+                for (const auto& define : Defines) variantDefines.push_back(define);
+                for (size_t i = 0; i < variant.m_Parameters.size(); i++)
+                {
+                    variantDefines.emplace_back(pipelines.m_ParameterMatrix.m_Parameters[i].first, pipelines.m_ParameterMatrix.m_Parameters[i].second[variant.m_Parameters[i]]);
+                }
+
+                // Create pipeline
+                status &= PipelineUpdateFromString(pipelines.m_Pipelines[SetBoolAt(paramNode, 31, false)], source, variantDefines);
+            }
+        }
+        else
+        {
+            // Node
+            // queue up next layers
+            if (currentLayer.At < currentLayer.End)
+            {
+                uint32_t paramNode = pipelines.m_PipelineTree[currentLayer.At];
+                variant.SetParameter(currentLayer.Param, currentLayer.At - currentLayer.Start);
+                ++currentLayer.At;
+
+                iterationStack.push({.Start = paramNode, .End = paramValuesCountStack[currentLayer.Param + 1], .At = paramNode, .Param = currentLayer.Param + 1});
+                goto continue_tree_iteration;
+            }
+        }
+        
+        iterationStack.pop();
+    }
+
+    return status;
 }
