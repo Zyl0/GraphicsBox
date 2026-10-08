@@ -1,5 +1,11 @@
 #version 430
 
+// Pipeline matrix enums
+#define SKYLIGHT_CUBE_MAP 0
+#define SKYLIGHT_HDRI 1
+#define GLTF_MATERIAL_PARAMS_UNIFORMS 0
+#define GLTF_MATERIAL_PARAMS_UNIFORM_BUFFER 1
+
 // Scene cameras
 #include "Include/Camera.glsl"
 
@@ -108,21 +114,17 @@ void main( )
 #include "Include/GLTF.glsl"
 
 // Skylight method switch
-#ifdef USE_CUBEMAP_SKYLIGHT
+#if SKYLIGHT_METHOD == SKYLIGHT_CUBE_MAP
 #include "Skylight/CubemapSkylight.glsl"
-#endif // USE_CUBEMAP_SKYLIGHT
-#ifdef USE_HDRI_SKYLIGHT
+#endif // SKYLIGHT_METHOD == SKYLIGHT_CUBE_MAP
+#if SKYLIGHT_METHOD == SKYLIGHT_HDRI
 #include "Skylight/HDRISkylight.glsl"
-#endif // USE_HDRI_SKYLIGHT
+#endif // SKYLIGHT_METHOD == SKYLIGHT_HDRI
 
 const mat3 RotationX = mat3(
-1,0,0,
-0,0,-1,
-0,1,0
-
-// 1,0,0,
-// 0,cos (M_PI / 2.0), -sin(M_PI / 2.0),
-// 0,sin(M_PI / 2.0),cos (M_PI / 2.0)
+    1,0,0,
+    0,0,-1,
+    0,1,0
 );
 
 float RadicalInverse_VdC(uint bits)
@@ -151,7 +153,9 @@ layout(location= 3) in mat3 FragTBN;
 uniform uint IndirectLightingSampleCount;
 
 // Material
+#if GLTF_MATERIAL_PARAMS_MODE == GLTF_MATERIAL_PARAMS_UNIFORMS
 uniform vec3 BaseColor;
+uniform vec3 EmissiveColor;
 uniform vec3 SpecularColor;
 uniform float Roughness;
 uniform float Metalness;
@@ -162,12 +166,21 @@ uniform uint UseNormalTexture;
 uniform uint UseMRTexture;
 uniform uint UseAOTexture;
 uniform uint UseSpecularTexture;
+uniform uint UseEmissiveTexture;
+#endif // GLTF_MATERIAL_PARAMS_MODE == GLTF_MATERIAL_PARAMS_UNIFORMS
+#if GLTF_MATERIAL_PARAMS_MODE == GLTF_MATERIAL_PARAMS_UNIFORM_BUFFER
+layout (std140) uniform ParamBuffer
+{
+    GLTFMaterial mat;
+};
+#endif // GLTF_MATERIAL_PARAMS_MODE == GLTF_MATERIAL_PARAMS_UNIFORMS
 
 uniform sampler2D texColor;
 uniform sampler2D texNormal;
 uniform sampler2D texMR;
 uniform sampler2D texAO;
 uniform sampler2D texSpecular;
+uniform sampler2D texEmissive;
 
 uniform vec3 LightDirection;
 uniform vec3 LightColor;
@@ -188,11 +201,21 @@ layout(location= 1) out vec3 OutMotion;
 
 void main()
 {
-    vec3 PixBaseColor = BaseColor;
-    vec3 Specular = SpecularColor;
-    float PixMetalness = Metalness;
-    float PixRoughness = Roughness;
-    float PixAmbiantOcclusion = 1.f;
+    vec3 PixBaseColor;
+    vec3 Specular;
+    vec3 Emissive;
+    float PixMetalness;
+    float PixRoughness;
+    float PixAmbiantOcclusion;
+    vec3 Normal = FragNormal;
+    vec3 LocalNormal = vec3(0,0,1);
+#if GLTF_MATERIAL_PARAMS_MODE == GLTF_MATERIAL_PARAMS_UNIFORMS
+    PixBaseColor = BaseColor;
+    Specular = SpecularColor;
+    Emissive = EmissiveColor;
+    PixMetalness = Metalness;
+    PixRoughness = Roughness;
+    PixAmbiantOcclusion = 1.f;
 
     if (UseColorTexture == 1)
     {
@@ -204,6 +227,10 @@ void main()
     {
         Specular = texture(texSpecular, UV0).xyz * Specular;
     }
+    if (UseEmissiveTexture == 1)
+    {
+        Emissive = texture(texSpecular, UV0).xyz;
+    }
     if (UseMRTexture == 1)
     {
         vec3 mr = texture(texMR, UV0).xyz;
@@ -214,6 +241,55 @@ void main()
     {
         PixAmbiantOcclusion = texture(texAO, UV0).x;
     }
+    if (UseNormalTexture == 1)
+    {
+        LocalNormal = (texture(texNormal, UV0).xyz * 2.f - 1.f);
+        LocalNormal.x *= -1;
+        LocalNormal.y *= -1;
+        Normal = normalize(FragTBN * LocalNormal);
+    }
+#elif GLTF_MATERIAL_PARAMS_MODE == GLTF_MATERIAL_PARAMS_UNIFORM_BUFFER
+    PixBaseColor = mat.color.xyz;
+    Specular = mat.specularColor.xyz;
+    Emissive = mat.emissive.xyz;
+    PixMetalness = mat.metallic;
+    PixRoughness = mat.roughness;
+    PixAmbiantOcclusion = 1.f;
+    
+    uint MaterialFlags = mat.flags;
+
+    if (HasTexture(mat._colorTexture))
+    {
+        vec4 s = texture(texColor, UV0);
+        if (s.a < 0.5f) discard;
+        PixBaseColor = s.xyz * PixBaseColor;
+    }
+    if (HasTexture(mat._specularColorTexture))
+    {
+        Specular = texture(texSpecular, UV0).xyz * Specular;
+    }
+    if (HasTexture(mat._emissiveTexture))
+    {
+        Emissive = texture(texSpecular, UV0).xyz;
+    }
+    if (HasTexture(mat._metallicRoughnessTexture))
+    {
+        vec3 mr = texture(texMR, UV0).xyz;
+        PixMetalness = mr.z;
+        PixRoughness = mr.y;
+    }
+    if (HasTexture(mat._occlusionTexture))
+    {
+        PixAmbiantOcclusion = texture(texAO, UV0).x;
+    }
+    if (HasTexture(mat._normalTexture))
+    {
+        LocalNormal = (texture(texNormal, UV0).xyz * 2.f - 1.f);
+        LocalNormal.x *= -1;
+        LocalNormal.y *= -1;
+        Normal = normalize(FragTBN * LocalNormal);
+    }
+#endif
 
     // Motion
     vec4 CurrentCameraPosition = WorldToProj(cameras[0], vec4(FragWorldPosition, 1.0f)); CurrentCameraPosition /= CurrentCameraPosition.w;
@@ -221,11 +297,7 @@ void main()
     vec3 Motion = PreviousCameraPosition.xyw - CurrentCameraPosition.xyw;
     Motion /= 2.0f; // To UV space
     
-   // if (SSAOMode > 0)
-   // {
-   //     
-   // }
-
+    
     // Clamp roughness
     PixRoughness = max(PixRoughness, 0.004);
 
@@ -241,16 +313,6 @@ void main()
         // alpha = roughness ^ 2
         DiffuseColor = mix(PixBaseColor * (1 - max(Specular.x, max(Specular.y, Specular.z))), vec3(0), PixMetalness);
         vec3 F0 = mix(vec3(0.04), Specular, PixMetalness);
-    }
-
-    vec3 Normal =  FragNormal;
-    vec3 LocalNormal = vec3(0,0,1);
-    if (UseNormalTexture == 1)
-    {
-        LocalNormal = (texture(texNormal, UV0).xyz * 2.f - 1.f);
-        LocalNormal.x *= -1;
-        LocalNormal.y *= -1;
-        Normal = normalize(FragTBN * LocalNormal);
     }
 
     vec3 finalColor = vec3(0);

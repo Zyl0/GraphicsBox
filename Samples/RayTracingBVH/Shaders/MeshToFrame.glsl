@@ -155,7 +155,7 @@ void main( )
         }
     }
     
-    finalColor += PixAmbiantOcclusion * ambientColor;
+    finalColor += F0 * PixAmbiantOcclusion * ambientColor;
     
     // OutColor.xyz = BaseColor * dot(normalize(FragWorldNormal), lightDirection) * lightColor + ambientColor * BaseColor + emissive;
 

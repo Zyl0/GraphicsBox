@@ -86,7 +86,13 @@ namespace  GLTF
 
 void EnableMaterialAsBuffers(GLTF::GPUScene& scene)
 {
-    EngineLoggerWarn("EnableMaterialAsBuffers feature not yet implemented");
+    scene.materialUniformBuffers.reserve(scene.materials.size());
+    for (const auto & material : scene.materials)
+    {
+        scene.materialUniformBuffers.emplace_back(sizeof(GLTF::Material), &material);
+    }
+
+    scene.Extension = scene.Extension & GLTF::GPUScene::Extensions::MaterialsAsBuffers;
 }
 
 void EnableMaterialAsUnifiedBuffer(GLTF::GPUScene& scene)

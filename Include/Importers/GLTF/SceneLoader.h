@@ -82,16 +82,17 @@ namespace GLTF
         Texture specularColorTexture = UINT64_MAX;
         Texture transmissionTexture = UINT64_MAX;
         Texture thicknessTexture = UINT64_MAX;
-        
-        Texture EXT_colorTextureBin = UINT64_MAX;
-        Texture EXT_emissiveTextureBin = UINT64_MAX;
-        Texture EXT_metallicRoughnessTextureBin = UINT64_MAX;
-        Texture EXT_occlusionTextureBin = UINT64_MAX;
-        Texture EXT_normalTextureBin = UINT64_MAX;
-        Texture EXT_specularTextureBin = UINT64_MAX;
-        Texture EXT_specularColorTextureBin = UINT64_MAX;
-        Texture EXT_transmissionTextureBin = UINT64_MAX;
-        Texture EXT_thicknessTextureBin = UINT64_MAX;
+
+        /* TODO
+        Texture EXT_colorTextureBin = UINT32_MAX;
+        Texture EXT_emissiveTextureBin = UINT32_MAX;
+        Texture EXT_metallicRoughnessTextureBin = UINT32_MAX;
+        Texture EXT_occlusionTextureBin = UINT32_MAX;
+        Texture EXT_normalTextureBin = UINT32_MAX;
+        Texture EXT_specularTextureBin = UINT32_MAX;
+        Texture EXT_specularColorTextureBin = UINT32_MAX;
+        Texture EXT_transmissionTextureBin = UINT32_MAX;
+        Texture EXT_thicknessTextureBin = UINT32_MAX;
         
         uint32_t EXT_colorTextureBinIndex = UINT32_MAX;
         uint32_t EXT_emissiveTextureBinIndex = UINT32_MAX;
@@ -102,6 +103,7 @@ namespace GLTF
         uint32_t EXT_specularColorTextureBinIndex = UINT32_MAX;
         uint32_t EXT_transmissionTextureBinIndex = UINT32_MAX;
         uint32_t EXT_thicknessTextureBinIndex = UINT32_MAX;
+        */
     };
     
     INLINE Material::EFlags operator|(Material::EFlags a, Material::EFlags b) {return static_cast<Material::EFlags>(static_cast<int>(a) | static_cast<int>(b)); }
@@ -203,6 +205,9 @@ namespace GLTF
             texturesArrays.clear();
         }
     };
+
+    INLINE GPUScene::Extensions operator & (GPUScene::Extensions a, GPUScene::Extensions b) {return static_cast<GPUScene::Extensions>(static_cast<int>(a) & static_cast<int>(b)); }
+    INLINE GPUScene::Extensions operator | (GPUScene::Extensions a, GPUScene::Extensions b) {return static_cast<GPUScene::Extensions>(static_cast<int>(a) | static_cast<int>(b)); }
     
     bool LoadCPUScene(const std::filesystem::path& path, CPUScene& scene);
     

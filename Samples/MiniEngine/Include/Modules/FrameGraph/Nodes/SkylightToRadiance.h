@@ -15,7 +15,7 @@ namespace FrameGraph
         SkylightToRadiance(CommandContext& Resources): 
             ICommand(Resources),
             VEmptyVAO(Resources.GetLocation<VertexArrayObject>("Empty VAO")),
-            VSkylightMethod(Resources.AddVariable<UInt>("Skylight Method", /* HDRi */ 1)),
+            VSkylightMethod(Resources.AddVariable<UInt>("Skylight Method", /* HDRi */ 1u, (UInt)0u, (UInt)1u, std::string_view("0 - Cubemap, 2 - Skylight"))),
             VUseMSAA(Resources.GetLocation<Bool>("Use MSAA")),
             VMSAASampleCount(Resources.GetLocation<UInt>("MSAA Sample Count")),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
