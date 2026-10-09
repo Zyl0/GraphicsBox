@@ -223,19 +223,22 @@ void main()
         if (s.a < 0.5f) discard;
         PixBaseColor = s.xyz * PixBaseColor;
     }
-    if (UseSpecularTexture == 1)
-    {
-        Specular = texture(texSpecular, UV0).xyz * Specular;
-    }
-    if (UseEmissiveTexture == 1)
-    {
-        Emissive = texture(texSpecular, UV0).xyz;
-    }
     if (UseMRTexture == 1)
     {
         vec3 mr = texture(texMR, UV0).xyz;
         PixMetalness = mr.z;
         PixRoughness = mr.y;
+    }
+    if (UseSpecularTexture == 1)
+    {
+        vec4 specularSample = texture(texSpecular, UV0);
+        Specular = specularSample.xyz * Specular;
+
+        PixRoughness = (MaterialFlags & GLTF_Mat_UseSpecularGlossinessPBRExt) != 0 ? specularSample.w : PixRoughness;
+    }
+    if (UseEmissiveTexture == 1)
+    {
+        Emissive = texture(texEmissive, UV0).xyz;
     }
     if (UseAOTexture == 1)
     {
@@ -264,19 +267,22 @@ void main()
         if (s.a < 0.5f) discard;
         PixBaseColor = s.xyz * PixBaseColor;
     }
-    if (HasTexture(mat._specularColorTexture))
-    {
-        Specular = texture(texSpecular, UV0).xyz * Specular;
-    }
-    if (HasTexture(mat._emissiveTexture))
-    {
-        Emissive = texture(texSpecular, UV0).xyz;
-    }
     if (HasTexture(mat._metallicRoughnessTexture))
     {
         vec3 mr = texture(texMR, UV0).xyz;
         PixMetalness = mr.z;
         PixRoughness = mr.y;
+    }
+    if (HasTexture(mat._specularColorTexture))
+    {
+        vec4 specularSample = texture(texSpecular, UV0);
+        Specular = specularSample.xyz * Specular;
+
+        PixRoughness = (MaterialFlags & GLTF_Mat_UseSpecularGlossinessPBRExt) != 0 ? specularSample.w : PixRoughness;
+    }
+    if (HasTexture(mat._emissiveTexture))
+    {
+        Emissive = texture(texEmissive, UV0).xyz;
     }
     if (HasTexture(mat._occlusionTexture))
     {
@@ -313,9 +319,16 @@ void main()
         // alpha = roughness ^ 2
         DiffuseColor = mix(PixBaseColor * (1 - max(Specular.x, max(Specular.y, Specular.z))), vec3(0), PixMetalness);
         vec3 F0 = mix(vec3(0.04), Specular, PixMetalness);
+        PixRoughness = 1 - PixRoughness;
+        Alpha = (PixRoughness * PixRoughness);
     }
 
     vec3 finalColor = vec3(0);
+    
+    // Emissive
+    {
+        finalColor += Emissive;
+    }
 
     // Direct lighting
     {
@@ -451,7 +464,7 @@ void main()
                             if ((SampledDepth - Motion.z) < (ScreenSpaceSample.z ))
                             {
                                 hit = true;
-                                SkyLight = texture(texPreviousRadiance, ScreenSpaceSample.xy, /*Alpha*/ pow(PixRoughness, 0.5f) * PreviousRadianceMips).xyz;
+                                SkyLight = texture(texPreviousRadiance, ScreenSpaceSample.xy, /*Alpha*/ pow(PixRoughness, 1.f) * PreviousRadianceMips).xyz;
                                 break;
                             }
                         }
@@ -459,16 +472,16 @@ void main()
 
                     if (hit)
                     {
-                        SkyLight = mix(SkyLight, SampleSkylightColor(l, pow(PixRoughness, 0.5f)), PixRoughness);
+                        SkyLight = mix(SkyLight, SampleSkylightColor(l,  0), PixRoughness);
                     }
                     else
                     {
-                        SkyLight = SampleSkylightColor(l, pow(PixRoughness, 0.5f));
+                        SkyLight = SampleSkylightColor(l, 0);
                     }
                 }
                 else
                 {
-                    SkyLight = SampleSkylightColor(l, pow(PixRoughness, 0.5f));
+                    SkyLight = SampleSkylightColor(l, 0);
                 }
 
                 sum += (G1 > 0.0f && G2 > 0.0f) ? Reflectance * SkyLight : vec3(0.0f);

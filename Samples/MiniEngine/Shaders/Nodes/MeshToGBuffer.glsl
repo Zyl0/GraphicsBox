@@ -179,19 +179,22 @@ void main()
         if (s.a < 0.5f) discard;
         PixBaseColor = s.xyz * PixBaseColor;
     }
-    if (UseSpecularTexture == 1)
-    {
-        Specular = texture(texSpecular, UV0).xyz * Specular;
-    }
-    if (UseEmissiveTexture == 1)
-    {
-        Emissive = texture(texSpecular, UV0).xyz;
-    }
     if (UseMRTexture == 1)
     {
         vec3 mr = texture(texMR, UV0).xyz;
         PixMetalness = mr.z;
         PixRoughness = mr.y;
+    }
+    if (UseSpecularTexture == 1)
+    {
+        vec4 specularSample = texture(texSpecular, UV0);
+        Specular = specularSample.xyz * Specular;
+
+        PixRoughness = (MaterialFlags & GLTF_Mat_UseSpecularGlossinessPBRExt) != 0 ? specularSample.w : PixRoughness;
+    }
+    if (UseEmissiveTexture == 1)
+    {
+        Emissive = texture(texEmissive, UV0).xyz;
     }
     if (UseAOTexture == 1)
     {
@@ -220,19 +223,22 @@ void main()
         if (s.a < 0.5f) discard;
         PixBaseColor = s.xyz * PixBaseColor;
     }
-    if (HasTexture(mat._specularColorTexture))
-    {
-        Specular = texture(texSpecular, UV0).xyz * Specular;
-    }
-    if (HasTexture(mat._emissiveTexture))
-    {
-        Emissive = texture(texSpecular, UV0).xyz;
-    }
     if (HasTexture(mat._metallicRoughnessTexture))
     {
         vec3 mr = texture(texMR, UV0).xyz;
         PixMetalness = mr.z;
         PixRoughness = mr.y;
+    }
+    if (HasTexture(mat._specularColorTexture))
+    {
+        vec4 specularSample = texture(texSpecular, UV0);
+        Specular = specularSample.xyz * Specular;
+
+        PixRoughness = (MaterialFlags & GLTF_Mat_UseSpecularGlossinessPBRExt) != 0 ? specularSample.w : PixRoughness;
+    }
+    if (HasTexture(mat._emissiveTexture))
+    {
+        Emissive = texture(texEmissive, UV0).xyz;
     }
     if (HasTexture(mat._occlusionTexture))
     {

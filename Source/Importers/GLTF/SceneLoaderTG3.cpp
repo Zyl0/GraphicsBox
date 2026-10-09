@@ -291,12 +291,29 @@ namespace GLTF
 
             if (const tg3_value* specularColorTex = FindValueInObject(extension->value, "specularColorFactor"); specularColorTex != nullptr)
             {
-                if (specularColorTex->type == TG3_VALUE_ARRAY && specularColorTex->array_count == 3)
+                if (specularColorTex->type == TG3_VALUE_ARRAY)
                 {
-                    MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
-                    MaterialObject.specularColor.y = ValueAsFloat(specularColorTex->array_data[1]);
-                    MaterialObject.specularColor.z = ValueAsFloat(specularColorTex->array_data[2]);
-                    MaterialObject.specularColor.w = 1.0f;
+                    if (specularColorTex->array_count == 1)
+                    {
+                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
+                        MaterialObject.specularColor.y = ValueAsFloat(specularColorTex->array_data[0]);
+                        MaterialObject.specularColor.z = ValueAsFloat(specularColorTex->array_data[0]);
+                        MaterialObject.specularColor.w = 1.f;
+                    }
+                    else if (specularColorTex->array_count > 3)
+                    {
+                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
+                        MaterialObject.specularColor.y = ValueAsFloat(specularColorTex->array_data[1]);
+                        MaterialObject.specularColor.z = ValueAsFloat(specularColorTex->array_data[2]);
+                        MaterialObject.specularColor.w = ValueAsFloat(specularColorTex->array_data[3]);
+                    }
+                    else if (specularColorTex->array_count == 3)
+                    {
+                        MaterialObject.specularColor.x = ValueAsFloat(specularColorTex->array_data[0]);
+                        MaterialObject.specularColor.y = ValueAsFloat(specularColorTex->array_data[1]);
+                        MaterialObject.specularColor.z = ValueAsFloat(specularColorTex->array_data[2]);
+                        MaterialObject.specularColor.w = 1.f;
+                    }
                 }
             }
 
@@ -332,6 +349,9 @@ namespace GLTF
         {
             MaterialObject.flags = MaterialObject.flags | Material::EFlags::UseSpecularGlossinessPBRExt;
             
+            // SpecularGlossiness material do not use metallic
+            MaterialObject.metallic = 0.0f;
+
             if (const tg3_value* diffuseTex = FindValueInObject(extension->value, "diffuseTexture"); diffuseTex != nullptr)
             {
                 int32_t idx = GetTextureIndexFromValue(diffuseTex);
@@ -341,30 +361,64 @@ namespace GLTF
 
             if (const tg3_value* diffuseColor = FindValueInObject(extension->value, "diffuseFactor"); diffuseColor != nullptr)
             {
-                if (diffuseColor->type == TG3_VALUE_ARRAY && diffuseColor->array_count == 4)
+                if (diffuseColor->type == TG3_VALUE_ARRAY)
                 {
-                    MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
-                    MaterialObject.color.y = ValueAsFloat(diffuseColor->array_data[1]);
-                    MaterialObject.color.z = ValueAsFloat(diffuseColor->array_data[2]);
-                    MaterialObject.color.w = ValueAsFloat(diffuseColor->array_data[3]);
+                    if (diffuseColor->array_count == 1)
+                    {
+                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
+                        MaterialObject.color.y = ValueAsFloat(diffuseColor->array_data[0]);
+                        MaterialObject.color.z = ValueAsFloat(diffuseColor->array_data[0]);
+                        MaterialObject.color.w = 1.f;
+                    }
+                    else if (diffuseColor->array_count > 3)
+                    {
+                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
+                        MaterialObject.color.y = ValueAsFloat(diffuseColor->array_data[1]);
+                        MaterialObject.color.z = ValueAsFloat(diffuseColor->array_data[2]);
+                        MaterialObject.color.w = ValueAsFloat(diffuseColor->array_data[3]);
+                    }
+                    else if (diffuseColor->array_count == 3)
+                    {
+                        MaterialObject.color.x = ValueAsFloat(diffuseColor->array_data[0]);
+                        MaterialObject.color.y = ValueAsFloat(diffuseColor->array_data[1]);
+                        MaterialObject.color.z = ValueAsFloat(diffuseColor->array_data[2]);
+                        MaterialObject.color.w = 1.f;
+                    }
                 }
             }
 
             if (const tg3_value* specularColor = FindValueInObject(extension->value, "specularFactor"); specularColor != nullptr)
             {
-                if (specularColor->type == TG3_VALUE_ARRAY && specularColor->array_count == 3)
+                if (specularColor->type == TG3_VALUE_ARRAY)
                 {
-                    MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
-                    MaterialObject.specularColor.y = ValueAsFloat(specularColor->array_data[1]);
-                    MaterialObject.specularColor.z = ValueAsFloat(specularColor->array_data[2]);
-                    MaterialObject.specularColor.w = 1.0f;
+                    if (specularColor->array_count == 1)
+                    {
+                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
+                        MaterialObject.specularColor.y = ValueAsFloat(specularColor->array_data[0]);
+                        MaterialObject.specularColor.z = ValueAsFloat(specularColor->array_data[0]);
+                        MaterialObject.specularColor.w = 1.f;
+                    }
+                    else if (specularColor->array_count > 3)
+                    {
+                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
+                        MaterialObject.specularColor.y = ValueAsFloat(specularColor->array_data[1]);
+                        MaterialObject.specularColor.z = ValueAsFloat(specularColor->array_data[2]);
+                        MaterialObject.specularColor.w = ValueAsFloat(specularColor->array_data[3]);
+                    }
+                    else if (specularColor->array_count == 3)
+                    {
+                        MaterialObject.specularColor.x = ValueAsFloat(specularColor->array_data[0]);
+                        MaterialObject.specularColor.y = ValueAsFloat(specularColor->array_data[1]);
+                        MaterialObject.specularColor.z = ValueAsFloat(specularColor->array_data[2]);
+                        MaterialObject.specularColor.w = 1.f;
+                    }
                 }
             }
 
             if (const tg3_value* glossinessFactor = FindValueInObject(extension->value, "glossinessFactor"); glossinessFactor != nullptr)
             {
                 if (glossinessFactor->type == TG3_VALUE_REAL || glossinessFactor->type == TG3_VALUE_INT)
-                    MaterialObject.roughness = 1.f - ValueAsFloat(*glossinessFactor);
+                    MaterialObject.roughness = ValueAsFloat(*glossinessFactor);
             }
 
             if (const tg3_value* specularGlossinessTex = FindValueInObject(extension->value, "specularGlossinessTexture"); specularGlossinessTex != nullptr)
@@ -540,6 +594,23 @@ namespace GLTF
             for (size_t i = 0; i < model->materials_count; ++i)
             {
                 scene.materials.emplace_back(DecodeMaterial(model->materials[i]));
+                
+                // Revert sRGB encoding for non sRGB textures (normals, metallicRoughness, ao, etc)
+                for (const auto& mat : scene.materials)
+                {
+                    if (mat.normalTexture != UINT64_MAX)
+                        scene.textures[mat.normalTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.metallicRoughnessTexture != UINT64_MAX)
+                        scene.textures[mat.metallicRoughnessTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.occlusionTexture != UINT64_MAX)
+                        scene.textures[mat.occlusionTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.thicknessTexture != UINT64_MAX)
+                        scene.textures[mat.thicknessTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.specularTexture != UINT64_MAX)
+                        scene.textures[mat.specularTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.transmissionTexture != UINT64_MAX)
+                        scene.textures[mat.transmissionTexture].SetComponentEncoding(Image::Linear);
+                }
             }
         }
 
@@ -1132,6 +1203,26 @@ namespace GLTF
             for (size_t i = 0; i < model->materials_count; ++i)
             {
                 scene.materials.emplace_back(DecodeMaterial(model->materials[i]));
+                
+                // TODO Revert sRGB encoding for non sRGB textures (normals, metallicRoughness, ao, etc)
+                // Revert sRGB encoding for non sRGB textures (normals, metallicRoughness, ao, etc)
+                /* 
+                for (const auto& mat : scene.materials)
+                {
+                    if (mat.normalTexture != UINT64_MAX)
+                        scene.textures[mat.normalTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.metallicRoughnessTexture != UINT64_MAX)
+                        scene.textures[mat.metallicRoughnessTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.occlusionTexture != UINT64_MAX)
+                        scene.textures[mat.occlusionTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.thicknessTexture != UINT64_MAX)
+                        scene.textures[mat.thicknessTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.specularTexture != UINT64_MAX)
+                        scene.textures[mat.specularTexture].SetComponentEncoding(Image::Linear);
+                    if (mat.transmissionTexture != UINT64_MAX)
+                        scene.textures[mat.transmissionTexture].SetComponentEncoding(Image::Linear);
+                }
+                */
             }
         }
 
