@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <stack>
 
@@ -99,7 +99,7 @@ struct SurfaceHit
     Math::Vector2f TextureCoordinates;
 } HitInterpolateProperties(const Mesh& mesh, const Hit& Hit, const Math::Matrix4f* Transform = nullptr);
 
-SurfaceSampler CalcSurfaceSample(const Mesh& mesh, const Ray& ray, const Hit& Hit, Math::Vector2t<uint32_t> ViewportSize);
+SurfaceSampler CalcSurfaceSample(const Mesh& mesh, const Ray& ray, const Hit& Hit, Math::Vector2t<uint32_t> ViewportSize, const Math::Matrix4f* Transform = nullptr);
 
 class TraceRay
 {

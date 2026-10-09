@@ -139,7 +139,7 @@ SurfaceHit HitInterpolateProperties(const Mesh& mesh, const Hit& Hit, const Math
     return surface;
 }
 
-SurfaceSampler CalcSurfaceSample(const Mesh& mesh, const Ray& ray, const Hit& Hit, Math::Vector2t<uint32_t> ViewportSize)
+SurfaceSampler CalcSurfaceSample(const Mesh& mesh, const Ray& ray, const Hit& Hit, Math::Vector2t<uint32_t> ViewportSize, const Math::Matrix4f* Transform)
 {
     if (!mesh.HasNormals() || !mesh.HasTextureCoordinates()) return {.dudx = 0,.dvdx = 0, .dudy = 0,.dvdy = 0}; // Degenerate triangle safety
     
@@ -150,6 +150,12 @@ SurfaceSampler CalcSurfaceSample(const Mesh& mesh, const Ray& ray, const Hit& Hi
     Mesh::ConstFace face(mesh, Hit.face);
     
     Point3f v0 = face[0].Position(), v1 = face[1].Position(), v2 = face[2].Position();
+    if (Transform)
+    {
+        v0 = ((*Transform) * Vector4f(v0, 1.0f)).xyz();
+        v1 = ((*Transform) * Vector4f(v1, 1.0f)).xyz();
+        v2 = ((*Transform) * Vector4f(v2, 1.0f)).xyz();
+    }
     Vector2f t0 = face[0].TextureCoordinate(), t1 = face[1].TextureCoordinate(), t2 = face[2].TextureCoordinate();
     
     // --- STEP 1: Calculate Triangle Geometric Properties ---
@@ -197,7 +203,14 @@ SurfaceSampler CalcSurfaceSample(const Mesh& mesh, const Ray& ray, const Hit& Hi
     // the ray direction shifts by 1 screen pixel?
     float dot_ND = Dot(normal, ray.direction);
     if (std::abs(dot_ND) < 1e-6f) return {.dudx = 0,.dvdx = 0, .dudy = 0,.dvdy = 0}; // Ray is parallel to surface
-    float t = Hit.t;
+    
+    float t;
+    if (Transform) {
+        Vector3f hit_pos = VertexInterpolateTriangle(Hit, v0, v1, v2);
+        t = Dot(hit_pos - ray.origin, ray.direction);
+    } else {
+        t = Hit.t;
+    }
     
     // Analytical derivation of intersection plane gradients
     float dot_N_dDdx = Dot(normal, dDdx);
