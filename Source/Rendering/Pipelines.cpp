@@ -613,7 +613,7 @@ continue_tree_iteration:
                 variant.SetParameter(currentLayer.Param, currentLayer.At - currentLayer.Start);
                 ++currentLayer.At;
 
-                iterationStack.push({.Start = paramNode, .End = paramValuesCountStack[currentLayer.Param + 1], .At = paramNode, .Param = currentLayer.Param + 1});
+                iterationStack.push({.Start = paramNode, .End = paramNode + paramValuesCountStack[currentLayer.Param + 1], .At = paramNode, .Param = currentLayer.Param + 1});
                 goto continue_tree_iteration;
             }
         }
