@@ -1118,41 +1118,7 @@ public:
                     const GLTF::Material& material = m_Scene->materials[Material];
                 
                     SurfaceHit surface = HitInterpolateProperties(*Mesh, ClosestHit, ModelMatrix);
-                    SurfaceSampler surfaceSampler = CalcSurfaceSample(*Mesh, PrimaryRay, ClosestHit, TargetImage.Size() * 2u);
-                
-                    if (false)
-                    {
-                        // ── Tangent derivation ────────────────────────────────────────────────
-                        // We need a vector that points in the direction of increasing U on the
-                        // surface. With only per-vertex data we approximate this by choosing an
-                        // arbitrary "up" reference that is not parallel to N, then projecting it
-                        // onto the tangent plane.  We pick between two candidates to avoid the
-                        // singularity when N is nearly parallel to the candidate.
-    
-                        // Candidate 1: world +X  (good when N is mostly vertical)
-                        // Candidate 2: world +Y  (good when N is mostly horizontal)
-                        // Choosing the one that is most perpendicular to N minimises the
-                        // initial skew before Gram-Schmidt.
-                        Vector3f refAxis   = (abs(surface.Normal.y) < 0.9) ? Vector3f(0.0, 1.0, 0.0) : Vector3f(0.0, 0.0, 1.0);
-    
-                        // Initial tangent: perpendicular to N, aimed along refAxis.
-                        // This gives a consistent "U direction" over the surface that
-                        // aligns with typical cylindrical / planar UV layouts.
-                        Vector3f T_raw = GramSchmidt(refAxis, surface.Normal);
-    
-                        // Incorporate the actual UV coordinates so that the tangent tracks the
-                        // UV seams rather than just the geometry.  We rotate T_raw by the
-                        // per-vertex UV angle — i.e. bias T toward the dU direction implied by
-                        // the texCoord.  This is a lightweight approximation; for exact results
-                        // use dFdx/dFdy in the fragment shader or pre-computed tangents.
-                        float uvAngle  = atan2(surface.TextureCoordinates.y, surface.TextureCoordinates.x);  // U direction hint
-                        float cosA     = cos(uvAngle);
-                        float sinA     = sin(uvAngle);
-                        Vector3f B_raw    = Cross(surface.Normal, T_raw);  // initial bitangent
-    
-                        // Rotate T_raw in the tangent plane by uvAngle
-                        surface.Tangent = Normalize(cosA * T_raw + sinA * B_raw);
-                    }
+                    SurfaceSampler surfaceSampler = CalcSurfaceSample(*Mesh, PrimaryRay, ClosestHit, TargetImage.Size(), ModelMatrix);
         
                     // Shadowmap test
                     float SunlightVisibility = 1.0f;
@@ -1184,6 +1150,7 @@ public:
                     }
         
                     Vector3f PixBaseColor = material.color.xyz();
+                    Vector3f PixEmissive = material.emissive.xyz();
                     float PixMetalness = material.metallic;
                     float PixRoughness = material.roughness;
                     float PixAmbiantOcclusion = 1.f;
@@ -1202,6 +1169,10 @@ public:
                     {
                         PixAmbiantOcclusion = SampleImage(m_Scene->textures[material.occlusionTexture], surfaceSampler, sampler, surface.TextureCoordinates).x * PixAmbiantOcclusion;
                     }
+                    if (material.emissiveTexture != UINT64_MAX)
+                    {
+                        PixEmissive = SampleImage(m_Scene->textures[material.emissiveTexture], surfaceSampler, sampler, surface.TextureCoordinates).xyz();
+                    }
         
                     // Clamp roughness
                     PixRoughness = std::max(PixRoughness, 0.004f);
@@ -1210,6 +1181,24 @@ public:
                     Vector3f DiffuseColor = LinearInterpolate(PixBaseColor, Vector3f(0), PixBaseColor);
                     Vector3f F0 = LinearInterpolate(Vector3f(0.04f), PixBaseColor, PixMetalness);
                     float Alpha = PixRoughness * PixRoughness;
+                    
+                    // Specular glossiness material
+                    if (material.flags & GLTF::Material::UseSpecularGlossinessPBRExt)
+                    {
+                        Vector3f PixSpecularColor = material.specularColor.xyz();
+                        
+                        if (material.specularColorTexture == 1)
+                        {
+                            Vector4f SpecularGlossiness = SampleImage(m_Scene->textures[material.specularColorTexture], surfaceSampler, sampler, surface.TextureCoordinates);
+                            PixSpecularColor = SpecularGlossiness.xyz() * PixSpecularColor;
+                            PixRoughness = SpecularGlossiness.w;
+                        }
+                        
+                        DiffuseColor = LinearInterpolate(PixBaseColor * (1 - std::max(PixSpecularColor.x, std::max(PixSpecularColor.y, PixSpecularColor.z))), Vector3f(0), PixMetalness);
+                        F0 = LinearInterpolate(Vector3f(0.04), PixSpecularColor, PixMetalness);
+                        PixRoughness = 1.f - PixRoughness;
+                        Alpha = PixRoughness * PixRoughness;
+                    }
         
                     Vector3f LocalNormal = Vector3f(0,0,1);
                     Vector3f FragBiTangent = Cross(surface.Normal, surface.Tangent); // always re-derive B from N×T
@@ -1225,6 +1214,8 @@ public:
                     }
 
                     Vector3f finalColor = 0.f;
+                    
+                    finalColor += PixEmissive;
 
                     // Direct lighting
                     {
