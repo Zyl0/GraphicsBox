@@ -318,7 +318,7 @@ void main()
         // F0 = specular
         // alpha = roughness ^ 2
         DiffuseColor = mix(PixBaseColor * (1 - max(Specular.x, max(Specular.y, Specular.z))), vec3(0), PixMetalness);
-        vec3 F0 = mix(vec3(0.04), Specular, PixMetalness);
+        F0 = mix(vec3(0.04), Specular, PixMetalness);
         PixRoughness = 1 - PixRoughness;
         Alpha = (PixRoughness * PixRoughness);
     }

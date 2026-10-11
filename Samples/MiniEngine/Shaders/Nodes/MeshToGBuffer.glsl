@@ -264,6 +264,8 @@ void main()
     vec3 v = normalize(CameraWorldPosition(cameras[0]) - FragWorldPosition);
     mat3 TBN =  FragTBN * LocalTBN;
 
+    OutColor = PixBaseColor;
+    
     OutNormal = TBN[2];
     OutTangent = TBN[0];
     
