@@ -151,17 +151,17 @@ void UpdateCamera(GLFWwindow* window, double deltaTime, FlyCamera& camera)
     if (GetKey(window, GLFW_KEY_S))
         PositionDir.x -= 1;
     if (GetKey(window, GLFW_KEY_A))
-        PositionDir.z += 1;
-    if (GetKey(window, GLFW_KEY_D))
         PositionDir.z -= 1;
+    if (GetKey(window, GLFW_KEY_D))
+        PositionDir.z += 1;
     
     PositionDir = PositionDir * static_cast<float>(deltaTime) * (CameraSpeed * 100) * 2.0f;
     camera.Translate(Transpose(camera.GetWorldRotation().GetRotationMatrix()) * PositionDir);
         
     if (GetKey(window, GLFW_KEY_Q))
-        rotateDir += 1;
-    if (GetKey(window, GLFW_KEY_E))
         rotateDir -= 1;
+    if (GetKey(window, GLFW_KEY_E))
+        rotateDir += 1;
     
     camera.RotateRadians(0, rotateDir * Pi * deltaTime * (CameraSpeed * 1000) / 5);
 }
@@ -611,7 +611,7 @@ int main(void)
     
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glFrontFace(GL_CW);
+    glFrontFace(GL_CCW);
     
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);

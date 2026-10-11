@@ -62,8 +62,8 @@ protected:
     
     inline void SetProjectionTransform(const Math::Matrix4f &inProjection)
     {
-        m_projection = inProjection;
-        m_inverse_projection = Inverse(inProjection);
+        m_projection = inProjection * Math::Matrix4f::Scale(-1, 1, 1);
+        m_inverse_projection = Inverse(m_projection);
     }
 
     INLINE Math::Vector3f& Position()   {return m_Position;}

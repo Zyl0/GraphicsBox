@@ -112,7 +112,7 @@ namespace Rendering
 
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
-        glFrontFace(GL_CW);
+        glFrontFace(GL_CCW);
     
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);

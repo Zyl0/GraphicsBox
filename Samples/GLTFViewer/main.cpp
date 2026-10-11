@@ -68,17 +68,17 @@ void UpdateCamera(Window::Module& Window, double deltaTime, FlyCamera& camera)
     if (Window.GLFWGetKey(GLFW_KEY_S))
         PositionDir.x -= 1;
     if (Window.GLFWGetKey(GLFW_KEY_A))
-        PositionDir.z += 1;
-    if (Window.GLFWGetKey(GLFW_KEY_D))
         PositionDir.z -= 1;
+    if (Window.GLFWGetKey(GLFW_KEY_D))
+        PositionDir.z += 1;
     
     PositionDir = PositionDir * static_cast<float>(deltaTime) * (CameraSpeed * 100) * 4.0f;
     camera.Translate(Transpose(camera.GetWorldRotation().GetRotationMatrix()) * PositionDir);
         
     if (Window.GLFWGetKey(GLFW_KEY_Q))
-        rotateDir += 1;
-    if (Window.GLFWGetKey(GLFW_KEY_E))
         rotateDir -= 1;
+    if (Window.GLFWGetKey(GLFW_KEY_E))
+        rotateDir += 1;
     
     camera.RotateRadians(0, rotateDir * Pi * deltaTime * (CameraSpeed * 1000.f) / 2.5);
 }
