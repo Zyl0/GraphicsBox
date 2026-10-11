@@ -123,17 +123,6 @@ public:
                 m_MeshObjects.resize(m_Scene->meshes.size());
                 for (size_t i = 0; i < m_Scene->meshes.size(); i++)
                     m_MeshObjects[i].Data(m_Scene->meshes[i]);
-
-                // Fix encoding for textures that should be strictly linear (normal, metallic-roughness, occlusion)
-                for (const auto& mat : m_Scene->materials)
-                {
-                    if (mat.normalTexture != UINT64_MAX)
-                        m_Scene->textures[mat.normalTexture].SetComponentEncoding(Image::Linear);
-                    if (mat.metallicRoughnessTexture != UINT64_MAX)
-                        m_Scene->textures[mat.metallicRoughnessTexture].SetComponentEncoding(Image::Linear);
-                    if (mat.occlusionTexture != UINT64_MAX)
-                        m_Scene->textures[mat.occlusionTexture].SetComponentEncoding(Image::Linear);
-                }
                 
                 m_Textures.reserve(m_Scene->textures.size());
                 for (size_t i = 0; i < m_Scene->textures.size(); i++)
