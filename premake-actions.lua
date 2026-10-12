@@ -1915,14 +1915,25 @@ end
 
 local function GetHighestSIMD_x86_ISA()
     if gbUseSIMD_X86_AVX512 == true then
-        print("x86 Max is x86_AVX_512")
         return ISAs.x86_AVX_512
     elseif gbUseSIMD_X86_AVX == true then
-        print("x86 Max is x86_AVX")
         return ISAs.x86_AVX
     elseif gbUseSIMD_X86_SSE == true then
-        print("x86 Max is x86_SSE")
         return ISAs.x86_SSE 
+    else
+        error("Unsupported ISA for x86")
+    end
+
+    return nil
+end
+
+local function GetHighestSIMD_x86_ISA_Name()
+    if gbUseSIMD_X86_AVX512 == true then
+        return "AVX_512"
+    elseif gbUseSIMD_X86_AVX == true then
+        return "AVX"
+    elseif gbUseSIMD_X86_SSE == true then
+        return "SSE" 
     else
         error("Unsupported ISA for x86")
     end
@@ -1937,6 +1948,8 @@ local function UpdateMathSIMTHeadersX86(ISA, HeaderName)
     if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt")) then
         os.mkdir(path.join(gb_IntermediatesDir, "generated", "Include", "MathSimt"))
     end
+
+    print("Generating " .. HeaderName .. " (" .. ISA.Float.Register .. ") headers for x86 with max ISA level at " .. GetHighestSIMD_x86_ISA_Name())
 
     local ISA_Limit = GetHighestSIMD_x86_ISA()
     local f = io.open(out_file, "w")
@@ -2156,6 +2169,8 @@ local function UpdateMathVectorHeader()
         os.mkdir(path.join(gb_IntermediatesDir, "generated", "Include", "Math"))
     end
 
+    print("Generating Math/VectorFunc header")
+
     local f = io.open(out_file, "w")
     local vectorMembers = {"x", "y", "z", "w"}
 
@@ -2354,6 +2369,8 @@ local function UpdateImageOperationsHeader()
     if not os.isdir(path.join(gb_IntermediatesDir, "generated", "Include", "Image")) then
         os.mkdir(path.join(gb_IntermediatesDir, "generated", "Include", "Image"))
     end
+
+    print("Generating Image/ImageOps header")
 
     local WorkingTypes = {"float", "double"}
     local PrimitiveTypes = {"uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "float", "double"}
@@ -2669,6 +2686,30 @@ newaction {
 }
 
 newaction {
+    trigger = "update-headers",
+    description = "update all generated headers",
+    execute = function ()
+        if gbUseSIMD_X86_AVX512 == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX_512, "_Types_AVX512")
+            gbUseSIMD_X86_AVX = true
+        end
+    
+        if gbUseSIMD_X86_AVX == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_AVX, "_Types_AVX")
+            gbUseSIMD_X86_SSE = true
+        end
+
+        if gbUseSIMD_X86_SSE == true then
+            UpdateMathSIMTHeadersX86(ISAs.x86_SSE, "_Types_SSE")
+        end
+
+        UpdateMathVectorHeader()
+        
+        UpdateImageOperationsHeader()
+    end
+}
+
+newaction {
     trigger = "setup",
     description = "project setup",
     execute = function ()        
@@ -2708,6 +2749,7 @@ newaction {
         end
 
         UpdateMathVectorHeader()
+        
         UpdateImageOperationsHeader()
 
         UpdateConfig()
