@@ -359,11 +359,11 @@ struct BVHHit
 class TraceRayBLAS
 {
 public:
-    TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel = Math::Transform4f::Identity());
+    TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Hit& ClosestHit, const Math::Transform4f& WorldToModel = Math::Transform4f::Identity());
     
     Hit Next();
-    INLINE Hit ClosestHit() const {return m_ClosestHit;}
-    
+    Hit ClosestHit() const;
+
     INLINE void ClipFar(float Distance) {m_tmax = Distance;};
     
     INLINE Ray GetRay() const {return m_Ray;}
@@ -386,34 +386,21 @@ public:
     
     iterator begin() {return iterator(*this);}
     iterator end() const {return iterator();}
+
+    void RejectHit();
     
 private:
     HitWave<TriangleWave::kThreadCount> m_SIMDHits;
-    // uint32_t m_SIMDHitIndex = std::numeric_limits<uint32_t>::max();
+    Ray m_Ray;
     const BLAS* m_Blas;
     std::stack<uint32_t> m_IterationStack;
     BVHHit m_CurrentBVHHit;
-    Hit m_ClosestHit;
+    Hit m_ClosestHit, m_PreviousClosestHit;
     uint32_t m_CurrentElementIndex;
     float m_tmax;
-    Ray m_Ray;
     Math::Matrix4f ModelToWorld;
+    bool RequestInvalidateHit;
 };
-
-// struct MLASElement
-// {
-//     
-// };
-// 
-// struct MLASDesc
-// {
-//     
-// };
-// 
-// // Mesh Layer Acceleration Structure
-// // 
-// // The mesh layer is the tree of 
-// using MLAS = BVHT<MLASElement, MLASDesc>;
 
 struct TLASElement
 {
@@ -446,14 +433,15 @@ class TraceRayTLAS
 {
 public:
     TraceRayTLAS(const TLAS& Scene, const Ray& Ray):
-        m_Tlas(&Scene), m_tmax(Ray.distance), m_Ray(Ray)
+        m_Tlas(&Scene), m_Ray(Ray), m_ClosestHit(), m_BlasHit(nullptr)
     {
         m_IterationStack.push(m_Tlas->Head);
     }
     
     BVHHit Next();
-    
-    INLINE void ClipFar(float Distance) {m_tmax = Distance;};
+
+    // TODO re introduce
+    // INLINE void ClipFar(float Distance) {m_tmax = Distance;}
     
     INLINE Ray GetRay() const {return m_Ray;}
     
@@ -475,10 +463,19 @@ public:
     
     iterator begin() {return iterator(*this);}
     iterator end() const {return iterator();}
+
+    INLINE Hit ClosestHit() const {return m_ClosestHit;}
+    INLINE const TLASElement* ClosestHitElement() const {return m_BlasHit;}
+
+    const TLASElement* Element() const;
+
+    void AcceptHit(Hit hit);
     
 private:
     const TLAS* m_Tlas;
     std::stack<uint32_t> m_IterationStack;
-    float m_tmax;
     Ray m_Ray;
+    const TLASElement* m_BlasHit;
+    Hit m_ClosestHit;
+    BVHHit m_CurrentBVHHit;
 };

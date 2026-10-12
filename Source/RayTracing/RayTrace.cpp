@@ -529,14 +529,15 @@ BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize)
     return blas;
 }
 
-TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Math::Transform4f& WorldToModel):
+TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Hit& ClosestHit, const Math::Transform4f& WorldToModel):
+    m_Ray(Ray),
     m_Blas(&Mesh),
     m_IterationStack(),
-    m_CurrentBVHHit(),
-    m_ClosestHit(),
+    m_CurrentBVHHit(), m_ClosestHit(ClosestHit),
+    m_PreviousClosestHit(ClosestHit),
     m_CurrentElementIndex(std::numeric_limits<uint32_t>::max()),
-    m_Ray(Ray),
-    ModelToWorld(Inverse(WorldToModel))
+    ModelToWorld(Inverse(WorldToModel)),
+    RequestInvalidateHit(false)
 {
     Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
 
@@ -546,10 +547,17 @@ TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Math::Transfo
     t = WorldToModel * Vector4f(end, 1.0f);
     end = xyz(t) / t.w;
 
+    if (m_ClosestHit)
+    {
+        t = WorldToModel * Vector4f(Ray.origin + ClosestHit.t * Ray.distance, 1.0f);
+        m_ClosestHit.t = Magnitude((t.xyz() / t.w) - m_Ray.origin);
+        m_PreviousClosestHit.t = m_ClosestHit.t;
+    }
+
     m_Ray.distance = Magnitude(end - m_Ray.origin);
     m_Ray.direction = Normalize(end - m_Ray.origin);
     
-    m_tmax = m_Ray.distance;
+    m_tmax = m_ClosestHit ? m_ClosestHit.t : m_Ray.distance;
     
     m_IterationStack.push(m_Blas->Head);
 }
@@ -558,7 +566,7 @@ Hit TraceRayBLAS::Next()
 {
 explore_bvh:
     if (!m_CurrentBVHHit)
-    while (!m_IterationStack.empty())
+    while (!m_IterationStack.empty()) // TODO reorder iteration to stackless that prioritize branches close to the origin of the tree
     {
         uint32_t NodeIndex = m_IterationStack.top();
         m_IterationStack.pop();
@@ -580,8 +588,17 @@ explore_bvh:
     }
     
 trace_leaf:
-    if (m_CurrentBVHHit)
+    bool HasInvalidatedHit = false;
+    if (RequestInvalidateHit)
     {
+        m_ClosestHit = m_PreviousClosestHit;
+        m_tmax = m_ClosestHit ? m_ClosestHit.t : m_Ray.distance;
+        RequestInvalidateHit = false;
+        HasInvalidatedHit = true;
+    }
+    
+    if (m_CurrentBVHHit)
+    {        
         uint32_t BLASFaceEnd = m_Blas->Tree[m_CurrentBVHHit.NodeIndex].RightIndex();
         
         // if SIMD mode
@@ -595,6 +612,7 @@ trace_leaf:
             case Mesh::TRIANGLE_STRIP:
             case Mesh::TRIANGLE_FAN:
             case Mesh::TRIANGLES:
+                // if (HasInvalidatedHit) --m_CurrentElementIndex; // TODO hit regection
                 for (uint32_t ElementIndex = m_CurrentElementIndex; ElementIndex < BLASFaceEnd; ElementIndex++)
                 {
                     m_SIMDHits = IntersectTriangle(m_Blas->Meta.Waves[ElementIndex], m_Ray);
@@ -608,13 +626,9 @@ trace_leaf:
                         {
                             m_ClosestHit = hit;
                             
-                            Vector4f originWorld = ModelToWorld * Vector4f(m_Ray.origin, 1.0f); originWorld.xyz() /= originWorld.w;
-                            Vector4f tWorld = ModelToWorld * Vector4f(m_Ray.origin + m_ClosestHit.t * m_Ray.direction, 1.0f); tWorld.xyz() /= tWorld.w;
-                            m_ClosestHit.t = Magnitude(tWorld - originWorld);
-                            
                             m_tmax = std::min(m_tmax, hit.t);
                             m_CurrentElementIndex = ElementIndex + 1;
-                            return m_ClosestHit;
+                            return ClosestHit();
                         }
                     }
                 }
@@ -638,7 +652,8 @@ trace_leaf:
             goto explore_bvh;
         }
         else
-        {
+        {            
+            if (!m_ClosestHit) m_ClosestHit = m_PreviousClosestHit;
             Mesh::ConstFaces Faces(*(m_Blas->Meta.MeshRef));
             for (uint32_t ElementIndex = m_CurrentElementIndex; ElementIndex < BLASFaceEnd; ElementIndex++)
             {
@@ -656,14 +671,10 @@ trace_leaf:
                         if (!m_ClosestHit || m_ClosestHit.t > hit.t)
                         {
                             m_ClosestHit = hit;
-                            
-                            Vector4f originWorld = ModelToWorld * Vector4f(m_Ray.origin, 1.0f); originWorld.xyz() /= originWorld.w;
-                            Vector4f tWorld = ModelToWorld * Vector4f(m_Ray.origin + m_ClosestHit.t * m_Ray.direction, 1.0f); tWorld.xyz() /= tWorld.w;
-                            m_ClosestHit.t = Magnitude(tWorld - originWorld);
-                            
                             m_tmax = std::min(m_tmax, hit.t);
-                            m_CurrentElementIndex = ElementIndex + 1;
-                            return m_ClosestHit;
+                            m_CurrentElementIndex = ElementIndex + 1;                          
+                            
+                            return ClosestHit();
                         }
                     }
                     break;
@@ -689,6 +700,20 @@ trace_leaf:
     }
     
     return Hit();
+}
+
+Hit TraceRayBLAS::ClosestHit() const
+{
+    Hit hit = m_ClosestHit;
+
+    if (hit)
+    {
+        Vector4f originWorld = ModelToWorld * Vector4f(m_Ray.origin, 1.0f); originWorld.xyz() /= originWorld.w;
+        Vector4f tWorld = ModelToWorld * Vector4f(m_Ray.origin + m_ClosestHit.t * m_Ray.direction, 1.0f); tWorld.xyz() /= tWorld.w;
+        hit.t = Magnitude(tWorld - originWorld);
+    }
+    
+    return hit;
 }
 
 TraceRayBLAS::iterator::iterator(TraceRayBLAS& TraceRay)
@@ -720,6 +745,12 @@ TraceRayBLAS::iterator& TraceRayBLAS::iterator::operator++()
     }
     
     return *this;
+}
+
+void TraceRayBLAS::RejectHit()
+{
+    RequestInvalidateHit = true;
+    m_ClosestHit = {};
 }
 
 Point3f TLASElement::Center() const
@@ -775,12 +806,13 @@ void TLASAddInstance(TLAS& BVH, const BLAS& BLAS, size_t Material, const Transfo
 
 BVHHit TraceRayTLAS::Next()
 {
+    // TODO reorder iteration to stackless that prioritize branches close to the origin of the tree
     while (!m_IterationStack.empty())
     {
         uint32_t NodeIndex = m_IterationStack.top();
         m_IterationStack.pop();
         
-        if (BoxHit hit = IntersectBox(m_Tlas->Tree[NodeIndex].Bounds, m_Ray); hit && hit.tmin < m_tmax)
+        if (BoxHit hit = IntersectBox(m_Tlas->Tree[NodeIndex].Bounds, m_Ray); hit && hit.tmin < m_ClosestHit.t)
         {
             if (m_Tlas->Tree[NodeIndex].IsNode())
             {
@@ -795,6 +827,24 @@ BVHHit TraceRayTLAS::Next()
     }
     
     return BVHHit();
+}
+
+const TLASElement* TraceRayTLAS::Element() const
+{
+    if (!m_CurrentBVHHit) return nullptr;
+
+    return &(m_Tlas->Elements[m_Tlas->Tree[m_CurrentBVHHit.NodeIndex].LeftIndex()]);
+}
+
+void TraceRayTLAS::AcceptHit(Hit hit)
+{
+    if (!hit || !m_CurrentBVHHit) return;
+
+    if (!m_ClosestHit || hit.t < m_ClosestHit.t)
+    {
+        m_ClosestHit = hit;
+        m_BlasHit = Element();
+    }
 }
 
 TraceRayTLAS::iterator::iterator(TraceRayTLAS& TraceRay)
@@ -827,3 +877,4 @@ TraceRayTLAS::iterator& TraceRayTLAS::iterator::operator++()
     
     return *this;
 }
+

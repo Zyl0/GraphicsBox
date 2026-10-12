@@ -112,8 +112,8 @@ public:
         // Load scene data
         {
             // std::filesystem::path relativePath = std::filesystem::path("Meshes") / "CornellBox-Original.glb";
-            // std::filesystem::path relativePath = std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.glb";
-            std::filesystem::path relativePath = std::filesystem::path("RTXDI-Assets") / "bistro" / "bistro.gltf";
+            std::filesystem::path relativePath = std::filesystem::path("glTF-Sample-Assets") / "Models" / "ABeautifulGame" / "glTF-Binary" /"ABeautifulGame.glb";
+            // std::filesystem::path relativePath = std::filesystem::path("RTXDI-Assets") / "bistro" / "bistro.gltf";
             std::filesystem::path path;
             // if (GetAbsoluteFilePath(std::filesystem::path("Meshes") / "CornellBox-Original.glb" ,path))
             if (GetAbsoluteFilePath(relativePath ,path))
@@ -436,40 +436,26 @@ public:
                 .distance = m_ZFar - m_ZNear
             };
             
-            Hit ClosestHit = Hit(); 
-            const Mesh* Mesh = nullptr;
-            const Matrix4f* ModelMatrix = nullptr;
-            size_t Material = 0;        
             TraceRayTLAS DebugRayTracerTLAS(*m_CPUSceneTLAS, PrimaryRay);    
             for (BVHHit TLASHit : DebugRayTracerTLAS)
             {
-                const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
+                const TLASElement& Elt = *DebugRayTracerTLAS.Element();
                 
-                TraceRayBLAS PrimaryRayTracerBLAS(*(Elt.BLAS), PrimaryRay, Elt.WorldToModel);
-                
-                for (Hit Hit : PrimaryRayTracerBLAS)
+                TraceRayBLAS DebugRayTracerBLAS(*(Elt.BLAS), PrimaryRay, DebugRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
+                for (Hit Hit : DebugRayTracerBLAS)
                 {                    
                     // BLAS Any Hit   
                 }
                 
-                if (Hit Closest = PrimaryRayTracerBLAS.ClosestHit(); Closest)
-                {
-                    // BLAS Closest Hit
-                    if (ClosestHit && ClosestHit.t < Closest.t) continue;
-
-                    ClosestHit = Closest;
-                    Mesh = Elt.BLAS->Meta.MeshRef;
-                    ModelMatrix = &Elt.ModelToWorld;
-                    Material = Elt.MaterialIndex;
-                }
-                else
-                {
-                    // Miss
-                }
+                DebugRayTracerTLAS.AcceptHit(DebugRayTracerBLAS.ClosestHit());
             }
-            
-            if (ClosestHit)
+
+            if (Hit ClosestHit = DebugRayTracerTLAS.ClosestHit())
             {
+                const Mesh* Mesh = DebugRayTracerTLAS.ClosestHitElement()->BLAS->Meta.MeshRef;
+                const Matrix4f* ModelMatrix = &(DebugRayTracerTLAS.ClosestHitElement()->ModelToWorld);
+                size_t Material = DebugRayTracerTLAS.ClosestHitElement()->MaterialIndex;
+                
                 static const Matrix3f RotationX = Matrix3f::RotationY(M_PI / 2.0);
                 
                 DebugRendering->DrawRay(WorldToViewportProj, PrimaryRay, ClosestHit.t);
@@ -494,15 +480,15 @@ public:
                     float t;
                     for (BVHHit TLASHit : SunlightRayTracerTLAS)
                     {
-                        const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
+                        const TLASElement& Elt = *SunlightRayTracerTLAS.Element(); 
                     
-                        TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, Elt.WorldToModel);
-                    
+                        TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, {}, Elt.WorldToModel);
                         for (Hit Hit : SunlightRayTracerBLAS)
                         {                    
                             // BLAS Any Hit   
                             HasHit = true;
                             t = Hit.t;
+                            break;
                         }
                         if (HasHit) break;
                     }
@@ -554,33 +540,21 @@ public:
                             .distance = 50.f
                         };
                         
-                        Hit ClosestIndirectHit{};
                         TraceRayTLAS IndirectLightRayTracerTLAS(*m_CPUSceneTLAS, IndirectLightRay);
                         for (BVHHit TLASHit : IndirectLightRayTracerTLAS)
                         {
-                            const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
-                        
-                            TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, Elt.WorldToModel);
+                            const TLASElement& Elt = *IndirectLightRayTracerTLAS.Element();
+                            TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, IndirectLightRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
                         
                             for (Hit Hit : IndirectLightRayTracerBLAS)
                             {                    
                                 // BLAS Any Hit   
                             }
-                
-                            if (Hit Closest = IndirectLightRayTracerBLAS.ClosestHit(); Closest)
-                            {
-                                if (ClosestIndirectHit && ClosestIndirectHit.t < Closest.t) continue;
-                                
-                                // BLAS Closest Hit
-                                ClosestIndirectHit = Closest;
-                            }
-                            else
-                            {
-                                // Miss
-                            }
+
+                            IndirectLightRayTracerTLAS.AcceptHit(IndirectLightRayTracerBLAS.ClosestHit());
                         }
                         
-                        if (ClosestIndirectHit)
+                        if (Hit ClosestIndirectHit = IndirectLightRayTracerTLAS.ClosestHit())
                         {
                             DebugRendering->DrawRay(WorldToViewportProj, IndirectLightRay, ClosestIndirectHit.t);
                         }
@@ -883,17 +857,14 @@ public:
             
             // if (x == (Width / 2) && y == (Height / 2)) {EngineRuntimeBREAKPOINT}
 
-            Hit ClosestHit = Hit();
-            const Mesh* Mesh = nullptr;
-            size_t Material = 0;
+
             
             TraceRayTLAS PrimaryRayTracerTLAS(*m_CPUSceneTLAS, PrimaryRay);
             
             for (BVHHit TLASHit : PrimaryRayTracerTLAS)
             {
-                const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
-                
-                TraceRayBLAS PrimaryRayTracerBLAS(*(Elt.BLAS), PrimaryRay, Elt.WorldToModel);
+                const TLASElement& Elt = *PrimaryRayTracerTLAS.Element();
+                TraceRayBLAS PrimaryRayTracerBLAS(*(Elt.BLAS), PrimaryRay, PrimaryRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
                 
                 for (Hit Hit : PrimaryRayTracerBLAS)
                 {                    
@@ -903,11 +874,6 @@ public:
                 if (Hit Closest = PrimaryRayTracerBLAS.ClosestHit(); Closest)
                 {
                     // BLAS Closest Hit
-                    if (ClosestHit && ClosestHit.t < Closest.t) continue;
-
-                    ClosestHit = Closest;
-                    Mesh = Elt.BLAS->Meta.MeshRef;
-                    Material = Elt.MaterialIndex;
                 }
                 else
                 {
@@ -916,7 +882,11 @@ public:
             }
             
             // Skip background
+            Hit ClosestHit = PrimaryRayTracerTLAS.ClosestHit();
+
             if (!ClosestHit) continue;
+            const Mesh* Mesh = PrimaryRayTracerTLAS.ClosestHitElement()->BLAS->Meta.MeshRef;
+            size_t Material = PrimaryRayTracerTLAS.ClosestHitElement()->MaterialIndex;
 
             // Evaluate material
             const GLTF::Material& material = m_Scene->materials[Material];
@@ -1065,20 +1035,15 @@ public:
                     };
         
                     // if (x == (Width / 2) && y == (Height / 2)) {EngineRuntimeBREAKPOINT}
-
-                    Hit ClosestHit = Hit();
-                    const Mesh* Mesh = nullptr;
-                    const Matrix4f* ModelMatrix = nullptr;
-                    size_t Material = 0;
         
                     TraceRayTLAS PrimaryRayTracerTLAS(*m_CPUSceneTLAS, PrimaryRay);
-        
                     for (BVHHit TLASHit : PrimaryRayTracerTLAS)
-                    {
-                        const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
+                    {                        
+                        const TLASElement& Elt = *PrimaryRayTracerTLAS.Element();
+
+                        // BLAS / Material early visibility tests here
             
-                        TraceRayBLAS PrimaryRayTracerBLAS(*(Elt.BLAS), PrimaryRay, Elt.WorldToModel);
-            
+                        TraceRayBLAS PrimaryRayTracerBLAS(*(Elt.BLAS), PrimaryRay, PrimaryRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
                         for (Hit Hit : PrimaryRayTracerBLAS)
                         {                    
                             // BLAS Any Hit   
@@ -1087,21 +1052,22 @@ public:
                         if (Hit Closest = PrimaryRayTracerBLAS.ClosestHit(); Closest)
                         {
                             // BLAS Closest Hit
-                            if (ClosestHit && ClosestHit.t < Closest.t) continue;
-
-                            ClosestHit = Closest;
-                            Mesh = Elt.BLAS->Meta.MeshRef;
-                            Material = Elt.MaterialIndex;
-                            ModelMatrix = &Elt.ModelToWorld;
                         }
                         else
                         {
                             // Miss
                         }
+
+                        PrimaryRayTracerTLAS.AcceptHit(PrimaryRayTracerBLAS.ClosestHit());
                     }
         
                     // Skip background
+                    Hit ClosestHit = PrimaryRayTracerTLAS.ClosestHit();
                     if (!ClosestHit) continue;
+
+                    const Mesh* Mesh = PrimaryRayTracerTLAS.ClosestHitElement()->BLAS->Meta.MeshRef;
+                    const Matrix4f* ModelMatrix = &(PrimaryRayTracerTLAS.ClosestHitElement()->ModelToWorld);
+                    size_t Material = PrimaryRayTracerTLAS.ClosestHitElement()->MaterialIndex;
 
                     // Evaluate material
                     const GLTF::Material& material = m_Scene->materials[Material];
@@ -1123,9 +1089,9 @@ public:
                         bool HasHit = false;
                         for (BVHHit TLASHit : SunlightRayTracerTLAS)
                         {
-                            const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
+                            const TLASElement& Elt = *SunlightRayTracerTLAS.Element();
                 
-                            TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, Elt.WorldToModel);
+                            TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, SunlightRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
                 
                             for (Hit Hit : SunlightRayTracerBLAS)
                             {                    
@@ -1286,9 +1252,9 @@ public:
                             Hit ClosestIndirectHit{}; size_t IndirectHitMaterialId;
                             for (BVHHit TLASHit : IndirectLightRayTracerTLAS)
                             {
-                                const TLASElement& Elt = m_CPUSceneTLAS->Elements[m_CPUSceneTLAS->Tree[TLASHit.NodeIndex].LeftIndex()];
+                                const TLASElement& Elt = *(IndirectLightRayTracerTLAS.Element());
                     
-                                TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, Elt.WorldToModel);
+                                TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, PrimaryRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
                     
                                 for (Hit Hit : IndirectLightRayTracerBLAS)
                                 {                    
