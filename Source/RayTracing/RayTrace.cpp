@@ -806,14 +806,18 @@ void TLASAddInstance(TLAS& BVH, const BLAS& BLAS, size_t Material, const Transfo
 
 BVHHit TraceRayTLAS::Next()
 {
+    m_CurrentBVHHit = {};
+    
     // TODO reorder iteration to stackless that prioritize branches close to the origin of the tree
     while (!m_IterationStack.empty())
     {
         uint32_t NodeIndex = m_IterationStack.top();
         m_IterationStack.pop();
         
-        if (BoxHit hit = IntersectBox(m_Tlas->Tree[NodeIndex].Bounds, m_Ray); hit && hit.tmin < m_ClosestHit.t)
+        if (BoxHit hit = IntersectBox(m_Tlas->Tree[NodeIndex].Bounds, m_Ray))
         {
+            if (m_ClosestHit && hit.tmin >= m_ClosestHit.t) continue;
+            
             if (m_Tlas->Tree[NodeIndex].IsNode())
             {
                 m_IterationStack.push(m_Tlas->Tree[NodeIndex].LeftIndex());
@@ -821,7 +825,8 @@ BVHHit TraceRayTLAS::Next()
             }
             else // if (m_Blas->Tree[NodeIndex].IsLeaf())
             {
-                return BVHHit(NodeIndex, hit);
+                m_CurrentBVHHit = BVHHit(NodeIndex, hit);
+                return m_CurrentBVHHit;
             }
         }
     }
