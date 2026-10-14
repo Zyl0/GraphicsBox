@@ -105,9 +105,12 @@ public:
         m_MaterialSampler.emplace(Sampler::Params{});
         m_IndirectSampleCount = 128;
         m_RenderSunlight = true;
+        m_SunlightSampleCount = 4;
+        m_SunSoftShadowHalfAngleDegrees = 1.f;
         m_RenderIndirectLight = true;
         m_DebugFreezeRandomSequence = false;
         m_MultiSampleCount = 4;
+        m_EmissiveSurfaceSampleCount = 4;
 
         // Load scene data
         {
@@ -474,31 +477,53 @@ public:
                         .direction = m_LightDirection, 
                         .distance = 300.f
                     };
-                    TraceRayTLAS SunlightRayTracerTLAS(*m_CPUSceneTLAS, SunLightRay);
-                
-                    bool HasHit = false;
-                    float t;
-                    for (BVHHit TLASHit : SunlightRayTracerTLAS)
-                    {
-                        const TLASElement& Elt = *SunlightRayTracerTLAS.Element(); 
                     
-                        TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, {}, Elt.WorldToModel);
-                        for (Hit Hit : SunlightRayTracerBLAS)
-                        {                    
-                            // BLAS Any Hit   
-                            HasHit = true;
-                            t = Hit.t;
-                            break;
+                    for (size_t SunSample = 0; SunSample < m_SunlightSampleCount; SunSample++)
+                    {
+                        const float rx = Halton<2>(SunSample);
+                        const float ry = Halton<3>(SunSample);
+                            
+                        Vector3f right;
+                        if (Dot(m_LightDirection, Vector3f(0,1,0)) < 1e-6f)
+                        {
+                            right = Vector3f(1,0,0);
                         }
-                        if (HasHit) break;
-                    }
-                    if (HasHit)
-                    {
-                        DebugRendering->DrawRay(WorldToViewportProj, SunLightRay, PrimaryRay.distance);
-                    }
-                    else
-                    {
-                        DebugRendering->DrawRay(WorldToViewportProj, SunLightRay, PrimaryRay.distance);
+                        else
+                        {
+                            right = Normalize(Cross(m_LightDirection,  Vector3f(0,1,0))); 
+                        }
+                        Vector3f up = Cross(right, m_LightDirection);
+                            
+                        QuaternionF qPitch = QuaternionF::FromAxisAngle(right, rx * Radians(m_SunSoftShadowHalfAngleDegrees * 2.f));
+                        QuaternionF qYaw = QuaternionF::FromAxisAngle(up, ry * Radians(m_SunSoftShadowHalfAngleDegrees * 2.f));
+                            
+                        SunLightRay.direction = qPitch(qYaw(m_LightDirection));
+                        
+                        TraceRayTLAS SunlightRayTracerTLAS(*m_CPUSceneTLAS, SunLightRay);
+                        bool HasHit = false;
+                        float t;
+                        for (BVHHit TLASHit : SunlightRayTracerTLAS)
+                        {
+                            const TLASElement& Elt = *SunlightRayTracerTLAS.Element(); 
+                    
+                            TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, {}, Elt.WorldToModel);
+                            for (Hit Hit : SunlightRayTracerBLAS)
+                            {                    
+                                // BLAS Any Hit   
+                                HasHit = true;
+                                t = Hit.t;
+                                break;
+                            }
+                            if (HasHit) break;
+                        }
+                        if (HasHit)
+                        {
+                            DebugRendering->DrawRay(WorldToViewportProj, SunLightRay, PrimaryRay.distance);
+                        }
+                        else
+                        {
+                            DebugRendering->DrawRay(WorldToViewportProj, SunLightRay, PrimaryRay.distance);
+                        }
                     }
                 }
                 
@@ -646,7 +671,7 @@ public:
         
         if (ImGui::Button("Take shaded screenshot BVH"))
         {
-            std::filesystem::path exportPath = std::filesystem::path(TEMP_DIR) / "shadedScreenshotBVH.png";
+            std::filesystem::path exportPath = std::filesystem::path(TEMP_DIR) / "shadedScreenshotBVH.bmp";
 
             auto start= std::chrono::high_resolution_clock::now();
             RayTracedScreenshotBVHShaded();
@@ -654,7 +679,7 @@ public:
             long cpu= std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
             EngineLoggerLogF("Ray traced screenshot with BVH took %ld ms", cpu);
             
-            ImageStore(exportPath, *m_WriteImage, Image::JPG);
+            ImageStore(exportPath, *m_WriteImage, Image::BMP);
         }
         
         ImGui::Separator();
@@ -670,9 +695,14 @@ public:
             ImGui::DragFloat("SkyLightIntensity", &m_AmbientIntensity, 0.01f);
             
             ImGui::Checkbox("Render Direct Lights", &m_RenderSunlight);
+            ImGui::SliderInt("Sunlight ray count", &m_SunlightSampleCount, 1, 16);
+            ImGui::SliderFloat("Sunlight Soft Shadows Angle", &m_SunSoftShadowHalfAngleDegrees, 0.f, 4.f);
+            
             ImGui::Checkbox("Render Indirect Lighting", &m_RenderIndirectLight);
             
             ImGui::SliderInt("Indirect Sample Count", &m_IndirectSampleCount, 1, 1024);
+            
+            ImGui::SliderInt("Emissive Sample Count", &m_EmissiveSurfaceSampleCount, 1, 16);
         }
     }
     
@@ -967,36 +997,28 @@ public:
             0,1,0   // 0,sin(M_PI / 2.0), cos (M_PI / 2.0)
         );
         */
-        ImageSampler sampler{};
+        // ImageSampler sampler{}; 
+        ImageSampler sampler{
+            .BaseFilter = ImageSampler::F_Cubic,
+            .Magnification = ImageSampler::F_Cubic,
+            .Minification = ImageSampler::F_Cubic,
+            .MipMode = ImageSampler::F_Cubic,
+        };
         ImageBuffer<Vector3t<uint8_t>> TargetImage(*m_WriteImage);
         ClearBuffer(TargetImage, m_AmbientColor * m_AmbientIntensity);
-
-        const uint32_t Width = m_WriteImage->Width(); 
-        const uint32_t Height = m_WriteImage->Height();
-        // const Matrix4f ProjToWorld = Inverse(m_Camera.Projection() * m_Camera.View());
-
-        std::vector<Matrix4f> WorldToModelMatrix(m_Scene->transforms.size());
-        for (size_t i = 0; i < m_Scene->transforms.size(); ++i)
+        
+        // Collect emissive elements
+        std::vector<std::pair<const TLASElement*, Box3f>> emissiveElements;
+        for (size_t i = 0; i < m_CPUSceneTLAS->Elements.size(); i++)
         {
-            const GLTF::Transform& Transform = m_Scene->transforms[i];
-            switch (Transform.Type)
+            if (m_Scene->materials[m_CPUSceneTLAS->Elements[i].MaterialIndex].flags & GLTF::Material::Emissive)
             {
-            case GLTF::Transform::Properties:
-                {
-                    WorldToModelMatrix[i] = Inverse(Transform.Value.asProperties.GetTransform());
-                }
-                break;
-
-            case GLTF::Transform::Matrix:
-                {
-                    WorldToModelMatrix[i] = Inverse(Transform.Value.asMatrix);
-                }
-                break;
-
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
+                emissiveElements.emplace_back(&(m_CPUSceneTLAS->Elements[i]), TLASElementGetBounds(m_CPUSceneTLAS->Elements[i], m_CPUSceneTLAS->Meta));
             }
         }
 
+        const uint32_t Width = m_WriteImage->Width(); 
+        const uint32_t Height = m_WriteImage->Height();
         #pragma omp parallel
         {
             // TODO replace with a sobol sequence
@@ -1008,7 +1030,7 @@ public:
             for (int y = 0; y < Height; y++)
             for (int x = 0; x < Width; x++)
             {                
-                Vector3f Color{};
+                Vector4f Color{};
                 
                 for (int s = 0; s < m_MultiSampleCount; s++)
                 {
@@ -1048,15 +1070,6 @@ public:
                         {                    
                             // BLAS Any Hit   
                         }
-            
-                        if (Hit Closest = PrimaryRayTracerBLAS.ClosestHit(); Closest)
-                        {
-                            // BLAS Closest Hit
-                        }
-                        else
-                        {
-                            // Miss
-                        }
 
                         PrimaryRayTracerTLAS.AcceptHit(PrimaryRayTracerBLAS.ClosestHit());
                     }
@@ -1073,7 +1086,7 @@ public:
                     const GLTF::Material& material = m_Scene->materials[Material];
                 
                     SurfaceHit surface = HitInterpolateProperties(*Mesh, ClosestHit, ModelMatrix);
-                    SurfaceSampler surfaceSampler = CalcSurfaceSample(*Mesh, PrimaryRay, ClosestHit, TargetImage.Size(), ModelMatrix);
+                    SurfaceSampler surfaceSampler = CalcSurfaceSample(*Mesh, PrimaryRay, ClosestHit, TargetImage.Size() * 2u, ModelMatrix);
         
                     // Shadowmap test
                     float SunlightVisibility = 1.0f;
@@ -1084,24 +1097,55 @@ public:
                             .direction = m_LightDirection, 
                             .distance = 300.f
                         };
-                        TraceRayTLAS SunlightRayTracerTLAS(*m_CPUSceneTLAS, SunLightRay);
-            
-                        bool HasHit = false;
-                        for (BVHHit TLASHit : SunlightRayTracerTLAS)
+                        
+                        uint32_t HitCount = 0;
+                        for (uint32_t SunSample = 0; SunSample < m_SunlightSampleCount; SunSample++)
                         {
-                            const TLASElement& Elt = *SunlightRayTracerTLAS.Element();
-                
-                            TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, SunlightRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
-                
-                            for (Hit Hit : SunlightRayTracerBLAS)
-                            {                    
-                                // BLAS Any Hit   
-                                HasHit = true;
+                            // Halton version
+                            // const float rx = Halton<2>(SunSample);
+                            // const float ry = Halton<3>(SunSample);
+                            
+                            // Random version
+                            float rx = uniform( rng ) * 0.5f;
+                            float ry = uniform( rng ) * 0.5f;
+                            
+                            Vector3f right;
+                            if (Dot(m_LightDirection, Vector3f(0,1,0)) < 1e-6f)
+                            {
+                                right = Vector3f(1,0,0);
                             }
-                            if (HasHit) break;
+                            else
+                            {
+                                right = Normalize(Cross(m_LightDirection,  Vector3f(0,1,0))); 
+                            }
+                            Vector3f up = Cross(right, m_LightDirection);
+                            
+                            QuaternionF qPitch = QuaternionF::FromAxisAngle(right, rx * Radians(m_SunSoftShadowHalfAngleDegrees * 2.f));
+                            QuaternionF qYaw = QuaternionF::FromAxisAngle(up, ry * Radians(m_SunSoftShadowHalfAngleDegrees * 2.f));
+                            
+                            SunLightRay.direction = qPitch(qYaw(m_LightDirection));
+                            
+                            TraceRayTLAS SunlightRayTracerTLAS(*m_CPUSceneTLAS, SunLightRay);
+            
+                            bool HasHit = false;
+                            for (BVHHit TLASHit : SunlightRayTracerTLAS)
+                            {
+                                const TLASElement& Elt = *SunlightRayTracerTLAS.Element();
+                
+                                TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, SunlightRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
+                
+                                for (Hit Hit : SunlightRayTracerBLAS)
+                                {                    
+                                    // BLAS Any Hit   
+                                    HasHit = true;
+                                }
+                                if (HasHit) break;
+                            }
+                            
+                            if (HasHit) HitCount++;
                         }
             
-                        SunlightVisibility = HasHit ? 0.f : 1.f;
+                        SunlightVisibility = 1.f - ((float)(HitCount) / (float)(m_SunlightSampleCount));
                     }
         
                     Vector3f PixBaseColor = material.color.xyz();
@@ -1164,7 +1208,7 @@ public:
                     {
                         LocalNormal = SampleImage(m_Scene->textures[material.normalTexture], surfaceSampler, sampler, surface.TextureCoordinates).xyz();
                         LocalNormal = LocalNormal * 2.f - 1.f; // 0:1 normalized to normalized space (-1, 1)
-                        LocalNormal.x = -LocalNormal.x;
+                        // LocalNormal.x = -LocalNormal.x;
                         surface.Normal = Normalize(FragTBN * LocalNormal);
                     }
 
@@ -1199,6 +1243,81 @@ public:
                             Vector3f Reflectance = LinearInterpolate(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
 
                             Vector3f Light = m_LightColor * CosThetaL * m_LightIntensity * SunlightVisibility;
+
+                            finalColor += Reflectance * Light;
+                        }
+                    }
+                    
+                    // Emissive Lights
+                    if (m_EmissiveSurfaceSampleCount > 0)
+                    for (const auto& emissiveElement : emissiveElements)
+                    {
+                        size_t emissiveMatId = emissiveElement.first->MaterialIndex;
+                    
+                        Vector3f n = surface.Normal;
+                        Vector3f v = Normalize(m_RayTracingCamera.GetWorldPosition() - surface.Position);
+                        Vector3f l = Normalize(emissiveElement.first->Center() - surface.Position);
+                        Vector3f h = Normalize(v + l);
+                        
+                        float pqlen = Magnitude(emissiveElement.first->Center() - surface.Position);
+                
+                        float CosThetaL = Dot(n, l);
+                        float CosThetaV = Dot(n, v);
+
+                        if(CosThetaV > 0 && CosThetaL > 0)
+                        {
+                            float Visibility = 0.f;
+                            for (uint32_t EmissiveSample = 0; EmissiveSample < m_EmissiveSurfaceSampleCount; ++EmissiveSample)
+                            {
+                                Vector3f samplePosition {};
+                                samplePosition.x = LinearInterpolate(emissiveElement.second.a.x, emissiveElement.second.b.x,uniform( rng ));
+                                samplePosition.y = LinearInterpolate(emissiveElement.second.a.y, emissiveElement.second.b.y,uniform( rng ));
+                                samplePosition.z = LinearInterpolate(emissiveElement.second.a.z, emissiveElement.second.b.z,uniform( rng ));
+                                
+                                Vector3f origin = PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + m_LightDirection * 0.01f;
+                                Ray EmissiveRay = {
+                                    .origin = origin, 
+                                    .direction = Normalize(samplePosition - origin), 
+                                    .distance = Magnitude(samplePosition - origin),
+                                };
+                                
+                                TraceRayTLAS EmissiveLightTracerTLAS(*m_CPUSceneTLAS, EmissiveRay);
+                                for (BVHHit bvhHit : EmissiveLightTracerTLAS) 
+                                {
+                                    const TLASElement& Elt = *EmissiveLightTracerTLAS.Element();
+                                    if (Elt.MaterialIndex == emissiveMatId) continue;
+                                    
+                                    bool HasHit = false;
+                                    TraceRayBLAS EmissiveLightTracerBLAS(*(Elt.BLAS), EmissiveRay, EmissiveLightTracerTLAS.ClosestHit(), Elt.WorldToModel);
+                                    for (Hit Hit : EmissiveLightTracerBLAS)
+                                    {                    
+                                        // BLAS Any Hit   
+                                        HasHit = true;
+                                    }
+                                    if (HasHit) 
+                                    {
+                                        Visibility += 1.f;
+                                        break;
+                                    }
+                                }
+                            }
+                            Visibility /= (float)(m_EmissiveSurfaceSampleCount);
+                        
+                            float VdotH = Dot(h, v);
+                            Vector3f F = Rendering::FresnelSchlick(VdotH, F0);
+
+                            float D = Rendering::D_GGX_Heitz2014_EQ71(h, n, Alpha);
+
+                            float G = Rendering::G2_Heitz2014_EQ99(h, n, v, l, Alpha);
+
+                            float DGNormalized = (D * G) / std::max(4.f * CosThetaL * CosThetaV , 0.0001f);
+
+                            Vector3f ReflectanceDielectrical = Rendering::fDielectrical(DiffuseColor, DGNormalized, F);
+                            Vector3f ReflectanceMetallic = Rendering::fMetallic(DGNormalized, F);
+
+                            Vector3f Reflectance = LinearInterpolate(ReflectanceDielectrical, ReflectanceMetallic, PixMetalness);
+
+                            Vector3f Light = m_Scene->materials[emissiveElement.first->MaterialIndex].emissive.xyz() * CosThetaL * Visibility * 1.f / (pqlen * pqlen);
 
                             finalColor += Reflectance * Light;
                         }
@@ -1246,45 +1365,32 @@ public:
                                 .direction = l, 
                                 .distance = 50.f
                             };
-                            TraceRayTLAS IndirectLightRayTracerTLAS(*m_CPUSceneTLAS, IndirectLightRay);
                 
-                            Vector3f IndirectLight(0);
-                            Hit ClosestIndirectHit{}; size_t IndirectHitMaterialId;
+                            TraceRayTLAS IndirectLightRayTracerTLAS(*m_CPUSceneTLAS, IndirectLightRay);
                             for (BVHHit TLASHit : IndirectLightRayTracerTLAS)
                             {
                                 const TLASElement& Elt = *(IndirectLightRayTracerTLAS.Element());
                     
                                 TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, PrimaryRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
-                    
                                 for (Hit Hit : IndirectLightRayTracerBLAS)
                                 {                    
                                     // BLAS Any Hit   
                                 }
-            
-                                if (Hit Closest = IndirectLightRayTracerBLAS.ClosestHit(); Closest)
-                                {
-                                    if (ClosestIndirectHit && ClosestIndirectHit.t < Closest.t) continue;
                                 
-                                    // BLAS Closest Hit
-                                    ClosestIndirectHit = Closest;
-                                    IndirectHitMaterialId = Elt.MaterialIndex;
-                                }
-                                else
-                                {
-                                    // Miss
-                                }
+                                IndirectLightRayTracerTLAS.AcceptHit(IndirectLightRayTracerBLAS.ClosestHit());
                             }
                 
-                            if (ClosestIndirectHit.IsValid())
+                            Vector3f IndirectLight(0);
+                            if (IndirectLightRayTracerTLAS.ClosestHit())
                             {
-                                if (m_Scene->materials[IndirectHitMaterialId].flags & GLTF::Material::Emissive)
+                                if (m_Scene->materials[IndirectLightRayTracerTLAS.ClosestHitElement()->MaterialIndex].flags & GLTF::Material::Emissive)
                                 {
-                                    IndirectLight = m_Scene->materials[IndirectHitMaterialId].emissive.xyz() * 1000.0f;
+                                    IndirectLight = m_Scene->materials[IndirectLightRayTracerTLAS.ClosestHitElement()->MaterialIndex].emissive.xyz();
                                 }
                             }
                             else
                             {
-                                IndirectLight = m_AmbientColor * m_AmbientIntensity;
+                                IndirectLight = m_AmbientColor * m_AmbientIntensity * 10.f;
                             }
                     
                             sum += (G1 > 0.0f && G2 > 0.0f) ? Reflectance * IndirectLight : Vector3f(0.0f);
@@ -1293,10 +1399,14 @@ public:
                         finalColor += (sum * PixAmbiantOcclusion) / static_cast<float>(m_IndirectSampleCount);
                     }
                 
-                    Color += finalColor;
+                    Color.xyz() += finalColor;
+                    Color.w += 1.f;
                 }
                 
-                WriteBuffer(TargetImage, x, y, Color / static_cast<float>(m_MultiSampleCount));
+                Vector3f PrevColor = ReadBuffer(TargetImage, x, y);
+                Vector3f AverageColor = Color.w > 0 ? Color.xyz() / Color.w : Color.xyz();
+                
+                WriteBuffer(TargetImage, x, y, LinearInterpolate(PrevColor, AverageColor, Color.w / static_cast<float>(m_MultiSampleCount)));
             }
         }
     }
@@ -1310,10 +1420,13 @@ private:
     float m_LightIntensity;
     Math::Vector3f m_AmbientColor;
     float m_AmbientIntensity;
-    bool m_RenderSunlight;
-    bool m_RenderIndirectLight;
+    int m_SunlightSampleCount;
     int m_IndirectSampleCount = 128;
     int m_MultiSampleCount;
+    int m_EmissiveSurfaceSampleCount;
+    float m_SunSoftShadowHalfAngleDegrees;
+    bool m_RenderSunlight;
+    bool m_RenderIndirectLight;
 
     bool m_DrawDebugRays;
     bool m_DrawDebugTLAS;
