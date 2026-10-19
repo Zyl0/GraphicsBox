@@ -842,28 +842,6 @@ public:
         const Matrix4f ProjToWorld = m_RayTracingCamera.InverseView() * m_RayTracingCamera.InverseProjection();
         // const Matrix4f ProjToWorld = Inverse(m_Camera.Projection() * m_Camera.View());
 
-        std::vector<Matrix4f> WorldToModelMatrix(m_Scene->transforms.size());
-        for (size_t i = 0; i < m_Scene->transforms.size(); ++i)
-        {
-            const GLTF::Transform& Transform = m_Scene->transforms[i];
-            switch (Transform.Type)
-            {
-            case GLTF::Transform::Properties:
-                {
-                    WorldToModelMatrix[i] = Inverse(Transform.Value.asProperties.GetTransform());
-                }
-                break;
-
-            case GLTF::Transform::Matrix:
-                {
-                    WorldToModelMatrix[i] = Inverse(Transform.Value.asMatrix);
-                }
-                break;
-
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
-            }
-        }
-
         #pragma omp parallel for collapse(2)
         for (int y = 0; y < Height; y++)
         for (int x = 0; x < Width; x++)
