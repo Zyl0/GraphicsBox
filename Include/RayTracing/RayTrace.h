@@ -409,7 +409,7 @@ struct TLASElement
     Math::Transform4f WorldToModel;
     size_t MaterialIndex;
     
-    INLINE Math::Point3f Center() const;
+    Math::Point3f Center() const;
     float Center(size_t Index) const;
 };
 
