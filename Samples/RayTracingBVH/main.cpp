@@ -494,8 +494,6 @@ public:
 
             ImageStore(exportPath, *m_WriteImage, Image::JPG);
         }
-
-        ImGui::Checkbox("Debug draw primary rays", &m_DrawDebugRays);
         
         if (ImGui::Button("Take screenshot BVH"))
         {
@@ -584,126 +582,25 @@ public:
     void RayTracedScreenshot()
     {
         ImageBuffer<Vector3t<uint8_t>> TargetImage(*m_WriteImage);
-        ClearBuffer(TargetImage);
-
+        ImageBuffer<Vector3f> RTColorImage(*m_ColorBufferImage);
+        ImageBuffer<float> RTDepthImage(*m_DepthBufferImage);
+        
+        m_RayTracingParameters.Shading = m_ShadingParameters;
+        m_RayTracingParameters.AccelerationStructure = &(*m_CPUSceneTLAS);
+        m_RayTracingParameters.BLASes = m_CPUMeshesBLASs;
+        m_RayTracingParameters.Scene = &(*m_Scene);
+        RayTracerDummy_RenderShaded(RTColorImage, RTDepthImage, m_RayTracingParameters, m_RayTracingCamera);
+        
+        // TODO tonemapping
+        
         const uint32_t Width = m_WriteImage->Width(); 
         const uint32_t Height = m_WriteImage->Height();
-        const Matrix4f ProjToWorld = m_RayTracingCamera.InverseView() * m_RayTracingCamera.InverseProjection();
-        // const Matrix4f ProjToWorld = Inverse(m_Camera.Projection() * m_Camera.View());
-
-        std::vector<Matrix4f> WorldToModelMatrix(m_Scene->transforms.size());
-        for (size_t i = 0; i < m_Scene->transforms.size(); ++i)
-        {
-            const GLTF::Transform& Transform = m_Scene->transforms[i];
-            switch (Transform.Type)
-            {
-            case GLTF::Transform::Properties:
-                {
-                    WorldToModelMatrix[i] = Inverse(Transform.Value.asProperties.GetTransform());
-                }
-                break;
-
-            case GLTF::Transform::Matrix:
-                {
-                    WorldToModelMatrix[i] = Inverse(Transform.Value.asMatrix);
-                }
-                break;
-
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
-            }
-        }
-
-        #pragma omp parallel for collapse(2)
+        
+#pragma omp parallel for collapse(2)
         for (int y = 0; y < Height; y++)
         for (int x = 0; x < Width; x++)
         {
-            Vector4f Start = ProjToWorld * Vector4f(
-                ((static_cast<float>(x) + .5f) / static_cast<float>(Width)) * 2.f - 1.f,
-                -(((static_cast<float>(y) + .5f) / static_cast<float>(Height)) * 2.f - 1.f),
-                0.f, 1.f);
-            Start.xyz() /= Start.w;
-            Vector4f End = ProjToWorld * Vector4f(
-                ((static_cast<float>(x) + .5f) / static_cast<float>(Width)) * 2.f - 1.f,
-                -(((static_cast<float>(y) + .5f) / static_cast<float>(Height)) * 2.f - 1.f),
-                1.f, 1.f);
-            End.xyz() /= End.w;
-            
-            Ray PrimaryRay = {
-                .origin = Start.xyz(), 
-                .direction = Normalize(End.xyz() - Start.xyz()), 
-                .distance = Magnitude(End.xyz() - Start.xyz())
-            };
-
-            Hit ClosestHit = Hit();
-            GLTF::MeshInstance ClosestHitInstance;
-
-            // Traversal without BVH
-            for (const auto & instance : m_Scene->instances)
-            {
-                const Mesh& mesh = m_Scene->meshes[instance.mesh];
-                const GLTF::Material& material = m_Scene->materials[instance.material];
-                const Mesh::VertexGroup& group = mesh.GetVertexGroups()[instance.vertexGroup];
-                const Matrix4f& transform = WorldToModelMatrix[instance.transform];
-
-                TraceRay PrimaryRayTracer(mesh, group.FirstVertex, group.VertexCount, PrimaryRay, transform);
-
-                for (Hit hit : PrimaryRayTracer)
-                {
-                    // Any hit
-                }
-
-                if (Hit Closest = PrimaryRayTracer.ClosestHit(); Closest)
-                {
-                    // Closest Hit
-                    if (ClosestHit && ClosestHit.t < Closest.t) continue;
-
-                    ClosestHit = Closest;
-                    ClosestHitInstance = instance;
-                }
-                else
-                {
-                    // Miss
-                }
-            }
-
-            // Skip background
-            if (!ClosestHit) continue;
-
-            // Evaluate material
-            Mesh& mesh = m_Scene->meshes[ClosestHitInstance.mesh];
-            const GLTF::Material& material = m_Scene->materials[ClosestHitInstance.material];
-            Vector3f Color{};
-            switch (mesh.GetMeshType())
-            {
-            case Mesh::POINTS:
-            case Mesh::LINE_STRIP:
-            case Mesh::LINE_LOOP:
-            case Mesh::LINES:
-            case Mesh::LINE_STRIP_ADJACENCY:
-            case Mesh::LINES_ADJACENCY:
-            case Mesh::PATCHES:
-            case Mesh::QUAD_STRIP:
-            case Mesh::QUADS:
-            case Mesh::_Count:
-            SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported vertex type. Expected triangles")
-
-            case Mesh::TRIANGLE_STRIP_ADJACENCY:
-            case Mesh::TRIANGLES_ADJACENCY:
-            case Mesh::TRIANGLE_STRIP:
-            case Mesh::TRIANGLE_FAN:
-            case Mesh::TRIANGLES:
-                //Mesh::Face face(mesh, ClosestHit.face);
-                //Mesh::Vertex a = face[0];
-                //Mesh::Vertex b = face[1];
-                //Mesh::Vertex c = face[2];
-                //
-                // Color = material.color.XYZ();
-                Color.x = ClosestHit.u;
-                Color.y = ClosestHit.v;
-                Color.z = Saturate(1 - (ClosestHit.u + ClosestHit.v));
-            }
-
-            WriteBuffer(TargetImage, x, y, Color);
+            WriteBuffer(TargetImage, x, y, ReadBuffer(RTColorImage, x, y));
         }
     }
     

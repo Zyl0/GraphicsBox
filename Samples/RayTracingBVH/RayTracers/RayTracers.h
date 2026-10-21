@@ -5,6 +5,13 @@
 #include "Importers/GLTF/SceneLoader.h"
 #include "RayTracing/RayTrace.h"
 
+struct StatusTracker
+{
+    uint32_t StepCount;
+    std::atomic<uint32_t> CurrentStep;
+};
+extern StatusTracker RayTracingOpTracker;
+
 struct TraversalDebuggerParameters
 {
     Engine::Context* EngineContext = nullptr;    

@@ -13,11 +13,8 @@ INLINE Math::Vector2f CalcProjSpaceCoords(uint32_t x, uint32_t y, uint32_t w, ui
 
 Math::Vector3f CalcPrimaryRayPoint(const Math::Matrix4f& ProjToWorld, Math::Vector2f ProjSpaceCoordinates, float ZCoordinate, Math::Vector2f PixelOffset);
 
-Math::Vector3f GramSchmidt(Math::Vector3f T, Math::Vector3f N)
-{
-    return Normalize(T - Dot(T, N) * N);
-}
-    
+Math::Vector3f GramSchmidt(Math::Vector3f T, Math::Vector3f N);
+
 template <uint32_t Base>
 INLINE double Halton(uint32_t index) 
 {
@@ -35,12 +32,6 @@ INLINE double Halton(uint32_t index)
     return result;
 }
     
-Math::Matrix4f JitterMatrix(float SubPixelOffsetX, float SubPixelOffsetY, float Width, float Height)
-{
-    return Math::Transform4f::Translation((SubPixelOffsetX / std::max(Width, 1.f) * 2.f), (SubPixelOffsetY / std::max(Height, 1.f) * 2.f), 0.f);
-}
-    
-float PixelOffset(float SubPixelOffset, float PixelCount)
-{
-    return SubPixelOffset / std::max(PixelCount, 1.f) * 2.f;
-}
+Math::Matrix4f JitterMatrix(float SubPixelOffsetX, float SubPixelOffsetY, float Width, float Height);
+
+float PixelOffset(float SubPixelOffset, float PixelCount);
