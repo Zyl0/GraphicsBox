@@ -1,12 +1,17 @@
 ﻿#pragma once
 #include "Camera/Camera.h"
+#include "Core/Context.h"
 #include "Image/ImageOps.h"
 #include "Importers/GLTF/SceneLoader.h"
 #include "RayTracing/RayTrace.h"
 
 struct TraversalDebuggerParameters
 {
-    
+    Engine::Context* EngineContext = nullptr;    
+    bool DebugSunlight = false;
+    bool DebugIndirectLight = false;
+    bool DebugEmissiveIndirectLights = false;
+    bool FreezeRandomSequence = false;
 };
 
 struct RayShadingParameters

@@ -5,6 +5,7 @@
 #include "Modules/Rendering/Shaders/FresnelSchlick.h"
 #include "Modules/Rendering/Shaders/GGX.h"
 #include "Modules/Rendering/Shaders/LightinModel.h"
+#include "Modules/Rendering/Tools/DebugModule.h"
 
 using namespace Math;
 
@@ -504,5 +505,180 @@ void RayTracerBVH_RenderShaded(ImageBuffer<Math::Vector3f>& RenderTarget, ImageB
 
 void RayTracerBVH_DrawTraversal(const RayTracerFrameParameters& RayTracingParameters, const TraversalDebuggerParameters& TraversalDebuggerParameters, const Camera& Camera, Math::Vector2f ProjectiveSpaceCoordinates)
 {
+    AssertOrErrorCallF(RayTracingParameters.AccelerationStructure != nullptr, return;, "RayTracerBVH requires a valid acceleration structure")
+    AssertOrErrorCallF(RayTracingParameters.Scene != nullptr, return;, "RayTracerBVH requires a valid scene")
+    AssertOrErrorCallF(TraversalDebuggerParameters.EngineContext != nullptr, return;, "RayTracerBVH debugger requires a valid engine context")
     
+    const RayShadingParameters& Shading = RayTracingParameters.Shading;
+    const TLAS* AccelerationStructure = RayTracingParameters.AccelerationStructure;
+    const GLTF::CPUScene* Scene = RayTracingParameters.Scene;
+    Rendering::Debug::Module* DebugRendering = Engine::GetModule<Rendering::Debug::Module>(*TraversalDebuggerParameters.EngineContext);
+    
+    const Matrix4f ProjToWorld = Camera.InverseView() * Camera.InverseProjection();
+    const Matrix4f WorldToProj = Camera.Projection() * Camera.View();
+    
+    Vector3f Start = CalcPrimaryRayPoint(ProjToWorld, ProjectiveSpaceCoordinates, 0.f, 0);
+    Vector3f End = CalcPrimaryRayPoint(ProjToWorld, ProjectiveSpaceCoordinates, 1.f, 0);
+    
+    Ray PrimaryRay = {
+        .origin = Start.xyz(), 
+        .direction = Normalize(End.xyz() - Start.xyz()), 
+        .distance = Magnitude(End - Start)
+    };
+    
+    TraceRayTLAS DebugRayTracerTLAS(*AccelerationStructure, PrimaryRay);    
+    for (BVHHit TLASHit : DebugRayTracerTLAS)
+    {
+        const TLASElement& Elt = *DebugRayTracerTLAS.Element();
+        
+        TraceRayBLAS DebugRayTracerBLAS(*(Elt.BLAS), PrimaryRay, DebugRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
+        for (Hit Hit : DebugRayTracerBLAS)
+        {                    
+            // BLAS Any Hit   
+        }
+        
+        DebugRayTracerTLAS.AcceptHit(DebugRayTracerBLAS.ClosestHit());
+    }
+
+    if (Hit ClosestHit = DebugRayTracerTLAS.ClosestHit())
+    {
+        const Mesh* Mesh = DebugRayTracerTLAS.ClosestHitElement()->BLAS->Meta.MeshRef;
+        const Matrix4f* ModelMatrix = &(DebugRayTracerTLAS.ClosestHitElement()->ModelToWorld);
+        size_t Material = DebugRayTracerTLAS.ClosestHitElement()->MaterialIndex;
+        
+        static const Matrix3f RotationX = Matrix3f::RotationY(M_PI / 2.0);
+        
+        DebugRendering->DrawRay(WorldToProj, PrimaryRay, ClosestHit.t);
+
+        SurfaceHit surface = HitInterpolateProperties(*Mesh, ClosestHit, ModelMatrix);
+        
+        const GLTF::Material& material = Scene->materials[Material];
+        
+        float PixRoughness = material.roughness;
+        float Alpha = PixRoughness * PixRoughness;
+        
+        if (TraversalDebuggerParameters.DebugSunlight)
+        {
+            Ray SunLightRay = {
+                .origin = PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + Shading.SunLightDirection * 0.01f, 
+                .direction = Shading.SunLightDirection, 
+                .distance = 300.f
+            };
+            
+            for (size_t SunSample = 0; SunSample < RayTracingParameters.SunlightSampleCount; SunSample++)
+            {
+                const float rx = Halton<2>(SunSample);
+                const float ry = Halton<3>(SunSample);
+                    
+                Vector3f right;
+                if (Dot(Shading.SunLightDirection, Vector3f(0,1,0)) < 1e-6f)
+                {
+                    right = Vector3f(1,0,0);
+                }
+                else
+                {
+                    right = Normalize(Cross(Shading.SunLightDirection,  Vector3f(0,1,0))); 
+                }
+                Vector3f up = Cross(right, Shading.SunLightDirection);
+                    
+                QuaternionF qPitch = QuaternionF::FromAxisAngle(right, rx * Radians(Shading.SunLightSoftShadowHalfAngleDegrees * 2.f));
+                QuaternionF qYaw = QuaternionF::FromAxisAngle(up, ry * Radians(Shading.SunLightSoftShadowHalfAngleDegrees * 2.f));
+                    
+                SunLightRay.direction = qPitch(qYaw(Shading.SunLightDirection));
+                
+                TraceRayTLAS SunlightRayTracerTLAS(*AccelerationStructure, SunLightRay);
+                bool HasHit = false;
+                float t;
+                for (BVHHit TLASHit : SunlightRayTracerTLAS)
+                {
+                    const TLASElement& Elt = *SunlightRayTracerTLAS.Element(); 
+            
+                    TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, {}, Elt.WorldToModel);
+                    for (Hit Hit : SunlightRayTracerBLAS)
+                    {                    
+                        // BLAS Any Hit   
+                        HasHit = true;
+                        t = Hit.t;
+                        break;
+                    }
+                    if (HasHit) break;
+                }
+                if (HasHit)
+                {
+                    DebugRendering->DrawRay(WorldToProj, SunLightRay, PrimaryRay.distance);
+                }
+                else
+                {
+                    DebugRendering->DrawRay(WorldToProj, SunLightRay, PrimaryRay.distance);
+                }
+            }
+        }
+        
+        if (TraversalDebuggerParameters.DebugIndirectLight)
+        {
+            surface.Tangent = Normalize(surface.Tangent - Dot(surface.Tangent, surface.Normal) * surface.Normal);
+            Vector3f FragBiTangent = Cross(surface.Normal, surface.Tangent); // always re-derive B from N×T
+            Matrix3f FragTBN = Matrix3f( surface.Tangent, FragBiTangent, surface.Normal);
+            // FragTBN = Transpose(FragTBN);
+            Matrix3f InvTBN = Transpose(FragTBN);
+            
+            Vector3f v = Normalize(Camera.GetWorldPosition() - surface.Position);
+
+            Vector3f vNormalSpace = InvTBN * v;
+            
+            std::random_device hwseed;
+            std::default_random_engine rng( TraversalDebuggerParameters.FreezeRandomSequence ? 0 : hwseed() );
+            std::uniform_real_distribution<float> uniform(0, 1);
+            
+            for (size_t i = 0; i < RayTracingParameters.IndirectSampleCount; ++i)
+            {
+                float u1 = uniform( rng );
+                float u2 = uniform( rng );
+                    
+                Vector3f SampledFace = Rendering::SampleGGX(Vector3f(0, 0, 1), Alpha, Alpha, u1, u2);
+                Vector3f ne = Normalize(FragTBN * SampledFace);
+                Vector3f l = Reflect(-v, ne);
+                
+                DebugRendering->DrawLine(
+                    WorldToProj,
+                    PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t,
+                    PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + ne * 0.2f,
+                    Vector3f(0.f, 1.f, 0.f)                            
+                );
+                
+                Ray IndirectLightRay = {
+                    .origin = PrimaryRay.origin + PrimaryRay.direction * ClosestHit.t + l * 0.01f, 
+                    .direction = l, 
+                    .distance = 50.f
+                };
+                
+                TraceRayTLAS IndirectLightRayTracerTLAS(*AccelerationStructure, IndirectLightRay);
+                for (BVHHit TLASHit : IndirectLightRayTracerTLAS)
+                {
+                    const TLASElement& Elt = *IndirectLightRayTracerTLAS.Element();
+                    TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, IndirectLightRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
+                
+                    for (Hit Hit : IndirectLightRayTracerBLAS)
+                    {                    
+                        // BLAS Any Hit   
+                    }
+
+                    IndirectLightRayTracerTLAS.AcceptHit(IndirectLightRayTracerBLAS.ClosestHit());
+                }
+                
+                if (Hit ClosestIndirectHit = IndirectLightRayTracerTLAS.ClosestHit())
+                {
+                    DebugRendering->DrawRay(WorldToProj, IndirectLightRay, ClosestIndirectHit.t);
+                }
+                else
+                {
+                    DebugRendering->DrawRay(WorldToProj, IndirectLightRay, IndirectLightRay.distance);
+                }
+            }
+        }
+    }
+    else
+    {
+        DebugRendering->DrawRay(WorldToProj, PrimaryRay, PrimaryRay.distance);
+    }
 }
