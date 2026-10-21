@@ -448,14 +448,39 @@ public:
         uint32_t Width, Height;
         Window->GetFrameBufferSize(Width, Height);
         
-        ImGui::Checkbox("Freeze RT Camera", &m_DebugFreezeRTCamera);
-        if (m_DebugFreezeRTCamera)
         {
-            if (ImGui::Button("Reset Viewport Camera"))
+            ImGui::Text("Camera");
+            
+            ImGui::Checkbox("Freeze RT Camera", &m_DebugFreezeRTCamera);
+            if (m_DebugFreezeRTCamera)
             {
-                m_ViewportCamera = m_RayTracingCamera;
+                if (ImGui::Button("Reset Viewport Camera"))
+                {
+                    m_ViewportCamera = m_RayTracingCamera;
+                }
+            }
+            ImGui::Checkbox("Debug draw primary rays", &m_DrawDebugRays);
+            
+            {
+                Vector3f CamPos = m_ViewportCamera.GetWorldPosition();
+                if (ImGui::InputFloat3("Camera Position", CamPos.data()))
+                {
+                    m_ViewportCamera.SetTranslation(CamPos);
+                }
+            }
+            {
+                float Pitch = m_ViewportCamera.GetPitchDegrees();
+                float Yaw = m_ViewportCamera.GetYawDegrees();
+                bool changePitch = ImGui::DragFloat("Camera Pitch", &Pitch, .1f);
+                bool changeYaw = ImGui::DragFloat("Camera Yaw", &Yaw, .1f);
+                if (changePitch || changeYaw)
+                {
+                    m_ViewportCamera.SetRotationDegrees(Pitch, Yaw);
+                }
             }
         }
+        
+        ImGui::Separator();
             
         if (ImGui::Button("Take screenshot"))
         {

@@ -71,6 +71,14 @@ public:
         m_Yaw = Other.m_Yaw;
         return *this;
     }
+    
+    INLINE float GetPitchRadians() const {return m_Pitch;}
+    INLINE float GetYawRadians() const {return m_Yaw;}
+    INLINE float GetRollRadians() const {return m_Roll;}
+    
+    INLINE float GetPitchDegrees() const {return Math::Degrees(m_Pitch);}
+    INLINE float GetYawDegrees() const {return Math::Degrees(m_Yaw);}
+    INLINE float GetRollDegrees() const {return Math::Degrees(m_Roll);}
 
 private:
     Math::Transform4f ComputeView();
