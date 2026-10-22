@@ -5,6 +5,15 @@
 
 using namespace Math;
 
+#define SORT_BLAS_NODE_ITERATION_INSERTION
+#define SORT_TLAS_NODE_ITERATION_INSERTION
+#define FORCE_STATIC_STACK
+#define FORCE_DYNAMIC_STACK
+
+#ifndef CONFIG_RELEASE
+#define FORCE_STATIC_STACK_SECURITY_CHECK
+#endif // CONFIG_DEBUG
+
 Hit IntersectTriangle(const Mesh::ConstFace& Face, const Ray& Ray)
 {
     // TODO maybe Face should not contain a ref to the mesh
@@ -258,8 +267,8 @@ TraceRay::TraceRay(const Mesh& Mesh, unsigned FirstVertex, unsigned VertexCount,
     m_FirstVertex(0),
     m_VertexCount(Mesh.GetVertexCount())
 {
-    AssertOrError(FirstVertex < Mesh.GetVertexCount(), "Vertex index out of range");
-    AssertOrError(FirstVertex + VertexCount <= Mesh.GetVertexCount(), "Vertex count out of range");
+    AssertOrError(FirstVertex < Mesh.GetVertexCount(), "Vertex index out of range")
+    AssertOrError(FirstVertex + VertexCount <= Mesh.GetVertexCount(), "Vertex count out of range")
 
     Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
 
@@ -529,17 +538,23 @@ BLAS BuildBLAS(const Mesh& Mesh, uint8_t VertexGroup, uint32_t LeafSize)
     return blas;
 }
 
-TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Hit& ClosestHit, const Math::Transform4f& WorldToModel):
+TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Hit& ClosestHit, const Math::Transform4f& WorldToModel) :
     m_Ray(Ray),
     m_Blas(&Mesh),
-    m_IterationStack(),
+    m_IterationStack(), m_StaticIterationStack(), m_StaticIterationStackElement(std::numeric_limits<uint32_t>::max()),
     m_CurrentBVHHit(), m_ClosestHit(ClosestHit),
     m_PreviousClosestHit(ClosestHit),
     m_CurrentElementIndex(std::numeric_limits<uint32_t>::max()),
     ModelToWorld(Inverse(WorldToModel)),
     RequestInvalidateHit(false)
 {
-    Vector3f end =  m_Ray.origin + m_Ray.distance * m_Ray.direction;
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+    AssertOrError(!m_StaticIterationStack.empty(), "Invalid statick stack required when FORCE_STATIC_STACK is enabled")
+#endif
+#endif // FORCE_STATIC_STACK
+    
+    Vector3f end = m_Ray.origin + m_Ray.distance * m_Ray.direction;
 
     Vector4f t = WorldToModel * Vector4f(m_Ray.origin, 1.0f);
     m_Ray.origin = xyz(t) / t.w;
@@ -556,27 +571,78 @@ TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Hit& ClosestH
 
     m_Ray.distance = Magnitude(end - m_Ray.origin);
     m_Ray.direction = Normalize(end - m_Ray.origin);
-    
+
     m_tmax = m_ClosestHit ? m_ClosestHit.t : m_Ray.distance;
-    
+
     m_IterationStack.push(m_Blas->Head);
+}
+
+TraceRayBLAS::TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Hit& ClosestHit, std::span<uint32_t> IterationStack, const Math::Transform4f& WorldToModel):
+    m_Ray(Ray),
+    m_Blas(&Mesh),
+    m_IterationStack(), m_StaticIterationStack(IterationStack), m_StaticIterationStackElement(0),
+    m_CurrentBVHHit(), m_ClosestHit(ClosestHit),
+    m_PreviousClosestHit(ClosestHit),
+    m_CurrentElementIndex(std::numeric_limits<uint32_t>::max()),
+    ModelToWorld(Inverse(WorldToModel)),
+    RequestInvalidateHit(false)
+{
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+    AssertOrError(!IterationStack.empty(), "Invalid statick stack required when FORCE_STATIC_STACK is enabled")
+#endif
+#endif // FORCE_STATIC_STACK
+    
+    m_Ray = WorldToModel * Ray;
+
+    if (m_ClosestHit)
+    {
+        Vector4f t = WorldToModel * Vector4f(Ray.origin + ClosestHit.t * Ray.distance, 1.0f);
+        m_ClosestHit.t = Magnitude((t.xyz() / t.w) - m_Ray.origin);
+        m_PreviousClosestHit.t = m_ClosestHit.t;
+    }
+
+    m_tmax = m_ClosestHit ? m_ClosestHit.t : m_Ray.distance;
+
+    PushStack(m_Blas->Head);
 }
 
 Hit TraceRayBLAS::Next()
 {
 explore_bvh:
     if (!m_CurrentBVHHit)
-    while (!m_IterationStack.empty()) // TODO reorder iteration to stackless that prioritize branches close to the origin of the tree
+    while (!StackEmpty()) // TODO reorder iteration to stackless that prioritize branches close to the origin of the tree
     {
-        uint32_t NodeIndex = m_IterationStack.top();
-        m_IterationStack.pop();
+        uint32_t NodeIndex = StackTop();
+        PopStack();
         
         if (BoxHit hit = IntersectBox(m_Blas->Tree[NodeIndex].Bounds, m_Ray); hit && hit.tmin < m_tmax)
         {
             if (m_Blas->Tree[NodeIndex].IsNode())
             {
-                m_IterationStack.push(m_Blas->Tree[NodeIndex].LeftIndex());
-                m_IterationStack.push(m_Blas->Tree[NodeIndex].RightIndex());
+#ifdef SORT_BLAS_NODE_ITERATION_INSERTION
+                const BLAS::Node& node = m_Blas->Tree[NodeIndex];
+                const BLAS::Node& leftNode = m_Blas->Tree[node.LeftIndex()];
+                const BLAS::Node& rightNode = m_Blas->Tree[node.RightIndex()];
+                
+                Vector3f nodeCenter = node.Bounds.Center();
+                float dl = SquareDistance(leftNode.Bounds.Center(), nodeCenter);
+                float dr = SquareDistance(rightNode.Bounds.Center(), nodeCenter);
+                
+                if (dl < dr)
+                {
+                    PushStack(m_Blas->Tree[NodeIndex].RightIndex());
+                    PushStack(m_Blas->Tree[NodeIndex].LeftIndex());
+                }
+                else
+                {
+                    PushStack(m_Blas->Tree[NodeIndex].LeftIndex());
+                    PushStack(m_Blas->Tree[NodeIndex].RightIndex());
+                }
+#else
+                PushStack(m_Blas->Tree[NodeIndex].LeftIndex());
+                PushStack(m_Blas->Tree[NodeIndex].RightIndex());
+#endif
             }
             else // if (m_Blas->Tree[NodeIndex].IsLeaf())
             {
@@ -753,6 +819,92 @@ void TraceRayBLAS::RejectHit()
     m_ClosestHit = {};
 }
 
+void TraceRayBLAS::PushStack(uint32_t value)
+{
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+    AssertOrError(m_StaticIterationStackElement + 1 < m_StaticIterationStack.size(), "Index out of range") // TODO introduce assert tests that only exists in debug builds
+#endif // FORCE_STATIC_STACK_SECURITY_CHECK
+    
+    m_StaticIterationStack[m_StaticIterationStackElement++] = value;
+#elif defined(FORCE_DYNAMIC_STACK) 
+    m_IterationStack.push(value);
+#else
+    if (m_StaticIterationStack.empty())
+    {
+        m_IterationStack.push(value);
+    }
+    else
+    {
+        AssertOrError(m_StaticIterationStackElement + 1 < m_StaticIterationStack.size(), "Index out of range") // TODO introduce assert tests that only exists in debug builds
+        
+        m_StaticIterationStack[m_StaticIterationStackElement++] = value;
+    }
+#endif
+}
+
+uint32_t TraceRayBLAS::StackTop()
+{
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+    AssertOrError(m_StaticIterationStackElement > 0, "Index out of range")
+#endif
+    
+    return m_StaticIterationStack[m_StaticIterationStackElement - 1];
+#elif defined(FORCE_DYNAMIC_STACK)
+    return m_IterationStack.top();
+#else
+    if (m_StaticIterationStack.empty())
+    {
+        return m_IterationStack.top();
+    }
+    else
+    {
+        return m_StaticIterationStack[m_StaticIterationStackElement - 1];
+    }
+#endif
+}
+
+void TraceRayBLAS::PopStack()
+{
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+    AssertOrError(m_StaticIterationStackElement > 0, "Index out of range")
+#endif
+    --m_StaticIterationStackElement;
+#elif defined(FORCE_DYNAMIC_STACK)
+    m_IterationStack.pop();
+#else
+    if (m_StaticIterationStack.empty())
+    {
+        m_IterationStack.pop();
+    }
+    else
+    {
+        AssertOrError(m_StaticIterationStackElement > 0, "Index out of range")
+        --m_StaticIterationStackElement;
+    } 
+#endif
+}
+
+bool TraceRayBLAS::StackEmpty()
+{
+#ifdef FORCE_STATIC_STACK
+    return m_StaticIterationStackElement == 0;
+#elif defined(FORCE_DYNAMIC_STACK)
+    return m_IterationStack.empty();
+#else
+    if (m_StaticIterationStack.empty())
+    {
+        return m_IterationStack.empty();
+    }
+    else
+    {
+        return m_StaticIterationStackElement == 0;
+    } 
+#endif
+}
+
 Point3f TLASElement::Center() const
 {
     return ModelToWorld * BLAS->Bounds().Center();
@@ -804,15 +956,40 @@ void TLASAddInstance(TLAS& BVH, const BLAS& BLAS, size_t Material, const Transfo
     BVH.Invalidate();
 }
 
+void TLASRebuild(TLAS& BVH)
+{
+    BVH.Rebuild();
+    
+    BVH.Meta.HighestBlass = 0;
+    for (const TLASElement& element : BVH.Elements)
+    {
+        BVH.Meta.HighestBlass = std::max(BVH.Meta.HighestBlass, element.BLAS->Height);
+    }
+}
+
+TraceRayTLAS::TraceRayTLAS(const TLAS& Scene, const Ray& Ray, std::span<uint32_t> IterationStack):
+    m_Tlas(&Scene),
+    m_IterationStack(), m_StaticIterationStack(IterationStack), m_StaticIterationStackElement(0),
+    m_Ray(Ray), m_BlasHit(nullptr), m_ClosestHit()
+{
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+    AssertOrError(!IterationStack.empty(), "Invalid statick stack required when FORCE_STATIC_STACK is enabled")
+#endif
+#endif // FORCE_STATIC_STACK
+    
+    PushStack(m_Tlas->Head);
+}
+
 BVHHit TraceRayTLAS::Next()
 {
     m_CurrentBVHHit = {};
     
     // TODO reorder iteration to stackless that prioritize branches close to the origin of the tree
-    while (!m_IterationStack.empty())
+    while (!StackEmpty())
     {
-        uint32_t NodeIndex = m_IterationStack.top();
-        m_IterationStack.pop();
+        uint32_t NodeIndex = StackTop();
+        PopStack();
         
         if (BoxHit hit = IntersectBox(m_Tlas->Tree[NodeIndex].Bounds, m_Ray))
         {
@@ -820,8 +997,29 @@ BVHHit TraceRayTLAS::Next()
             
             if (m_Tlas->Tree[NodeIndex].IsNode())
             {
-                m_IterationStack.push(m_Tlas->Tree[NodeIndex].LeftIndex());
-                m_IterationStack.push(m_Tlas->Tree[NodeIndex].RightIndex());
+#ifdef SORT_TLAS_NODE_ITERATION_INSERTION
+                const TLAS::Node& node = m_Tlas->Tree[NodeIndex];
+                const TLAS::Node& leftNode = m_Tlas->Tree[node.LeftIndex()];
+                const TLAS::Node& rightNode = m_Tlas->Tree[node.RightIndex()];
+                
+                Vector3f nodeCenter = node.Bounds.Center();
+                float dl = SquareDistance(leftNode.Bounds.Center(), nodeCenter);
+                float dr = SquareDistance(rightNode.Bounds.Center(), nodeCenter);
+                
+                if (dl < dr)
+                {
+                    PushStack(m_Tlas->Tree[NodeIndex].RightIndex());
+                    PushStack(m_Tlas->Tree[NodeIndex].LeftIndex());
+                }
+                else
+                {
+                    PushStack(m_Tlas->Tree[NodeIndex].LeftIndex());
+                    PushStack(m_Tlas->Tree[NodeIndex].RightIndex());
+                }
+#else
+                PushStack(m_Tlas->Tree[NodeIndex].LeftIndex());
+                PushStack(m_Tlas->Tree[NodeIndex].RightIndex());
+#endif
             }
             else // if (m_Blas->Tree[NodeIndex].IsLeaf())
             {
@@ -850,6 +1048,207 @@ void TraceRayTLAS::AcceptHit(Hit hit)
         m_ClosestHit = hit;
         m_BlasHit = Element();
     }
+}
+
+void TraceRayTLAS::PushStack(uint32_t value)
+{
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+        AssertOrError(m_StaticIterationStackElement + 1 < m_StaticIterationStack.size(), "Index out of range")
+#endif
+    m_StaticIterationStack[m_StaticIterationStackElement++] = value;
+#elif defined(FORCE_DYNAMIC_STACK)
+    m_IterationStack.push(value);
+#else
+    if (m_StaticIterationStack.empty())
+    {
+        m_IterationStack.push(value);
+    }
+    else
+    {
+        AssertOrError(m_StaticIterationStackElement + 1 < m_StaticIterationStack.size(), "Index out of range")
+        
+        m_StaticIterationStack[m_StaticIterationStackElement++] = value;
+    }
+#endif
+}
+
+uint32_t TraceRayTLAS::StackTop()
+{
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+    AssertOrError(m_StaticIterationStackElement > 0, "Index out of range")
+#endif
+    
+    return m_StaticIterationStack[m_StaticIterationStackElement - 1];
+#elif defined(FORCE_DYNAMIC_STACK)
+    return m_IterationStack.top();
+#else
+    if (m_StaticIterationStack.empty())
+    {
+        return m_IterationStack.top();
+    }
+    else
+    {
+        return m_StaticIterationStack[m_StaticIterationStackElement - 1];
+    }
+#endif
+}
+
+void TraceRayTLAS::PopStack()
+{
+#ifdef FORCE_STATIC_STACK
+#ifdef FORCE_STATIC_STACK_SECURITY_CHECK
+    AssertOrError(m_StaticIterationStackElement > 0, "Index out of range")
+#endif
+    --m_StaticIterationStackElement;
+#elif defined(FORCE_DYNAMIC_STACK)
+    m_IterationStack.pop();
+#else
+    if (m_StaticIterationStack.empty())
+    {
+        m_IterationStack.pop();
+    }
+    else
+    {
+        AssertOrError(m_StaticIterationStackElement > 0, "Index out of range")
+        --m_StaticIterationStackElement;
+    } 
+#endif
+}
+
+bool TraceRayTLAS::StackEmpty()
+{
+#ifdef FORCE_STATIC_STACK
+    return m_StaticIterationStackElement == 0;
+#elif defined(FORCE_DYNAMIC_STACK)
+    return m_IterationStack.empty();
+#else
+    if (m_StaticIterationStack.empty())
+    {
+        return m_IterationStack.empty();
+    }
+    else
+    {
+        return m_StaticIterationStackElement == 0;
+    } 
+#endif
+}
+
+BVHIterationStack::BVHIterationStack(uint32_t StackCount, uint32_t TLASHeight, uint32_t BLASHeight): 
+    m_Data(), 
+    m_StackCount(StackCount), 
+    m_StackTLASHeight(TLASHeight),
+    m_StackBLASHeight(BLASHeight)
+{
+    // PLATFORM_ALIGNED_MALLOC(uint32_t, m_Data, alignof(uint32_t), static_cast<size_t>(m_StackCount) * (TLASHeight + BLASHeight))
+    m_Data = (uint32_t*)malloc(static_cast<size_t>(m_StackCount) * (TLASHeight + BLASHeight) * sizeof(uint32_t));
+}
+
+BVHIterationStack::~BVHIterationStack()
+{
+    // PLATFORM_ALIGNED_FREE(m_Data)
+    free(m_Data);
+}
+
+std::span<uint32_t> BVHIterationStack::BLAS(uint32_t StackId)
+{
+    AssertOrErrorCall(StackId < m_StackCount, return std::span<uint32_t>{}, "Stack index out of range")
+    
+    size_t blases_offset = static_cast<size_t>(m_StackCount) * m_StackTLASHeight;
+    size_t begin = blases_offset + StackId * m_StackBLASHeight;
+    size_t end = blases_offset + (StackId + 1) * m_StackBLASHeight;
+    
+    AssertOrError(end <= static_cast<size_t>(m_StackCount) * (m_StackTLASHeight + m_StackBLASHeight), "Stack memory overflow")
+    
+    return std::span<uint32_t>{m_Data + begin, end - begin}; 
+}
+
+std::span<uint32_t> BVHIterationStack::TLAS(uint32_t StackId)
+{
+    AssertOrErrorCall(StackId < m_StackCount, return std::span<uint32_t>{}, "Stack index out of range")
+
+    size_t begin = StackId * m_StackTLASHeight;
+    size_t end = (StackId + 1) * m_StackTLASHeight;
+    
+    AssertOrError(end <= static_cast<size_t>(m_StackCount) * (m_StackTLASHeight + m_StackBLASHeight), "Stack memory overflow")
+    
+    return std::span<uint32_t>{m_Data + begin, end - begin}; 
+}
+
+TraceRayBVH::TraceRayBVH(const TLAS& Scene, const Ray& Ray, BVHIterationStack* IterationStack, uint32_t StackIndex) : 
+    m_Tlas(nullptr),
+    m_TraceRayTLAS(Scene, Ray, IterationStack ? IterationStack->TLAS(StackIndex) : std::span<uint32_t>{}),
+    m_TLASCurrent(m_TraceRayTLAS.begin()), m_TLASEnd(m_TraceRayTLAS.end()),
+    m_IterationStackBlas(IterationStack ? IterationStack->BLAS(StackIndex) : std::span<uint32_t>{})
+{
+}
+
+Hit TraceRayBVH::Next()
+{
+    for (TraceRayTLAS::iterator& it = m_TLASCurrent; it != m_TLASEnd; ++it)
+    {
+        BVHHit hit = *it;
+
+        // TODO BLAS early test
+        
+        const TLASElement& Elt = *m_TraceRayTLAS.Element();
+        
+        if (!m_TraceRayBLAS.has_value())
+        {
+            m_TraceRayBLAS.emplace(*(Elt.BLAS), m_TraceRayTLAS.GetRay(), m_TraceRayTLAS.ClosestHit(), m_IterationStackBlas, Elt.WorldToModel);
+            m_BLASCurrent = m_TraceRayBLAS->begin();
+            m_BLASEnd = m_TraceRayBLAS->end();
+        }
+        else
+        {
+            ++m_BLASCurrent;
+        }
+        
+        if (m_BLASCurrent != m_BLASEnd)
+        {
+            return *m_BLASCurrent;
+        }
+        
+        m_TraceRayTLAS.AcceptHit(m_TraceRayBLAS->ClosestHit());
+        
+        m_TraceRayBLAS.reset();
+        m_BLASCurrent = {};
+        m_BLASEnd = {};
+    }
+    
+    return Hit();
+}
+
+TraceRayBVH::iterator::iterator(TraceRayBVH& TraceRay)
+{
+    if (Hit hit = TraceRay.Next())
+    {
+        m_Hit = hit;
+        m_TraceRay = &TraceRay;
+    }
+    else
+    {
+        m_Hit = {};
+        m_TraceRay = nullptr;
+    }
+}
+
+TraceRayBVH::iterator& TraceRayBVH::iterator::operator++()
+{
+    if (m_TraceRay == nullptr) return *this;
+
+    if (Hit hit = m_TraceRay->Next())
+    {
+        m_Hit = hit;
+    }
+    else
+    {
+        m_Hit = {};
+        m_TraceRay = nullptr;
+    }
+    
+    return *this;
 }
 
 TraceRayTLAS::iterator::iterator(TraceRayTLAS& TraceRay)

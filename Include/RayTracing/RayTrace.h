@@ -197,6 +197,7 @@ struct BVHT
     std::vector<Node> Tree;
     uint32_t Head = std::numeric_limits<uint32_t>::max();
     uint32_t LeafSize = 0;
+    uint32_t Height = 0;
     MetaType Meta;
 
 private:
@@ -245,7 +246,7 @@ private:
         
         return centroidBox;
     }
-    uint32_t BuildNode(uint32_t begin, uint32_t end);
+    uint32_t BuildNode(uint32_t begin, uint32_t end, uint32_t layer = 0);
 };
 
 template <
@@ -266,8 +267,10 @@ template <
     Math::Box3f(ElementBounds)(const T& Element, const MetaType& Tree),
     Math::Vector3f(ElementCenter)(const T& Element, const MetaType& Tree)
     >
-uint32_t BVHT<T, MetaType, ElementBounds, ElementCenter>::BuildNode(uint32_t begin, uint32_t end)
+uint32_t BVHT<T, MetaType, ElementBounds, ElementCenter>::BuildNode(uint32_t begin, uint32_t end, uint32_t layer)
 {
+    Height = std::max<uint32_t>(Height, layer);
+    
     if (LeafSize > 1 ? (end - begin < (LeafSize + 1)) : (end - begin < 2))
     {
         uint32_t index = Tree.size();
@@ -311,9 +314,9 @@ uint32_t BVHT<T, MetaType, ElementBounds, ElementCenter>::BuildNode(uint32_t beg
     }
     AssertOrError(m != begin && m != end, "Failed to sperate a group of primitive faces into two sub groups")
     
-    uint32_t LeftSubGroup = BuildNode(begin, m);
+    uint32_t LeftSubGroup = BuildNode(begin, m, layer + 1);
     
-    uint32_t RightSubGroup = BuildNode(m, end);
+    uint32_t RightSubGroup = BuildNode(m, end, layer + 1);
     
     uint32_t index = Tree.size();
     Tree.push_back( MakeNode( Math::Box3f(Tree[LeftSubGroup].Bounds, Tree[RightSubGroup].Bounds), LeftSubGroup, RightSubGroup ) );
@@ -360,6 +363,7 @@ class TraceRayBLAS
 {
 public:
     TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Hit& ClosestHit, const Math::Transform4f& WorldToModel = Math::Transform4f::Identity());
+    TraceRayBLAS(const BLAS& Mesh, const Ray& Ray, const Hit& ClosestHit, std::span<uint32_t> IterationStack, const Math::Transform4f& WorldToModel = Math::Transform4f::Identity());
     
     Hit Next();
     Hit ClosestHit() const;
@@ -390,10 +394,17 @@ public:
     void RejectHit();
     
 private:
+    void PushStack(uint32_t value);
+    uint32_t StackTop();
+    void PopStack();
+    bool StackEmpty();
+
     HitWave<TriangleWave::kThreadCount> m_SIMDHits;
     Ray m_Ray;
     const BLAS* m_Blas;
     std::stack<uint32_t> m_IterationStack;
+    std::span<uint32_t> m_StaticIterationStack;
+    uint32_t m_StaticIterationStackElement;
     BVHHit m_CurrentBVHHit;
     Hit m_ClosestHit, m_PreviousClosestHit;
     uint32_t m_CurrentElementIndex;
@@ -415,7 +426,7 @@ struct TLASElement
 
 struct TLASDesc
 {
-    
+    uint32_t HighestBlass;
 };
 
 Math::Box3f TLASElementGetBounds(const TLASElement& Element, const TLASDesc& Tree);
@@ -427,17 +438,13 @@ Math::Vector3f TLASElementGetCenter(const TLASElement& Element, const TLASDesc& 
 using TLAS = BVHT<TLASElement, TLASDesc, TLASElementGetBounds, TLASElementGetCenter>;
 
 void TLASAddInstance(TLAS& BVH, const BLAS& BLAS, size_t Material, const Math::Transform4f& Transform);
-INLINE void TLASRebuild(TLAS& BVH) {BVH.Rebuild();}
+void TLASRebuild(TLAS& BVH);
 
 class TraceRayTLAS
 {
 public:
-    TraceRayTLAS(const TLAS& Scene, const Ray& Ray):
-        m_Tlas(&Scene), m_Ray(Ray), m_ClosestHit(), m_BlasHit(nullptr)
-    {
-        m_IterationStack.push(m_Tlas->Head);
-    }
-    
+    TraceRayTLAS(const TLAS& Scene, const Ray& Ray, std::span<uint32_t> IterationStack = {});
+
     BVHHit Next();
 
     // TODO re introduce
@@ -472,10 +479,86 @@ public:
     void AcceptHit(Hit hit);
     
 private:
+    void PushStack(uint32_t value);
+    uint32_t StackTop();
+    void PopStack();
+    bool StackEmpty();
+    
     const TLAS* m_Tlas;
     std::stack<uint32_t> m_IterationStack;
+    std::span<uint32_t> m_StaticIterationStack;
+    uint32_t m_StaticIterationStackElement;
     Ray m_Ray;
     const TLASElement* m_BlasHit;
     Hit m_ClosestHit;
     BVHHit m_CurrentBVHHit;
+};
+
+class BVHIterationStack
+{
+public:
+    // TODO introduce allocator injection
+    
+    BVHIterationStack(uint32_t StackCount, uint32_t TLASHeight, uint32_t BLASHeight);
+    ~BVHIterationStack();
+    
+    std::span<uint32_t> BLAS(uint32_t StackId);
+    std::span<uint32_t> TLAS(uint32_t StackId);
+    
+private:    
+    uint32_t* m_Data;
+    uint32_t m_StackCount;
+    uint32_t m_StackTLASHeight;
+    uint32_t m_StackBLASHeight;
+};
+
+class TraceRayBVH
+{
+public:
+    TraceRayBVH(const TLAS& Scene, const Ray& Ray, BVHIterationStack* IterationStack = nullptr, uint32_t StackIndex = 0);
+
+    Hit Next();
+
+    // TODO re introduce
+    // INLINE void ClipFar(float Distance) {m_tmax = Distance;}
+    
+    INLINE Ray GetRay() const {return m_TraceRayTLAS.GetRay();}
+    
+    class iterator
+    {
+    public:
+        iterator() : m_Hit(), m_TraceRay(nullptr) {}
+        iterator(TraceRayBVH& TraceRay);
+
+        iterator& operator++ ();
+        INLINE Hit operator* () const {return m_Hit;}
+        INLINE bool operator!= (const iterator& outer) const {return m_TraceRay != outer.m_TraceRay || m_Hit != outer.m_Hit;}
+        INLINE bool operator== (const iterator& outer) const {return m_TraceRay == outer.m_TraceRay && m_Hit == outer.m_Hit;}
+    
+    private:
+        Hit m_Hit;
+        TraceRayBVH* m_TraceRay;
+    };
+    
+    iterator begin() {return iterator(*this);}
+    iterator end() const {return iterator();}
+
+    INLINE Hit ClosestHit() const {return m_TraceRayTLAS.ClosestHit();}
+    INLINE const TLASElement* ClosestHitElement() const {return m_TraceRayTLAS.ClosestHitElement();}
+    
+    INLINE const TLASElement* Element() const
+    {
+        return m_TraceRayTLAS.Element();
+    }
+    
+private:
+    const TLAS* m_Tlas;
+    TraceRayTLAS m_TraceRayTLAS;
+    TraceRayTLAS::iterator m_TLASCurrent;
+    TraceRayTLAS::iterator m_TLASEnd;
+    
+    std::span<uint32_t> m_IterationStackBlas;
+    std::optional<TraceRayBLAS> m_TraceRayBLAS;
+    TraceRayBLAS::iterator m_BLASCurrent;
+    TraceRayBLAS::iterator m_BLASEnd;
 };

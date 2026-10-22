@@ -23,6 +23,9 @@ void RayTracerBVH_RenderPrimaryRay(ImageBuffer<Math::Vector3f>& RenderTarget, co
     
 #pragma omp parallel
     {
+        // Shared memory
+        BVHIterationStack bvhIterationStack{1, RayTracingParameters.AccelerationStructure->Height + 1, RayTracingParameters.AccelerationStructure->Meta.HighestBlass + 1};
+        
 #pragma omp for collapse(2)
         for (int y = 0; y < Height; y++)
         for (int x = 0; x < Width; x++)
@@ -37,25 +40,18 @@ void RayTracerBVH_RenderPrimaryRay(ImageBuffer<Math::Vector3f>& RenderTarget, co
                 .distance = Magnitude(End - Start)
             };
             
-            TraceRayTLAS PrimaryRayTracerTLAS(*RayTracingParameters.AccelerationStructure, PrimaryRay);
-            for (BVHHit TLASHit : PrimaryRayTracerTLAS)
+            // TraceRayBVH PrimaryRayTracer(*RayTracingParameters.AccelerationStructure, PrimaryRay, nullptr, RayTracingParameters.IndirectSampleBounceCount - 1);
+            TraceRayBVH PrimaryRayTracer(*RayTracingParameters.AccelerationStructure, PrimaryRay, &bvhIterationStack, RayTracingParameters.IndirectSampleBounceCount - 1);
+            for (Hit bit : PrimaryRayTracer)
             {
-                const TLASElement& Elt = *PrimaryRayTracerTLAS.Element();
-                TraceRayBLAS PrimaryRayTracerBLAS(*(Elt.BLAS), PrimaryRay, PrimaryRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
-                
-                for (Hit Hit : PrimaryRayTracerBLAS)
-                {                    
-                    // BLAS Any Hit   
-                }
-                
-                PrimaryRayTracerTLAS.AcceptHit(PrimaryRayTracerBLAS.ClosestHit());
+                // Any hit
             }
             
             // Skip background
-            Hit ClosestHit = PrimaryRayTracerTLAS.ClosestHit();
+            Hit ClosestHit = PrimaryRayTracer.ClosestHit();
 
             if (!ClosestHit) continue;
-            const Mesh* Mesh = PrimaryRayTracerTLAS.ClosestHitElement()->BLAS->Meta.MeshRef;
+            const Mesh* Mesh = PrimaryRayTracer.ClosestHitElement()->BLAS->Meta.MeshRef;
             Vector3f Color{};
             switch (Mesh->GetMeshType())
             {
@@ -92,11 +88,12 @@ struct ShadeContext
     std::uniform_real_distribution<float>& Uniform;
     std::default_random_engine& RNG;
     const std::span<const std::pair<const TLASElement*, Box3f>> EmissiveElements;
+    BVHIterationStack* IterationStack;
 };
 
 static const Matrix3f RotationX = Matrix3f::RotationY(M_PI / 2.0);
 
-static Vector4f ShadeHit(const TraceRayTLAS& CurrentHit, const RayTracerFrameParameters& RayTracingParameters, const ShadeContext& ShadingContext, uint32_t RemainingEvaluationCount)
+static Vector4f ShadeHit(const TraceRayBVH& CurrentHit, const RayTracerFrameParameters& RayTracingParameters, const ShadeContext& ShadingContext, uint32_t RemainingEvaluationCount)
 {
     if (RemainingEvaluationCount == 0) return Vector4f(0,0,0,1);
     
@@ -228,24 +225,14 @@ static Vector4f ShadeHit(const TraceRayTLAS& CurrentHit, const RayTracerFramePar
                     
                     SunLightRay.direction = qPitch(qYaw(Shading.SunLightDirection));
                     
-                    TraceRayTLAS SunlightRayTracerTLAS(*AccelerationStructure, SunLightRay);
-    
-                    bool HasHit = false;
-                    for (BVHHit TLASHit : SunlightRayTracerTLAS)
-                    {
-                        const TLASElement& Elt = *SunlightRayTracerTLAS.Element();
-        
-                        TraceRayBLAS SunlightRayTracerBLAS(*(Elt.BLAS), SunLightRay, SunlightRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
-        
-                        for (Hit Hit : SunlightRayTracerBLAS)
-                        {                    
-                            // BLAS Any Hit   
-                            HasHit = true;
-                        }
-                        if (HasHit) break;
-                    }
                     
-                    if (HasHit) HitCount++;
+                    TraceRayBVH SunlightRayTracer(*RayTracingParameters.AccelerationStructure, SunLightRay, ShadingContext.IterationStack, RemainingEvaluationCount - 1);
+                    for (Hit bit : SunlightRayTracer)
+                    {                        
+                        // Any hit
+                        HitCount++;
+                        break;
+                    }
                 }
     
                 SunlightVisibility = 1.f - ((float)(HitCount) / (float)(RayTracingParameters.SunlightSampleCount));
@@ -306,24 +293,15 @@ static Vector4f ShadeHit(const TraceRayTLAS& CurrentHit, const RayTracerFramePar
                         .distance = Magnitude(samplePosition - origin),
                     };
                     
-                    TraceRayTLAS EmissiveLightTracerTLAS(*AccelerationStructure, EmissiveRay);
-                    for (BVHHit bvhHit : EmissiveLightTracerTLAS) 
+                    TraceRayBVH EmissiveLightTracer(*RayTracingParameters.AccelerationStructure, EmissiveRay, ShadingContext.IterationStack, RemainingEvaluationCount - 1);
+                    for (Hit bit : EmissiveLightTracer)
                     {
-                        const TLASElement& Elt = *EmissiveLightTracerTLAS.Element();
-                        if (Elt.MaterialIndex == emissiveMatId) continue;
+                        const TLASElement& Elt = *EmissiveLightTracer.Element();
+                        if (Elt.MaterialIndex == emissiveMatId) continue; // TODO introduce a way to filter this
                         
-                        bool HasHit = false;
-                        TraceRayBLAS EmissiveLightTracerBLAS(*(Elt.BLAS), EmissiveRay, EmissiveLightTracerTLAS.ClosestHit(), Elt.WorldToModel);
-                        for (Hit Hit : EmissiveLightTracerBLAS)
-                        {                    
-                            // BLAS Any Hit   
-                            HasHit = true;
-                        }
-                        if (HasHit) 
-                        {
-                            Visibility += 1.f;
-                            break;
-                        }
+                        // Any hit
+                        Visibility += 1.f;
+                        break;
                     }
                 }
                 Visibility /= (float)(RayTracingParameters.EmissiveSurfaceSampleCount);
@@ -392,29 +370,21 @@ static Vector4f ShadeHit(const TraceRayTLAS& CurrentHit, const RayTracerFramePar
                 .distance = 50.f
             };
 
-            TraceRayTLAS IndirectLightRayTracerTLAS(*AccelerationStructure, IndirectLightRay);
-            for (BVHHit TLASHit : IndirectLightRayTracerTLAS)
+            TraceRayBVH IndirectLightRayTracer(*RayTracingParameters.AccelerationStructure, IndirectLightRay, ShadingContext.IterationStack, RemainingEvaluationCount - 1);
+            for (Hit bit : IndirectLightRayTracer)
             {
-                const TLASElement& Elt = *(IndirectLightRayTracerTLAS.Element());
-    
-                TraceRayBLAS IndirectLightRayTracerBLAS(*(Elt.BLAS), IndirectLightRay, IndirectLightRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
-                for (Hit Hit : IndirectLightRayTracerBLAS)
-                {                    
-                    // BLAS Any Hit   
-                }
-                
-                IndirectLightRayTracerTLAS.AcceptHit(IndirectLightRayTracerBLAS.ClosestHit());
+                // Any hit
             }
 
             Vector3f IndirectLight(0);
-            if (IndirectLightRayTracerTLAS.ClosestHit())
+            if (IndirectLightRayTracer.ClosestHit())
             {
-                if (Scene->materials[IndirectLightRayTracerTLAS.ClosestHitElement()->MaterialIndex].flags & GLTF::Material::Emissive)
+                if (Scene->materials[IndirectLightRayTracer.ClosestHitElement()->MaterialIndex].flags & GLTF::Material::Emissive)
                 {
-                    IndirectLight += Scene->materials[IndirectLightRayTracerTLAS.ClosestHitElement()->MaterialIndex].emissive.xyz();
+                    IndirectLight += Scene->materials[IndirectLightRayTracer.ClosestHitElement()->MaterialIndex].emissive.xyz();
                 }
                 
-                IndirectLight += ShadeHit(IndirectLightRayTracerTLAS, RayTracingParameters, ShadingContext, RemainingEvaluationCount - 1).xyz();
+                IndirectLight += ShadeHit(IndirectLightRayTracer, RayTracingParameters, ShadingContext, RemainingEvaluationCount - 1).xyz();
             }
             else
             {
@@ -466,7 +436,10 @@ void RayTracerBVH_RenderShaded(ImageBuffer<Math::Vector3f>& RenderTarget, ImageB
         std::default_random_engine rng( hwseed() );
         std::uniform_real_distribution<float> uniform(0, 1);
         
-        ShadeContext shadingCtx = {RenderTarget.Size() * 2u, uniform, rng, emissiveElements};
+        // Shared memory
+        BVHIterationStack bvhIterationStack{static_cast<uint32_t>(std::max(RayTracingParameters.IndirectSampleBounceCount, 1)), AccelerationStructure->Height + 1, AccelerationStructure->Meta.HighestBlass + 1};
+        
+        ShadeContext shadingCtx = {RenderTarget.Size() * 2u, uniform, rng, emissiveElements, &bvhIterationStack};
         
 #pragma omp for collapse(2) schedule(dynamic)
         for (int y = 0; y < Height; y++)
@@ -482,24 +455,16 @@ void RayTracerBVH_RenderShaded(ImageBuffer<Math::Vector3f>& RenderTarget, ImageB
                 .distance = Magnitude(End - Start)
             };
             
-            TraceRayTLAS PrimaryRayTracerTLAS(*RayTracingParameters.AccelerationStructure, PrimaryRay);
-            for (BVHHit TLASHit : PrimaryRayTracerTLAS)
+            TraceRayBVH PrimaryRayTracer(*RayTracingParameters.AccelerationStructure, PrimaryRay, &bvhIterationStack, RayTracingParameters.IndirectSampleBounceCount - 1);
+            for (Hit bit : PrimaryRayTracer)
             {
-                const TLASElement& Elt = *PrimaryRayTracerTLAS.Element();
-                TraceRayBLAS PrimaryRayTracerBLAS(*(Elt.BLAS), PrimaryRay, PrimaryRayTracerTLAS.ClosestHit(), Elt.WorldToModel);
-                
-                for (Hit Hit : PrimaryRayTracerBLAS)
-                {                    
-                    // BLAS Any Hit   
-                }
-                
-                PrimaryRayTracerTLAS.AcceptHit(PrimaryRayTracerBLAS.ClosestHit());
+                // Any hit
             }
         
             // Skip background
-            if (!PrimaryRayTracerTLAS.ClosestHit()) continue;
+            if (!PrimaryRayTracer.ClosestHit()) continue;
 
-            WriteBuffer(RenderTarget, x, y, ShadeHit(PrimaryRayTracerTLAS, RayTracingParameters, shadingCtx, RayTracingParameters.IndirectSampleBounceCount).xyz());
+            WriteBuffer(RenderTarget, x, y, ShadeHit(PrimaryRayTracer, RayTracingParameters, shadingCtx, RayTracingParameters.IndirectSampleBounceCount).xyz());
         }
     }
 }
