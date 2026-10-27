@@ -78,6 +78,86 @@ Math::Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chro
     return RGBtoXYZ;
 }
 
+float PQ::OETF(float linear)
+{
+    // Constants from SMPTE ST 2084-2014
+    const float m1 = 0.1593017578125; // = 2610. / 4096. * .25;
+    const float m2 = 78.84375; // = 2523. / 4096. *  128;
+    const float c1 = 0.8359375; // = 2392. / 4096. * 32 - 2413./4096.*32 + 1;
+    const float c2 = 18.8515625; // = 2413. / 4096. * 32;
+    const float c3 = 18.6875; // = 2392. / 4096. * 32;
+    const float C = 1.0f;
+
+    float L = linear / C;
+    float Lm = pow(L, m1);
+    float N1 = (c1 + c2 * Lm);
+    float N2 = (1.0f + c3 * Lm);
+    float N = N1 / N2;
+    float P = pow(N, m2);
+
+    return P;
+}
+
+float PQ::EOTF(float PQ)
+{
+    // Constants from SMPTE ST 2084-2014
+    const float m1 = 0.1593017578125; // = 2610. / 4096. * .25;
+    const float m2 = 78.84375; // = 2523. / 4096. *  128;
+    const float c1 = 0.8359375; // = 2392. / 4096. * 32 - 2413./4096.*32 + 1;
+    const float c2 = 18.8515625; // = 2413. / 4096. * 32;
+    const float c3 = 18.6875; // = 2392. / 4096. * 32;
+    const float C = 1.0f;
+
+    float Np = pow(PQ, 1.f / m2);
+    float L = Np - c1;
+    L = std::max(0.f, L);
+    L = L / (c2 - c3 * Np);
+    L = pow(L, 1.f / m1);
+    float P = L * C;
+
+    return P;
+}
+
+double PQ::OETF(double linear)
+{
+    // Constants from SMPTE ST 2084-2014
+    const double m1 = 0.1593017578125; // = 2610. / 4096. * .25;
+    const double m2 = 78.84375; // = 2523. / 4096. *  128;
+    const double c1 = 0.8359375; // = 2392. / 4096. * 32 - 2413./4096.*32 + 1;
+    const double c2 = 18.8515625; // = 2413. / 4096. * 32;
+    const double c3 = 18.6875; // = 2392. / 4096. * 32;
+    const double C = 1.0f;
+
+    double L = linear / C;
+    double Lm = pow(L, m1);
+    double N1 = (c1 + c2 * Lm);
+    double N2 = (1.0 + c3 * Lm);
+    double N = N1 / N2;
+    double P = pow(N, m2);
+
+    return P;
+}
+
+double PQ::EOTF(double PQ)
+{
+    // Constants from SMPTE ST 2084-2014
+    const float m1 = 0.1593017578125; // = 2610. / 4096. * .25;
+    const float m2 = 78.84375; // = 2523. / 4096. *  128;
+    const float c1 = 0.8359375; // = 2392. / 4096. * 32 - 2413./4096.*32 + 1;
+    const float c2 = 18.8515625; // = 2413. / 4096. * 32;
+    const float c3 = 18.6875; // = 2392. / 4096. * 32;
+    const float C = 1.0f;
+
+    double Np = pow(PQ, 1. / m2);
+    double L = Np - c1;
+    L = std::max(0., L);
+    L = L / (c2 - c3 * Np);
+    L = pow(L, 1. / m1);
+    double P = L * C;
+
+    return P;
+}
+
 float sRGB::OETF(float linear)
 {
     constexpr float alpha = 0.055;

@@ -26,3 +26,6 @@
 [submodule "ImGuizmo"]
 	path = Dependencies/LibSources/ImGuizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "ImPlot"]
+	path = Dependencies/LibSources/ImPlot
+	url = https://github.com/epezent/implot.git

@@ -80,6 +80,19 @@ Math::Matrix4f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::V
 //Assuming the white point luminance Y value is 100 like standardised in D65 mid-day sunlight (which is also the standard white in REC 709)
 Math::Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, float WhitePointLuminance = 100.0f, Math::Vector2f chromaWhite = /*D65*/ Math::Vector2f( 0.31270f, 0.32900f ) );
 
+namespace RGB
+{
+    INLINE float RGBToLuminance(const Math::Vector3f& color)
+    {
+        return color.x * 0.3086f + color.y * 0.6094f + color.z * 0.0820f;
+    }
+
+    INLINE double RGBToLuminance(const Math::Vector3d& color)
+    {
+        return color.x * 0.3086 + color.y * 0.6094 + color.z * 0.0820;
+    }
+}
+
 namespace D65
 {
     INLINE Math::Vector2f WhitePoint()    {return Math::Vector2f(0.31270f, 0.32900f);}
@@ -113,6 +126,16 @@ namespace sRGB
     double EOTF(double sRGB);
     double EOTF(double sRGB, double gamma, double alpha);
 }
+
+namespace PQ
+{
+    float OETF(float linear);
+    float EOTF(float PQ);
+    
+    double OETF(double linear);
+    double EOTF(double PQ);
+}
+
 
 namespace DciP3D65
 {

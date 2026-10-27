@@ -40,6 +40,7 @@ SampleScencesRepos = {
 -- Sample projects
 SampleProjects = {
     "AntiAliasing",
+    "ColorTools",
     "GLTFViewer",
     "MathSimtBenchmarks",
     "MiniEngineCooker",
@@ -496,6 +497,28 @@ end
             path.join(project_dir, "src", "*.h")
         }
     
+    project "ImPlot"
+        language "C++"
+        kind "StaticLib"
+        
+        -- Solution file
+        location (path.join(gb_SolutionProjectDir, "Dependencies"))
+        
+        project_dir = path.join(gb_SourceDependencyDir, "ImPlot")
+        
+        -- Project includes
+        includedirs {
+            project_dir,
+            path.join(gb_SourceDependencyDir, "imgui"),
+        }
+
+        -- Project files
+        files {
+            path.join(project_dir, "*.cpp"),
+            path.join(project_dir, "*.c"), 
+            path.join(project_dir, "*.h")
+        }
+    
 group "Utilites"
     project "Shared"
         language "C++"
@@ -862,6 +885,7 @@ group "Samples"
             path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
             path.join(gb_SourceDependencyDir, "ImGuizmo", "src"),
             path.join(gb_SourceDependencyDir, "Lyra", "include"),
+            path.join(gb_SourceDependencyDir, "ImPlot")
         }
 
         -- Project files
@@ -890,7 +914,8 @@ group "Samples"
             "Rendering",
             "TinyGLTF3",
             "ImGUI",
-            "ImGUIzmo"
+            "ImGUIzmo",
+            "ImPlot"
         }
 
         dependson {
@@ -907,7 +932,8 @@ group "Samples"
             "Rendering",
             "TinyGLTF3",
             "ImGUI",
-           "ImGUIzmo"
+            "ImGUIzmo",
+            "ImPlot"
         }
 
         -- Window specific 
@@ -1016,6 +1042,7 @@ group "Samples"
                 path.join(gb_SourceDependencyDir, "imgui"),
                 path.join(gb_SourceDependencyDir, "ImGuizmo", "src"),
                 path.join(gb_CompiledDependencyDir, "glew-2.3.1", "include"),
+                path.join(gb_SourceDependencyDir, "ImPlot")
             }
 
             -- Project files

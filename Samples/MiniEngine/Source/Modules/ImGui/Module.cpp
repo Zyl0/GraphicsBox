@@ -10,6 +10,7 @@
 #include "Rendering/GLHelper.h"
 
 #include <imgui.h>
+#include <implot.h>
 
 #include <backends/imgui_impl_opengl3.h>
 
@@ -76,5 +77,23 @@ namespace ImGui
         ImGui::Render();
         ImGui::EndFrame();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+}
+
+namespace ImPlot
+{
+    void Module::RegisterDependencies(Engine::Spec& spec)
+    {
+        spec.Register<ImGui::Module>();
+    }
+
+    void Module::Initialize()
+    {
+        CreateContext();
+    }
+
+    void Module::Shutdown()
+    {
+        DestroyContext();
     }
 }

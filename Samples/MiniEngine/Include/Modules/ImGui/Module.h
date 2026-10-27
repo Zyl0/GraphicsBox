@@ -29,3 +29,16 @@ namespace ImGui
         void _EndFrame();
     };
 }
+
+namespace ImPlot
+{
+    class Module : public Engine::IModule
+    {
+    public:
+        void RegisterDependencies(Engine::Spec& spec) override;
+        
+        void Initialize() override;
+        
+        void Shutdown() override;
+    };
+}
