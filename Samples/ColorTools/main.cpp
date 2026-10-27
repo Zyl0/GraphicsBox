@@ -474,6 +474,9 @@ public:
                     (1.0f - m_GamutX[i] - m_GamutY[i]) / m_GamutY[i]
                 };
                 Vector3f rgb = Rec2020::FromXYZ() * xyz;
+                rgb.x = std::clamp(rgb.x, 0.f, 1.f);
+                rgb.y = std::clamp(rgb.y, 0.f, 1.f);
+                rgb.z = std::clamp(rgb.z, 0.f, 1.f);
                 
                 ImU32 color = IM_COL32( rgb.x * 255.f, rgb.y * 255.f, rgb.z * 255.f, 255);
 
