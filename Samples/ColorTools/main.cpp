@@ -28,6 +28,24 @@ constexpr float kMaxLuminance = 10000.0f;
 // #define GAMUT_DOWN_SAMPLE_AS_AVERAGE
 #define LUMINANCE_LOGARITHMIC_HDR
 
+ImPlotColormap GetCustomHotColormap()
+{
+    static ImPlotColormap s_Cmap = -1;
+    if (s_Cmap == -1)
+    {
+        static const ImVec4 colors[] = 
+        {
+            ImVec4(0.00f, 0.00f, 0.00f, 1.0f), // 0%:   Dark / Black
+            ImVec4(0.85f, 0.00f, 0.00f, 1.0f), // 33%:  Red
+            ImVec4(1.00f, 0.90f, 0.00f, 1.0f), // 66%:  Yellow
+            ImVec4(1.00f, 1.00f, 1.00f, 1.0f)  // 100%: White
+        };
+        // qual = false builds a smooth 256-entry gradient table between these keys
+        s_Cmap = ImPlot::AddColormap("DarkRedYellowWhite", colors, 4, /*qual=*/false);
+    }
+    return s_Cmap;
+}
+
 class AppModule : public Engine::IModule
 {
 public:
@@ -396,6 +414,7 @@ public:
         ImVec2 size = ImGui::GetWindowSize();
         size.x -= 20.f;
         
+        ImPlot::PushColormap(GetCustomHotColormap());
         if (ImPlot::BeginPlot("Luminance (nits)", ImVec2(size.x, size.x)))
         {
 #ifdef LUMINANCE_LOGARITHMIC_HDR
@@ -440,7 +459,8 @@ public:
             
             ImPlot::EndPlot();
         }
-
+        ImPlot::PopColormap();
+        
         if (ImPlot::BeginPlot("Image Gamut", ImVec2(size.x, size.x)))
         {
             ImPlot::SetupAxes("x", "y");
