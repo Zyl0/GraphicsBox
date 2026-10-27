@@ -20,11 +20,13 @@ using namespace Math;
 
 constexpr uint32_t kLuminanceGraphSizeX = 512;
 constexpr uint32_t kLuminanceGraphSizeY = 256;
-constexpr uint32_t kGamutInputDownscaleScale = 64u;
+constexpr uint32_t kGamutInputDownscaleScale = 16u;
 constexpr float kMinLuminance = 0.0001f;
 constexpr float kMaxLuminance = 10000.0f;
 
 #define GAMUT_DRAW_COLORED_POINTS
+// #define GAMUT_DOWN_SAMPLE_AS_AVERAGE
+#define LUMINANCE_LOGARITHMIC_HDR
 
 class AppModule : public Engine::IModule
 {
@@ -44,14 +46,16 @@ public:
     {        
         std::filesystem::path SrcImage = "lenna.png";
         m_SrcGamut = ColorState::CS_Rec709;
-        m_SrcEncoding = Image::sRGB;
+        m_SrcEncoding = Image::Linear;
 
         std::filesystem::path SrcAbsImage;
         AssertOrError(GetAbsoluteFilePath(SrcImage, SrcAbsImage), "No such file or directory")
         m_WorkingImage.emplace(ImageLoad(SrcAbsImage, Image::Float));        
         m_LuminanceGraphHeatMap.resize(kLuminanceGraphSizeX * kLuminanceGraphSizeY);
-        m_GamutX.resize(m_WorkingImage->Width() * m_WorkingImage->Height() / kGamutInputDownscaleScale);
-        m_GamutY.resize(m_WorkingImage->Width() * m_WorkingImage->Height() / kGamutInputDownscaleScale);
+        m_GamutX.clear();
+        m_GamutY.clear();
+        m_GamutX.reserve((m_WorkingImage->Width() + kGamutInputDownscaleScale - 1) * (m_WorkingImage->Height() + kGamutInputDownscaleScale - 1) / kGamutInputDownscaleScale);
+        m_GamutY.reserve((m_WorkingImage->Width() + kGamutInputDownscaleScale - 1) * (m_WorkingImage->Height() + kGamutInputDownscaleScale - 1) / kGamutInputDownscaleScale);
         
         // Linearize
         float DecodeLuminance = 0.0f;
@@ -134,7 +138,7 @@ public:
             ImageBuffer<Vector4f> UploadBuffer(UploadImage);
             uint32_t ImageComponentCount = m_WorkingImage->ComponentCount(), width = m_WorkingImage->Width(), height = m_WorkingImage->Height();
 
-            Matrix4f RGBToXYZ, XYZToRec709RGB;
+            Matrix3f RGBToXYZ, XYZToRec709RGB;
 
             if (m_SrcGamut != ColorState::CS_Rec709)
             {
@@ -151,7 +155,7 @@ public:
                     break;
                 
                 case ColorState::CS_ArriLogC:
-                    RGBToXYZ = ToTransform4(ArriLogC::CSArriLogCToCSXYZMat);
+                    RGBToXYZ = ArriLogC::CSArriLogCToCSXYZMat;
                     break;
                 
                 case ColorState::CS_Rec709:
@@ -170,7 +174,7 @@ public:
 
                 if (m_SrcGamut != ColorState::CS_Rec709)
                 {
-                    sample = XYZToRec709RGB * (RGBToXYZ * sample);
+                    sample.xyz() = XYZToRec709RGB * (RGBToXYZ * sample.xyz());
                 }
 
                 // Encode to sRGB
@@ -184,70 +188,14 @@ public:
             m_DisplayTexture.emplace(UploadImage);
             m_DisplayFrameBuffer.emplace(FrameBuffer::Attachment(UploadImage, {}));
         }
+        m_DecodedLuminance = DecodeLuminance;
+        m_DecodedPaperWhiteLuminance = DecodedPaperwhiteLuminance;
         
         // Luminance map
-        {            
+        {
             const float kMinLogLuminance = std::log10(kMinLuminance);
             const float kMaxLogLuminance = std::log10(kMaxLuminance);
-
-            ImageBuffer<Vector4f> WorkingBuffer(m_WorkingImage.value());
-            uint32_t ImageComponentCount = m_WorkingImage->ComponentCount(), width = m_WorkingImage->Width(), height = m_WorkingImage->Height();
-            
-            // dbug
-
-            double sumLum = 0.0;
-            float minLumObserved = FLT_MAX;
-            float maxLumObserved = 0.0f;
-
-            size_t count = 0;
-
-            for (int y = 0; y < height; ++y)
-            for (int x = 0; x < width; ++x)
-            {
-                Vector4f sample = WorkingBuffer.Read(x, y);
-                const float lum = RGB::RGBToLuminance(sample.xyz());
-
-                sumLum += lum;
-                minLumObserved = std::min(minLumObserved, lum);
-                maxLumObserved = std::max(maxLumObserved, lum);
-                ++count;
-            }
-
-            printf("Luminance: min=%f, avg=%f, max=%f nits\n",
-                   minLumObserved,
-                   count ? sumLum / count : 0.0,
-                   maxLumObserved);
-            
-            // dbug end
-            
-            for (uint32_t y = 0; y < height; y++)
-            for (uint32_t x = 0; x < width; x++)
-            {
-                float luma;
-                Vector4f sample = WorkingBuffer.Read(x, y);
-                // sample.x *= DecodeLuminance;
-                // sample.y *= DecodeLuminance;
-                // sample.z *= DecodeLuminance;
-                luma = RGB::RGBToLuminance(sample.xyz());
-
-                // Horizontal position bin.
-                uint32_t bx = x * kLuminanceGraphSizeX / width;
-                bx = std::clamp(bx, 0u, kLuminanceGraphSizeX - 1);
-
-                // Logarithmic luminance bin.
-                float t_log = std::log10(std::max(luma, kMinLuminance));
-                float t = (t_log - kMinLogLuminance) / (kMaxLogLuminance - kMinLogLuminance);
-
-                uint32_t by = static_cast<int>(t * kLuminanceGraphSizeY);
-                by = std::clamp(by, 0u, kLuminanceGraphSizeY - 1u);
-
-                m_LuminanceGraphHeatMap[by * kLuminanceGraphSizeX + bx] += 1.0f;
-            }
-        }
-
-        // Gamut
-        {
-            Matrix4f RGBToXYZ;
+            Matrix3f RGBToXYZ;
             
             switch (m_SrcGamut)
             {
@@ -264,7 +212,109 @@ public:
                 break;
                 
             case ColorState::CS_ArriLogC:
-                RGBToXYZ = ToTransform4(ArriLogC::CSArriLogCToCSXYZMat);
+                RGBToXYZ = ArriLogC::CSArriLogCToCSXYZMat;
+                break;
+                
+            case ColorState::CS_Count:
+                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported gamut")
+                }
+
+            ImageBuffer<Vector4f> WorkingBuffer(m_WorkingImage.value());
+            uint32_t width = m_WorkingImage->Width(), height = m_WorkingImage->Height();
+            
+            // dbug
+
+            double sumLum = 0.0;
+            float minLumObserved = FLT_MAX;
+            float maxLumObserved = 0.0f;
+
+            size_t count = 0;
+
+            for (int y = 0; y < height; ++y)
+            for (int x = 0; x < width; ++x)
+            {
+                Vector4f sample = WorkingBuffer.Read(x, y);
+                const float lum = RGB::RGBToLuminance(sample.xyz(), RGBToXYZ);
+
+                sumLum += lum;
+                minLumObserved = std::min(minLumObserved, lum);
+                maxLumObserved = std::max(maxLumObserved, lum);
+                ++count;
+            }
+
+            printf("Luminance: min=%f, avg=%f, max=%f nits\n",
+                   minLumObserved,
+                   count ? sumLum / count : 0.0,
+                   maxLumObserved);
+            
+            // dbug end
+            
+            std::fill(m_LuminanceGraphHeatMap.begin(), m_LuminanceGraphHeatMap.end(), 0.0f);
+            for (uint32_t y = 0; y < height; y++)
+            for (uint32_t x = 0; x < width; x++)
+            {
+                float luma;
+                Vector4f sample = WorkingBuffer.Read(x, y);
+                // sample.x *= DecodeLuminance;
+                // sample.y *= DecodeLuminance;
+                // sample.z *= DecodeLuminance;
+                luma = RGB::RGBToLuminance(sample.xyz(), RGBToXYZ);
+                
+                                
+                // ITU-R BT.709 luminance coefficients
+                luma = sample.x * 0.2126f + sample.y * 0.7152f + sample.z * 0.0722f;
+                
+#ifdef LUMINANCE_LOGARITHMIC_HDR
+                uint32_t bx = x * kLuminanceGraphSizeX / width;
+                
+                bx = std::clamp(bx, 0u, kLuminanceGraphSizeX - 1u);
+                
+                float t_log = std::log10(std::clamp(luma, kMinLuminance, kMaxLuminance));
+                float t = (t_log - kMinLogLuminance) / (kMaxLogLuminance - kMinLogLuminance);
+                
+                // Invert Y so low luminance is at the bottom (row sizeY - 1) and peak is at the top (row 0)
+                uint32_t by = static_cast<uint32_t>((1.0f - t) * (kLuminanceGraphSizeY - 1u));
+                by = std::clamp(by, 0u, kLuminanceGraphSizeY - 1u);
+                
+                m_LuminanceGraphHeatMap[by * kLuminanceGraphSizeX + bx] += 1.0f;
+#else // LUMINANCE_LOGARITHMIC_HDR
+                // Horizontal bin (Image X)
+                uint32_t bx = x * kLuminanceGraphSizeX / width;
+                bx = std::clamp(bx, 0u, kLuminanceGraphSizeX - 1u);
+                
+                // Linear normalized luminance in [0, 1]
+                float t = std::clamp(luma / kMaxLuminance, 0.0f, 1.0f);
+                
+                // Invert Y so that luma = 0 is at the bottom (row sizeY - 1) 
+                // and luma = 250 is at the top (row 0)
+                uint32_t by = static_cast<uint32_t>((1.0f - t) * (kLuminanceGraphSizeY - 1u));
+                by = std::clamp(by, 0u, kLuminanceGraphSizeY - 1u);
+                
+                m_LuminanceGraphHeatMap[by * kLuminanceGraphSizeX + bx] += 1.0f;
+#endif // !LUMINANCE_LOGARITHMIC_HDR
+            }
+        }
+
+        // Gamut
+        {
+            Matrix3f RGBToXYZ;
+            
+            switch (m_SrcGamut)
+            {
+            case ColorState::CS_Rec709:
+                RGBToXYZ = Rec709::ToXYZ();
+                break;
+                
+            case ColorState::CS_DciP3D65:
+                RGBToXYZ = DciP3D65::ToXYZ();
+                break;
+                
+            case ColorState::CS_Rec2020:
+                RGBToXYZ = Rec2020::ToXYZ();
+                break;
+                
+            case ColorState::CS_ArriLogC:
+                RGBToXYZ = ArriLogC::CSArriLogCToCSXYZMat;
                 break;
                 
             case ColorState::CS_Count:
@@ -280,6 +330,7 @@ public:
                 Vector4f sample{};
                 
                 // Downscale
+#ifdef GAMUT_DOWN_SAMPLE_AS_AVERAGE
                 for (uint32_t cy = 0; cy < kGamutInputDownscaleScale; cy++)
                 for (uint32_t cx = 0; cx < kGamutInputDownscaleScale; cx++)
                 {
@@ -288,21 +339,24 @@ public:
                     if (sx < width && sy < height)
                         sample += Vector4f(WorkingBuffer.Read(sx, sy).xyz(), 1.f);
                 }
+#else // GAMUT_DOWN_SAMPLE_AS_AVERAGE
+                sample += Vector4f(WorkingBuffer.Read(std::min(x + kGamutInputDownscaleScale / 2,  width - 1), std::min(y + kGamutInputDownscaleScale / 2, height - 1)).xyz(), 1.f);
+#endif // !GAMUT_DOWN_SAMPLE_AS_AVERAGE
 
                 sample /= sample.w;
 
-                Vector3f XYZ = (RGBToXYZ * Vector4f(Vector3f(sample.xyz() / DecodedPaperwhiteLuminance), 1.f)).xyz();
+                Vector3f XYZ = RGBToXYZ * (sample.xyz() / DecodedPaperwhiteLuminance);
                 float sum = XYZ.x + XYZ.y + XYZ.z;
 
-                if (sum > 1e-8f)
+                if (sum > 1e-6f)
                 {
-                    m_GamutX[y * width / kGamutInputDownscaleScale + x/ kGamutInputDownscaleScale] = XYZ.x / sum;
-                    m_GamutY[y * width/ kGamutInputDownscaleScale + x/ kGamutInputDownscaleScale] = XYZ.y / sum;
+                    m_GamutX.push_back(XYZ.x / sum);
+                    m_GamutY.push_back(XYZ.y / sum);
                 }
                 else
                 {
-                    m_GamutX[y * width/ kGamutInputDownscaleScale + x/ kGamutInputDownscaleScale] = 0.f;
-                    m_GamutY[y * width/ kGamutInputDownscaleScale + x/ kGamutInputDownscaleScale] = 0.f;
+                    m_GamutX.push_back( 0.f );
+                    m_GamutY.push_back( 0.f );
                 }
             }
             
@@ -344,22 +398,51 @@ public:
         
         if (ImPlot::BeginPlot("Luminance (nits)", ImVec2(size.x, size.x)))
         {
-            ImPlot::SetupAxes("Image X", "Luminance (nits, log scale)");
+#ifdef LUMINANCE_LOGARITHMIC_HDR
+            const double minLog = std::log10(0.01);   // -2
+            const double maxLog = std::log10(10000.0); // +4
             
-            ImPlot::SetupAxisScale(ImAxis_Y1, ImPlotScale_Log10);
+            ImPlot::SetupAxesLimits(0, m_WorkingImage->Width(), minLog, maxLog, ImGuiCond_Always);
+            
+            // Custom tick labels displaying actual nits: 10^y
+            static const double tickValues[] = { -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0 };
+            static const char* tickLabels[]  = { "0.01", "0.1", "1", "10", "100", "1000", "10000" };
+            ImPlot::SetupAxisTicks(ImAxis_Y1, tickValues, 7, tickLabels);
             ImPlot::PlotHeatmap("Pixel density", m_LuminanceGraphHeatMap.data(),
                 kLuminanceGraphSizeY, kLuminanceGraphSizeX,
-                0.0, 10.0,  // Tune to your density distribution.
+                0.0, 10.0,
                 nullptr,
-                ImPlotPoint(0, kMinLuminance),
-                ImPlotPoint(m_WorkingImage->Width(), kMaxLuminance)
-                );
+                ImPlotPoint(0, minLog),                          // bottom-left
+                ImPlotPoint(m_WorkingImage->Width(), maxLog)     // top-right
+            );
+            
+            const float x_bounds[] = { 0.0f, static_cast<float>(m_WorkingImage->Width()) };
+            
+            const float y_sdr_min[] = { std::log10(0.02f), std::log10(0.02f) };
+            ImPlot::PlotLine("SDR Min (0 nits)", x_bounds, y_sdr_min, 2);
+            
+            const float y_sdr_max[] = { std::log10(250.0f), std::log10(250.0f) };
+            ImPlot::PlotLine("SDR Max (250 nits)", x_bounds, y_sdr_max, 2);
+            
+            const float y_paperwhite[] = { std::log10(m_DecodedPaperWhiteLuminance), std::log10(m_DecodedPaperWhiteLuminance) };
+            ImPlot::PlotLine("Paper White", x_bounds, y_sdr_max, 2);
+#else // LUMINANCE_LOGARITHMIC_HDR
+            ImPlot::SetupAxes("Image X", "Luminance (nits)");
+            ImPlot::SetupAxesLimits(0, m_WorkingImage->Width(), 0.0, m_DecodedPaperWhiteLuminance, ImGuiCond_Always);
+            ImPlot::PlotHeatmap("Pixel density", m_LuminanceGraphHeatMap.data(),
+                kLuminanceGraphSizeY, kLuminanceGraphSizeX,
+                0.0, 10.0,  // Adjust colormap scale / density tuning as needed
+                nullptr,
+                ImPlotPoint(0, 0.0),                                             // bounds_min (bottom-left)
+                ImPlotPoint(m_WorkingImage->Width(), m_DecodedPaperWhiteLuminance) // bounds_max (top-right)
+            );
+#endif // !LUMINANCE_LOGARITHMIC_HDR
             
             ImPlot::EndPlot();
         }
 
         if (ImPlot::BeginPlot("Image Gamut", ImVec2(size.x, size.x)))
-            {
+        {
             ImPlot::SetupAxes("x", "y");
             ImPlot::SetupAxisLimits(
                 ImAxis_X1, 0.0, 0.8, ImGuiCond_Always);
@@ -385,13 +468,12 @@ public:
             {
                 ImVec2 pos = ImPlot::PlotToPixels(m_GamutX[i], m_GamutY[i]);
 
-                Vector4f xyz = {
+                Vector3f xyz = {
                     m_GamutX[i] / m_GamutY[i],
                     1.f,
-                    (1.0f - m_GamutX[i] - m_GamutY[i]) / m_GamutY[i],
-                    1.f
+                    (1.0f - m_GamutX[i] - m_GamutY[i]) / m_GamutY[i]
                 };
-                Vector4f rgb = Rec2020::FromXYZ() * xyz;
+                Vector3f rgb = Rec2020::FromXYZ() * xyz;
                 
                 ImU32 color = IM_COL32( rgb.x * 255.f, rgb.y * 255.f, rgb.z * 255.f, 255);
 
@@ -417,6 +499,9 @@ private:
     std::vector<float> m_LuminanceGraphHeatMap;
     std::vector<float> m_GamutX;
     std::vector<float> m_GamutY;
+    
+    float m_DecodedLuminance;
+    float m_DecodedPaperWhiteLuminance;
 };
 
 

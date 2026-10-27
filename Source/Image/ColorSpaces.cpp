@@ -17,7 +17,7 @@ const char* GammaTypesNames[ColorState::G_Count] = {
 
 // Calculates conversion matrix to XYZ coords from RGB coords defined respective to the gamut provided by the input chromaticity values for color primaries
 // The same RGB coords will output different XYZ coords depending on the gamut the RGB space is defined in...
-Math::Matrix4f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, Math::Vector2f chromaWhite )
+Math::Matrix3f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, Math::Vector2f chromaWhite )
 {
     // Convert xy to XYZ with Y=1
     auto toXYZ = [](float x, float y) -> Math::Vector3f
@@ -46,13 +46,13 @@ Math::Matrix4f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::V
     // Scale columns of M by S to get RGB to XYZ
     Math::Matrix3f RGBtoXYZ = M * Math::Matrix3f::Scale(S);
 
-    return Math::ToTransform4(RGBtoXYZ);
+    return RGBtoXYZ;
 }
 
 // Calculates conversion matrix to XYZ coords from RGB coords defined respective to the gamut provided by the input chromaticity values for color primaries
 // The same RGB coords will output different XYZ coords depending on the gamut the RGB space is defined in...
 //Assuming the white point luminance Y value is 100 like standardised in D65 mid-day sunlight (which is also the standard white in REC 709)
-Math::Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, float WhitePointLuminance, Math::Vector2f chromaWhite )
+Math::Matrix3f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, float WhitePointLuminance, Math::Vector2f chromaWhite )
 {
     //First with the additional assumption of white.Y == 100, calculate the XYZ coords of white // TODO check
     Math::Vector3f chromaWhite_xyz = Math::Vector3f( chromaWhite.x, chromaWhite.y, 1.0f - chromaWhite.x - chromaWhite.y );
@@ -66,14 +66,13 @@ Math::Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chro
         ( 1 - chromaGreen.x - chromaGreen.y ) / chromaGreen.y,
         ( 1 - chromaBlue.x - chromaBlue.y ) / chromaBlue.y );
 
-    Math::Matrix4f M( Math::Vector4f( primaryX, 0.f ), Math::Vector4f( primaryY, 0.f ), Math::Vector4f( primaryZ, 0.f ), Math::Vector4f( 0.f, 0.f, 0.f, 1.f ) );
+    Math::Matrix3f M(  primaryX , primaryY ,  primaryZ );
     Math::Transpose(M); // we use row vectors in the engine Matrix ( mul defined as v * M, instead of M * v) 
-    Math::Matrix4f invM = Math::Inverse(M);
+    Math::Matrix3f invM = Math::Inverse(M);
 
-    Math::Vector4f S = invM * Math::Vector4f(whiteXYZ, 1.0f);
-    S /= S.w;
+    Math::Vector3f S = invM * whiteXYZ;
     
-    const Math::Matrix4f RGBtoXYZ = ( Math::Transform4f::Scale(S.xyz()) * M );
+    const Math::Matrix3f RGBtoXYZ = ( Math::Matrix3f::Scale(S.xyz()) * M );
 
     return RGBtoXYZ;
 }

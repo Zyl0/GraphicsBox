@@ -73,12 +73,12 @@ extern const char* GammaTypesNames[ColorState::G_Count];
 
 // Calculates conversion matrix to XYZ coords from RGB coords defined respective to the gamut provided by the input chromaticity values for color primaries
 // The same RGB coords will output different XYZ coords depending on the gamut the RGB space is defined in...
-Math::Matrix4f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, Math::Vector2f chromaWhite = /*D65*/ Math::Vector2f( 0.31270f, 0.32900f ) );
+Math::Matrix3f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, Math::Vector2f chromaWhite = /*D65*/ Math::Vector2f( 0.31270f, 0.32900f ) );
 
 // Calculates conversion matrix to XYZ coords from RGB coords defined respective to the gamut provided by the input chromaticity values for color primaries
 // The same RGB coords will output different XYZ coords depending on the gamut the RGB space is defined in...
 //Assuming the white point luminance Y value is 100 like standardised in D65 mid-day sunlight (which is also the standard white in REC 709)
-Math::Matrix4f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, float WhitePointLuminance = 100.0f, Math::Vector2f chromaWhite = /*D65*/ Math::Vector2f( 0.31270f, 0.32900f ) );
+Math::Matrix3f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, float WhitePointLuminance = 100.0f, Math::Vector2f chromaWhite = /*D65*/ Math::Vector2f( 0.31270f, 0.32900f ) );
 
 namespace RGB
 {
@@ -90,6 +90,12 @@ namespace RGB
     INLINE double RGBToLuminance(const Math::Vector3d& color)
     {
         return color.x * 0.3086 + color.y * 0.6094 + color.z * 0.0820;
+    }
+    
+    INLINE float RGBToLuminance(const Math::Vector3f& linearRGB, const Math::Matrix3f& RGBToXYZ)
+    {
+        Math::Vector3f XYZ = RGBToXYZ * linearRGB;
+        return XYZ.y;
     }
 }
 
@@ -106,12 +112,12 @@ namespace Rec709
     INLINE Math::Vector2f Blue()          {return Math::Vector2f(0.15f, 0.06f);}
 
     // https://en.wikipedia.org/wiki/Rec._709
-    INLINE Math::Matrix4f ToXYZ() 
+    INLINE Math::Matrix3f ToXYZ() 
     { 
         return CalculateRGBtoXYZConversionMat( Red(), Green(), Blue(), WhitePoint());
     }
 
-    INLINE Math::Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
+    INLINE Math::Matrix3f FromXYZ() { return Inverse(ToXYZ()); }
 }
 
 namespace sRGB
@@ -145,12 +151,12 @@ namespace DciP3D65
     INLINE Math::Vector2f Blue()          {return Math::Vector2f(0.150f, 0.060f);}
 
     // https://en.wikipedia.org/wiki/DCI-P3
-    INLINE Math::Matrix4f ToXYZ() 
+    INLINE Math::Matrix3f ToXYZ() 
     { 
         return CalculateRGBtoXYZConversionMat( Red(), Green(), Blue(), WhitePoint());
     }
 
-    INLINE Math::Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
+    INLINE Math::Matrix3f FromXYZ() { return Inverse(ToXYZ()); }
 }
 
 namespace Rec2020
@@ -161,12 +167,12 @@ namespace Rec2020
     INLINE Math::Vector2f Blue()          {return Math::Vector2f(0.131f, 0.046f);}
 
     // https://en.wikipedia.org/wiki/Rec._2020
-    INLINE Math::Matrix4f ToXYZ() 
+    INLINE Math::Matrix3f ToXYZ() 
     { 
         return CalculateRGBtoXYZConversionMat( Red(), Green(), Blue(), WhitePoint());
     }
 
-    INLINE Math::Matrix4f FromXYZ() { return Inverse(ToXYZ()); }
+    INLINE Math::Matrix3f FromXYZ() { return Inverse(ToXYZ()); }
 }
 
 namespace Rec2100
@@ -177,8 +183,8 @@ namespace Rec2100
     INLINE Math::Vector2f Blue()          {return Rec2020::Blue();}
 
     // https://en.wikipedia.org/wiki/Rec._2100
-    INLINE Math::Matrix4f ToXYZ()   { return Rec2020::ToXYZ(); };
-    INLINE Math::Matrix4f FromXYZ() { return Rec2020::FromXYZ(); };
+    INLINE Math::Matrix3f ToXYZ()   { return Rec2020::ToXYZ(); };
+    INLINE Math::Matrix3f FromXYZ() { return Rec2020::FromXYZ(); };
 }
 
 namespace ArriLogC
