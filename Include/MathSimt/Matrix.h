@@ -361,6 +361,26 @@ namespace Math::Simt
     }
     
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector3<DataType, ThreadCount> operator *(const Matrix3t<DataType> &M, const Vector3<DataType, ThreadCount>& v)
+    {
+        return Vector3<DataType, ThreadCount>(
+            M(0,0) * v.x + M(0,1) * v.y + M(0, 2) * v.z,
+            M(1,0) * v.x + M(1,1) * v.y + M(1, 2) * v.z,
+            M(2,0) * v.x + M(2,1) * v.y + M(2, 2) * v.z
+            );
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector3<DataType, ThreadCount> operator *(const Matrix3t<DataType> &M, const Vector3t<DataType>& v)
+    {
+        return Vector3<DataType, ThreadCount>(
+            M(0,0) * v.x + M(0,1) * v.y + M(0, 2) * v.z,
+            M(1,0) * v.x + M(1,1) * v.y + M(1, 2) * v.z,
+            M(2,0) * v.x + M(2,1) * v.y + M(2, 2) * v.z
+            );
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
     INLINE Matrix3<DataType, ThreadCount>::ScalarType Determinant(const Matrix3<DataType, ThreadCount>& M)
     {
         return  (M(0,0) * (M(1,1) * M(2,2) - M(1, 2) * M(2, 1)))
@@ -717,6 +737,26 @@ namespace Math::Simt
         }
         
         return res;
+    }
+    
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector4<DataType, ThreadCount> operator *(const Matrix4t<DataType> &M, const Vector4<DataType, ThreadCount>& v)
+    {
+        return Vector4<DataType, ThreadCount>(
+            M(0,0) * v.x + M(0,1) * v.y + M(0, 2) * v.z + M(0,3) * v.w,
+            M(1,0) * v.x + M(1,1) * v.y + M(1, 2) * v.z + M(1,3) * v.w,
+            M(2,0) * v.x + M(2,1) * v.y + M(2, 2) * v.z + M(2,3) * v.w,
+            M(3,0) * v.x + M(3,1) * v.y + M(3, 2) * v.z + M(3,3) * v.w);
+    }
+
+    template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
+    INLINE Vector4<DataType, ThreadCount> operator *(const Vector4<DataType, ThreadCount>& v, const Matrix4t<DataType> &M)
+    {
+        return Vector4<DataType, ThreadCount>(
+            M(0,0) * v.x + M(0,1) * v.x + M(0, 2) * v.x + M(0,3) * v.x,
+            M(1,0) * v.y + M(1,1) * v.y + M(1, 2) * v.y + M(1,3) * v.y,
+            M(2,0) * v.z + M(2,1) * v.z + M(2, 2) * v.z + M(2,3) * v.z,
+            M(3,0) * v.w + M(3,1) * v.w + M(3, 2) * v.w + M(3,3) * v.w);
     }
 
     template<typename DataType, size_t ThreadCount> requires(std::is_arithmetic_v<DataType>)
