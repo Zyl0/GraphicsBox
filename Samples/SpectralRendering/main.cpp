@@ -456,7 +456,7 @@ int main(void)
                         ImGui::SameLine();
 
                         // Color preview
-                        Vector4f preview = Rec709::ToXYZ() * Vector4f(Spectral::WavelengthToXYZ((float)(i * Range + Offset)), 1.0f);
+                        Vector3f preview = Rec709::ToXYZ() * Spectral::WavelengthToXYZ((float)(i * Range + Offset));
                         ImVec4 color = ImVec4(preview.x, preview.y, preview.z, 1.0f);
                         ImGui::ColorButton(names[16 + i].append("##c ").append(std::to_string(i * Range + Offset)).append(" nm").c_str(), color, ImGuiColorEditFlags_NoTooltip, ImVec2(40, 20));
                     }
@@ -486,7 +486,7 @@ int main(void)
                         ImGui::SameLine();
                         
                         // Color preview
-                        Vector4f preview = Rec709::ToXYZ() * Vector4f(Spectral::WavelengthToXYZ((float)(i * Range + Offset)), 1.0f);
+                        Vector3f preview = Rec709::ToXYZ() * Spectral::WavelengthToXYZ((float)(i * Range + Offset));
                         ImVec4 color = ImVec4(preview.x, preview.y, preview.z, 1.0f);
                         ImGui::ColorButton(names[16 + i].append("##l ").append(std::to_string(i * Range + Offset)).append(" nm").c_str(), color, ImGuiColorEditFlags_NoTooltip, ImVec2(40, 20));
                     }

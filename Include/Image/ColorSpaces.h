@@ -81,21 +81,98 @@ Math::Matrix3f CalculateRGBtoXYZConversionMat( Math::Vector2f chromaRed, Math::V
 Math::Matrix3f CalculateRGBtoXYZConversionMatLuminanceAware( Math::Vector2f chromaRed, Math::Vector2f chromaGreen, Math::Vector2f chromaBlue, float WhitePointLuminance = 100.0f, Math::Vector2f chromaWhite = /*D65*/ Math::Vector2f( 0.31270f, 0.32900f ) );
 
 namespace RGB
-{
-    INLINE float RGBToLuminance(const Math::Vector3f& color)
-    {
-        return color.x * 0.3086f + color.y * 0.6094f + color.z * 0.0820f;
-    }
-
-    INLINE double RGBToLuminance(const Math::Vector3d& color)
-    {
-        return color.x * 0.3086 + color.y * 0.6094 + color.z * 0.0820;
-    }
-    
+{    
     INLINE float RGBToLuminance(const Math::Vector3f& linearRGB, const Math::Matrix3f& RGBToXYZ)
     {
         Math::Vector3f XYZ = RGBToXYZ * linearRGB;
         return XYZ.y;
+    }
+    
+    INLINE Math::Vector3f GetLuminanceWeights(const Math::Matrix3f& RGBToXYZ)
+    {
+        return Math::Vector3f(RGBToXYZ(1, 0), RGBToXYZ(1, 1), RGBToXYZ(1, 2));
+    }
+    
+    
+}
+
+namespace XYZ
+{
+    INLINE Math::Vector3f ToxyY(const Math::Vector3f& XYZ, const Math::Vector2f& whitePoint)
+    {
+        const float sum = XYZ.x + XYZ.y + XYZ.z;
+        if (sum > 1e-8f)
+        {
+            return Math::Vector3f(
+                XYZ.x / sum,
+                XYZ.y / sum,
+                XYZ.y
+            );
+        }
+        
+        // Fallback (pure black) is white point with 0 as luminance
+        return Math::Vector3f(whitePoint.x, whitePoint.y, 0.0f);
+    }
+    
+    INLINE Math::Vector3d ToxyY(const Math::Vector3d& XYZ, const Math::Vector2d& whitePoint)
+    {
+        const float sum = XYZ.x + XYZ.y + XYZ.z;
+        if (sum > 1e-8f)
+        {
+            return Math::Vector3d(
+                XYZ.x / sum,
+                XYZ.y / sum,
+                XYZ.y
+            );
+        }
+        
+        // Fallback (pure black) is white point with 0 as luminance
+        return Math::Vector3d(whitePoint.x, whitePoint.y, 0.0f);
+    }
+}
+
+// x,y are chromaticity, Y is luminance
+namespace xyY
+{
+    INLINE Math::Vector3f ToXYZ(const Math::Vector3f& xyY)
+    {
+        const float x = xyY.x;
+        const float y = xyY.y;
+        const float Y = xyY.z;
+        if (y > 1e-8f && Y > 0.0f)
+        {
+            return Math::Vector3f(
+                (x / y) * Y,
+                Y,
+                ((1.0f - x - y) / y) * Y
+            );
+        }
+        return Math::Vector3f(0.0f, 0.0f, 0.0f);
+    }
+    INLINE Math::Vector3d ToXYZ(const Math::Vector3d& xyY)
+    {
+        const double x = xyY.x;
+        const double y = xyY.y;
+        const double Y = xyY.z;
+        if (y > 1e-12 && Y > 0.0)
+        {
+            return Math::Vector3d(
+                (x / y) * Y,
+                Y,
+                ((1.0 - x - y) / y) * Y
+            );
+        }
+        return Math::Vector3d(0.0, 0.0, 0.0);
+    }
+    
+    INLINE Math::Vector3f ToXYZ(const Math::Vector2f& xy, float Y)
+    {
+        return ToXYZ(Math::Vector3f(xy.x, xy.y, Y));
+    }
+    
+    INLINE Math::Vector3d ToXYZ(const Math::Vector2d& xy, double Y)
+    {
+        return ToXYZ(Math::Vector3d(xy.x, xy.y, Y));
     }
 }
 

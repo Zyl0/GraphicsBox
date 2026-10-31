@@ -316,22 +316,27 @@ public:
         // Gamut
         {
             Matrix3f RGBToXYZ;
+            Vector2f WhitePoint;
             
             switch (m_SrcGamut)
             {
             case ColorState::CS_Rec709:
                 RGBToXYZ = Rec709::ToXYZ();
+                WhitePoint = Rec709::WhitePoint();
                 break;
                 
             case ColorState::CS_DciP3D65:
                 RGBToXYZ = DciP3D65::ToXYZ();
+                WhitePoint = DciP3D65::WhitePoint();
                 break;
                 
             case ColorState::CS_Rec2020:
                 RGBToXYZ = Rec2020::ToXYZ();
+                WhitePoint = Rec2020::WhitePoint();
                 break;
                 
             case ColorState::CS_ArriLogC:
+                WhitePoint = Rec709::WhitePoint(); // TODO fully support the color space from its properties, for now assumes same as sRGB
                 RGBToXYZ = ArriLogC::CSArriLogCToCSXYZMat;
                 break;
                 
@@ -362,22 +367,11 @@ public:
 #endif // !GAMUT_DOWN_SAMPLE_AS_AVERAGE
 
                 sample /= sample.w;
-
                 Vector3f XYZ = RGBToXYZ * (sample.xyz() / DecodedPaperwhiteLuminance);
-                float sum = XYZ.x + XYZ.y + XYZ.z;
-
-                if (sum > 1e-6f)
-                {
-                    m_GamutX.push_back(XYZ.x / sum);
-                    m_GamutY.push_back(XYZ.y / sum);
-                }
-                else
-                {
-                    m_GamutX.push_back( 0.f );
-                    m_GamutY.push_back( 0.f );
-                }
+                Vector3f xyY = XYZ::ToxyY(XYZ, WhitePoint);
+                m_GamutX.push_back(xyY.x);
+                m_GamutY.push_back(xyY.y);
             }
-            
         }
     }
 
@@ -487,12 +481,7 @@ public:
             for (size_t i = 0; i < m_GamutX.size(); ++i)
             {
                 ImVec2 pos = ImPlot::PlotToPixels(m_GamutX[i], m_GamutY[i]);
-
-                Vector3f xyz = {
-                    m_GamutX[i] / m_GamutY[i],
-                    1.f,
-                    (1.0f - m_GamutX[i] - m_GamutY[i]) / m_GamutY[i]
-                };
+                Vector3f xyz = xyY::ToXYZ(m_GamutX[i], m_GamutY[i]);
                 Vector3f rgb = Rec2020::FromXYZ() * xyz;
                 rgb.x = std::clamp(rgb.x, 0.f, 1.f);
                 rgb.y = std::clamp(rgb.y, 0.f, 1.f);
