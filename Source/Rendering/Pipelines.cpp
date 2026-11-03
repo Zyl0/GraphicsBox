@@ -468,13 +468,12 @@ PipelineMatrix PipelineMatrixFromString(std::string_view label, Pipeline::Shader
     size_t paramLayerOffset = 0;
     pipelines.m_Head = 0;
     if (!paramValuesCountStack.empty())
-    for (size_t i = paramValuesCountStack.size() - 1; i-- > 0;)
+    for (size_t i = paramValuesCountStack.size(); i-- > 1;)
     {
         size_t paramCount = paramValuesCountStack[i];
         size_t clusterCount = paramLayerSize / paramCount;
         
         paramLayerOffset += paramLayerSize;
-        // paramLayerSize = clusterCount;
         pipelines.m_PipelineTree.resize(pipelines.m_PipelineTree.size() + clusterCount);
 
         size_t currentCluster = paramLayerOffset - paramLayerSize;
@@ -484,10 +483,12 @@ PipelineMatrix PipelineMatrixFromString(std::string_view label, Pipeline::Shader
             currentCluster += paramCount;
         }
 
-        if (i == 0)
+        if (i == 1)
         {
             pipelines.m_Head = paramLayerOffset;
         }
+        
+        paramLayerSize = clusterCount;
     }
 
     Shader::DefineDynArray variantDefines; variantDefines.resize(paramMatrix.m_Parameters.size() + Defines.size());
