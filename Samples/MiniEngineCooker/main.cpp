@@ -61,7 +61,7 @@ public:
 private:
     static void CookScene(const std::filesystem::path& SceneAbsolutePath, const std::filesystem::path& RelativePath)
     {
-        GLTF::GPUScene scene;
+        Scene::GPUScene scene;
         
         // Load Scene
         EngineLoggerLogF("Loading Scene %s", SceneAbsolutePath.generic_string().c_str());
@@ -82,9 +82,9 @@ private:
         
         // Perform Cooker actions
         EngineLoggerLog("Performing cooking operations");
-        EnableMaterialAsBuffers(scene);
-        EnableMaterialAsUnifiedBuffer(scene);
-        EnableTexturesAsBindlessArrays(scene);
+        Scene::EnableMaterialAsBuffers(scene);
+        Scene::EnableMaterialAsUnifiedBuffer(scene);
+        Scene::EnableTexturesAsBindlessArrays(scene);
         // TODO when spirv, bake material shaders maybe?
         // TODO bake lighting data
         // TODO bake BVH data

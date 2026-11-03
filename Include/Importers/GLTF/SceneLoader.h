@@ -108,7 +108,10 @@ namespace GLTF
     
     INLINE Material::EFlags operator|(Material::EFlags a, Material::EFlags b) {return static_cast<Material::EFlags>(static_cast<int>(a) | static_cast<int>(b)); }
     INLINE Material::EFlags operator&(Material::EFlags a, Material::EFlags b) {return static_cast<Material::EFlags>(static_cast<int>(a) & static_cast<int>(b)); }
-    
+}
+
+namespace Scene
+{
     struct MeshInstance
     {
         size_t mesh;
@@ -140,14 +143,13 @@ namespace GLTF
         Transform& operator=(Transform&& Other) noexcept;
     };
     
-    // TODO move out of namespace
     struct CPUScene
     {        
         std::vector<Image> textures;
         
         std::vector<Mesh> meshes;
 
-        std::vector<Material> materials;
+        std::vector<GLTF::Material> materials;
 
         std::vector<Transform> transforms;
 
@@ -163,7 +165,6 @@ namespace GLTF
         }
     };
 
-    // TODO move out of namespace
     struct GPUScene
     {
         enum Extensions : uint32_t
@@ -178,7 +179,7 @@ namespace GLTF
         
         std::vector<MeshObject> meshes;
 
-        std::vector<Material> materials;
+        std::vector<GLTF::Material> materials;
         
         std::vector<UniformBuffer> materialUniformBuffers;
         
@@ -193,7 +194,7 @@ namespace GLTF
         
         void Clear()
         {
-            Extension = GLTF::GPUScene::ExNone;
+            Extension = GPUScene::ExNone;
             textures.clear();
             meshes.clear();
             materials.clear();
@@ -209,20 +210,23 @@ namespace GLTF
     INLINE GPUScene::Extensions operator & (GPUScene::Extensions a, GPUScene::Extensions b) {return static_cast<GPUScene::Extensions>(static_cast<int>(a) & static_cast<int>(b)); }
     INLINE GPUScene::Extensions operator | (GPUScene::Extensions a, GPUScene::Extensions b) {return static_cast<GPUScene::Extensions>(static_cast<int>(a) | static_cast<int>(b)); }
     
-    bool LoadCPUScene(const std::filesystem::path& path, CPUScene& scene);
-    
-    bool LoadGPUScene(const std::filesystem::path& path, GPUScene& scene);
+    void EnableMaterialAsBuffers(GPUScene& scene);
+    void EnableMaterialAsUnifiedBuffer(GPUScene& scene);
+    void EnableTexturesAsBindlessArrays(GPUScene& scene);
 }
 
-void EnableMaterialAsBuffers(GLTF::GPUScene& scene);
-void EnableMaterialAsUnifiedBuffer(GLTF::GPUScene& scene);
-void EnableTexturesAsBindlessArrays(GLTF::GPUScene& scene);
+namespace GLTF
+{
+    bool LoadCPUScene(const std::filesystem::path& path, Scene::CPUScene& scene);
+    
+    bool LoadGPUScene(const std::filesystem::path& path, Scene::GPUScene& scene);
+}
 
 // Graphics Box Scene is a baked representation of the gltf format stripped of its modularity and arrange in a way that already matches GPU Objects
 // This format is intended for cooked content and not versioned transfer data.
 namespace GBS
 {
-    bool LoadGPUScene(const std::filesystem::path& path, GLTF::GPUScene& scene);
+    bool LoadGPUScene(const std::filesystem::path& path, Scene::GPUScene& scene);
     
     struct ExportSettings
     {
@@ -234,5 +238,5 @@ namespace GBS
             ImageCompressionEXR =   1 << 2,
         } flags;
     };
-    bool SaveGPUScene(const std::filesystem::path& path, const GLTF::GPUScene& scene, ExportSettings settings);
+    bool SaveGPUScene(const std::filesystem::path& path, const Scene::GPUScene& scene, ExportSettings settings);
 }

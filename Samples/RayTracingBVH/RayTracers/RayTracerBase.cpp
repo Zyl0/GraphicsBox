@@ -20,21 +20,21 @@ void RayTracerDummy_RenderPrimaryRay(ImageBuffer<Math::Vector3f>& RenderTarget, 
     const uint32_t Height = RenderTarget.Height();
     const Matrix4f ProjToWorld = Camera.InverseView() * Camera.InverseProjection();
     
-    const GLTF::CPUScene* Scene = RayTracingParameters.Scene;
+    const Scene::CPUScene* Scene = RayTracingParameters.Scene;
     
     std::vector<Matrix4f> WorldToModelMatrix(Scene->transforms.size());
     for (size_t i = 0; i < Scene->transforms.size(); ++i)
     {
-        const GLTF::Transform& Transform = Scene->transforms[i];
+        const Scene::Transform& Transform = Scene->transforms[i];
         switch (Transform.Type)
         {
-        case GLTF::Transform::Properties:
+        case Scene::Transform::Properties:
             {
                 WorldToModelMatrix[i] = Inverse(Transform.Value.asProperties.GetTransform());
             }
         break;
 
-        case GLTF::Transform::Matrix:
+        case Scene::Transform::Matrix:
             {
                 WorldToModelMatrix[i] = Inverse(Transform.Value.asMatrix);
             }
@@ -61,7 +61,7 @@ void RayTracerDummy_RenderPrimaryRay(ImageBuffer<Math::Vector3f>& RenderTarget, 
             };
             
             Hit ClosestHit = Hit();
-            GLTF::MeshInstance ClosestHitInstance;
+            Scene::MeshInstance ClosestHitInstance;
             
             // Traversal without BVH
             for (const auto & instance : Scene->instances)
@@ -77,7 +77,7 @@ void RayTracerDummy_RenderPrimaryRay(ImageBuffer<Math::Vector3f>& RenderTarget, 
                     continue;
                 }
 
-                TraceRay PrimaryRayTracer(mesh, group.FirstVertex, group.VertexCount, PrimaryRay, transform);
+                TraceRayLinear PrimaryRayTracer(mesh, group.FirstVertex, group.VertexCount, PrimaryRay, transform);
                 for (Hit hit : PrimaryRayTracer)
                 {
                     // Any hit

@@ -245,7 +245,7 @@ struct ProceduralSkylight
 
 struct SceneBuffers
 {
-    GLTF::GPUScene Scene;
+    Scene::GPUScene Scene;
     UniformBuffer Lights;
     UniformBuffer Camera;
 
@@ -499,7 +499,7 @@ public:
     {
         DebugScopeMarker scope("Draw Scene");
 
-        GLTF::MeshInstance Instance = SceneObjects.Scene.instances[0];
+        Scene::MeshInstance Instance = SceneObjects.Scene.instances[0];
         const MeshObject& Mesh = SceneObjects.Scene.meshes[Instance.mesh];
         const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
         

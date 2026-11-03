@@ -103,7 +103,7 @@ namespace FrameGraph
             }
             
             PipelineVariant.SetParameter(kParamSkylight, Resources.GetValue<UInt>(VSkylightMethod));
-            PipelineVariant.SetParameter(kParamMaterialParamMode, Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers ? 1 : 0);
+            PipelineVariant.SetParameter(kParamMaterialParamMode, Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers ? 1 : 0);
             
             glEnable(GL_DEPTH_TEST);
             glClear(GL_DEPTH_BUFFER_BIT); // Color clear is done when drawing the skylight

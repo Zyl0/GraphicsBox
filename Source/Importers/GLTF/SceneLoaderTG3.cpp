@@ -159,14 +159,14 @@ namespace GLTF
         }
         return p;
     }
-    
-    Transform GetNodeWorldTransform(const tinygltf3::Model& model, const tg3_node& NodeObject)
+
+    Scene::Transform GetNodeWorldTransform(const tinygltf3::Model& model, const tg3_node& NodeObject)
     {
-        Transform transform;
+        Scene::Transform transform;
 
         if (NodeObject.has_matrix == 1)
         {
-            transform.Type = Transform::Matrix;
+            transform.Type = Scene::Transform::Matrix;
             for (size_t i = 0; i < 16; ++i)
             {
                 transform.Value.asMatrix[i] = static_cast<float>(NodeObject.matrix[i]);
@@ -175,7 +175,7 @@ namespace GLTF
             return transform;
         }
 
-        transform.Type = Transform::Properties;
+        transform.Type = Scene::Transform::Properties;
         transform.Value.asProperties = Math::WorldTransformF{};
         transform.Value.asProperties.Position = Math::Point3f(
             static_cast<float>(NodeObject.translation[0]),
@@ -208,7 +208,7 @@ namespace GLTF
             static_cast<float>(material.pbr_metallic_roughness.base_color_factor[0]),
             static_cast<float>(material.pbr_metallic_roughness.base_color_factor[1]),
             static_cast<float>(material.pbr_metallic_roughness.base_color_factor[2]),
-            1.0f
+            static_cast<float>(material.pbr_metallic_roughness.base_color_factor[3])
         );
         if(material.pbr_metallic_roughness.base_color_texture.index >= 0)
         {
@@ -435,44 +435,44 @@ namespace GLTF
     void LoadSceneTree(
         const tinygltf3::Model& model,
         int node,
-        CPUScene& outScene, const Transform& parent = Transform{}
+        Scene::CPUScene& outScene, const Scene::Transform& parent = Scene::Transform{}
         )
     {
         const auto& NodeObject = model->nodes[node];
 
         size_t transformIndex = outScene.transforms.size();
         outScene.transforms.emplace_back();
-        Transform& TransformObject = outScene.transforms.back();
+        Scene::Transform& TransformObject = outScene.transforms.back();
         
         TransformObject = GetNodeWorldTransform(model, NodeObject);
         
         // Parent transform
         switch (TransformObject.Type)
         {
-        case Transform::Properties:
+        case Scene::Transform::Properties:
             switch (parent.Type)
             {
-        case Transform::Properties:
+        case Scene::Transform::Properties:
                 TransformObject.Value.asProperties = parent.Value.asProperties * TransformObject.Value.asProperties;
                 break;
                     
-        case Transform::Matrix:
+        case Scene::Transform::Matrix:
                 TransformObject.Value.asMatrix = parent.Value.asMatrix * TransformObject.Value.asProperties.GetTransform();
-                TransformObject.Type = Transform::Matrix;
+                TransformObject.Type = Scene::Transform::Matrix;
                 break;
             
                 SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
                 }
             break;
             
-        case Transform::Matrix:
+        case Scene::Transform::Matrix:
             switch (parent.Type)
             {
-        case Transform::Properties:
+        case Scene::Transform::Properties:
                 TransformObject.Value.asMatrix = parent.Value.asProperties.GetTransform() * TransformObject.Value.asMatrix;
                 break;
                     
-        case Transform::Matrix:
+        case Scene::Transform::Matrix:
                 TransformObject.Value.asMatrix = parent.Value.asMatrix * TransformObject.Value.asMatrix;
                 break;
                 
@@ -483,7 +483,7 @@ namespace GLTF
             SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
             }
         
-        Transform NewParentTransform = TransformObject;
+        Scene::Transform NewParentTransform = TransformObject;
         
         // Recursive call
         for (size_t i = 0; i < NodeObject.children_count; i++)
@@ -496,7 +496,7 @@ namespace GLTF
         for (size_t i = 0; i < model->meshes[NodeObject.mesh].primitives_count; i++)
         {
             const auto & primitive = model->meshes[NodeObject.mesh].primitives[i];
-            MeshInstance inst;
+            Scene::MeshInstance inst;
             inst.mesh = NodeObject.mesh;
             inst.material = primitive.material;
             inst.transform = transformIndex;
@@ -506,7 +506,7 @@ namespace GLTF
         }
     }
     
-    bool LoadCPUScene(const std::filesystem::path& path, CPUScene& scene)
+    bool LoadCPUScene(const std::filesystem::path& path, Scene::CPUScene& scene)
     {
         AssertOrErrorCallF(exists(path), return false, "No such file or directory \"%s\"", path.generic_string().c_str())
 
@@ -998,44 +998,44 @@ namespace GLTF
     void LoadSceneTree(
         const tinygltf3::Model& model,
         int node,
-        GPUScene& outScene, const Transform& parent = Transform()
+        Scene::GPUScene& outScene, const Scene::Transform& parent = Scene::Transform()
         )
     {
         const auto& NodeObject = model->nodes[node];
 
         size_t transformIndex = outScene.transforms.size();
         outScene.transforms.emplace_back();
-        Transform& TransformObject = outScene.transforms.back();
+        Scene::Transform& TransformObject = outScene.transforms.back();
         
         TransformObject = GetNodeWorldTransform(model, NodeObject);
         
         // Parent transform
         switch (TransformObject.Type)
         {
-        case Transform::Properties:
+        case Scene::Transform::Properties:
             switch (parent.Type)
             {
-        case Transform::Properties:
+        case Scene::Transform::Properties:
                 TransformObject.Value.asProperties = parent.Value.asProperties * TransformObject.Value.asProperties;
                 break;
                 
-        case Transform::Matrix:
+        case Scene::Transform::Matrix:
                 TransformObject.Value.asMatrix = parent.Value.asMatrix * TransformObject.Value.asProperties.GetTransform();
-                TransformObject.Type = Transform::Matrix;
+                TransformObject.Type = Scene::Transform::Matrix;
                 break;
             
                 SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
                 }
             break;
             
-        case Transform::Matrix:
+        case Scene::Transform::Matrix:
             switch (parent.Type)
             {
-        case Transform::Properties:
+        case Scene::Transform::Properties:
                 TransformObject.Value.asMatrix = parent.Value.asProperties.GetTransform() * TransformObject.Value.asMatrix;
                 break;
                     
-        case Transform::Matrix:
+        case Scene::Transform::Matrix:
                 TransformObject.Value.asMatrix = parent.Value.asMatrix * TransformObject.Value.asMatrix;
                 break;
                 
@@ -1046,7 +1046,7 @@ namespace GLTF
             SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
             }
         
-        Transform NewParentTransform = TransformObject;
+        Scene::Transform NewParentTransform = TransformObject;
         
         // Recursive call
         for (size_t i = 0; i < NodeObject.children_count; i++)
@@ -1059,7 +1059,7 @@ namespace GLTF
         for (size_t i = 0; i < model->meshes[NodeObject.mesh].primitives_count; i++)
         {
             const auto & primitive = model->meshes[NodeObject.mesh].primitives[i];
-            MeshInstance inst;
+            Scene::MeshInstance inst;
             inst.mesh = NodeObject.mesh;
             inst.material = primitive.material;
             inst.transform = transformIndex;
@@ -1115,7 +1115,7 @@ namespace GLTF
         }
     }
 
-    bool LoadGPUScene(const std::filesystem::path& path, GPUScene& scene)
+    bool LoadGPUScene(const std::filesystem::path& path, Scene::GPUScene& scene)
     {
         AssertOrErrorCallF(exists(path), return false, "No such file or directory \"%s\"", path.generic_string().c_str())
         if(!exists(path)) return false;

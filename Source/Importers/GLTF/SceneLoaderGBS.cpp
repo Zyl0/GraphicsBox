@@ -60,7 +60,7 @@ namespace GBS
         size_t Count;
     };
     
-    bool LoadGPUScene(const std::filesystem::path& path, GLTF::GPUScene& scene)
+    bool LoadGPUScene(const std::filesystem::path& path, Scene::GPUScene& scene)
     {
         AssertOrErrorCallF(exists(path), return false, "No such file or directory \"%s\"", path.generic_string().c_str())
         if(!exists(path)) return false;
@@ -84,7 +84,7 @@ namespace GBS
         
         FileHeaderT header;
         ifs.read(reinterpret_cast<char*>(&FileHeader), sizeof(FileHeader));
-        ifs.read(reinterpret_cast<char*>(&(scene.Extension)), sizeof(GLTF::GPUScene::Extension));
+        ifs.read(reinterpret_cast<char*>(&(scene.Extension)), sizeof(Scene::GPUScene::Extension));
         
         ExportSettings exportSettings;
         ifs.read(reinterpret_cast<char*>(&(exportSettings.flags)), sizeof(ExportSettings::Flags));
@@ -342,7 +342,7 @@ namespace GBS
             AssertOrError(region == Materials, "GBS Section missmatch")
             
             // Unified Uniform buffer of materials
-            if (scene.Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
+            if (scene.Extension & Scene::GPUScene::MaterialsAsUnifiedBuffer)
             {
                 BufferHeader materialBufferHeader;
                 ifs.read(reinterpret_cast<char*>(&materialBufferHeader), sizeof(BufferHeader));
@@ -365,7 +365,7 @@ namespace GBS
                 ifs.read(reinterpret_cast<char*>(scene.materials.data()), materialsHeader.SizeInBytes);
                 
                 // Upload material buffer data to GPU
-                if (scene.Extension & GLTF::GPUScene::MaterialsAsBuffers)
+                if (scene.Extension & Scene::GPUScene::MaterialsAsBuffers)
                 {
                     scene.materialUniformBuffers.resize(scene.materials.size());
                     
@@ -407,7 +407,7 @@ namespace GBS
         return true;
     }
 
-    bool SaveGPUScene(const std::filesystem::path& path, const GLTF::GPUScene& scene, ExportSettings settings)
+    bool SaveGPUScene(const std::filesystem::path& path, const Scene::GPUScene& scene, ExportSettings settings)
     {
         // Ensure folder exist
         std::stack<std::filesystem::path> folderStack;
@@ -431,7 +431,7 @@ namespace GBS
         
         // Header
         output.write(reinterpret_cast<const char*>(&FileHeader), sizeof(FileHeaderT));
-        output.write(reinterpret_cast<const char*>(&(scene.Extension)), sizeof(GLTF::GPUScene::Extension));
+        output.write(reinterpret_cast<const char*>(&(scene.Extension)), sizeof(Scene::GPUScene::Extension));
         output.write(reinterpret_cast<const char*>(&(settings.flags)), sizeof(ExportSettings::Flags));
         
         // Textures
@@ -723,7 +723,7 @@ namespace GBS
             output.write(reinterpret_cast<const char*>(&region), sizeof(GeneralRegion));
             
             // Unified Uniform buffer of materials
-            if (scene.Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
+            if (scene.Extension & Scene::GPUScene::MaterialsAsUnifiedBuffer)
             {
                 size_t materialCount = (scene.materials.size() != scene.materialUniformBuffers.size() ? scene.materialUniformBuffers.size() : scene.materials.size());
                 
@@ -748,7 +748,7 @@ namespace GBS
                 std::span<const GLTF::Material> materialsToExport;
                 
                 // Retrieve material buffer data from GPU if out of date from GPU
-                if (scene.Extension & GLTF::GPUScene::MaterialsAsBuffers && scene.materials.size() != scene.materialUniformBuffers.size())
+                if (scene.Extension & Scene::GPUScene::MaterialsAsBuffers && scene.materials.size() != scene.materialUniformBuffers.size())
                 {
                     materialsExportBuffer.resize(scene.materialUniformBuffers.size());
                     materialsToExport = materialsExportBuffer;
@@ -779,7 +779,7 @@ namespace GBS
             output.write(reinterpret_cast<const char*>(&region), sizeof(GeneralRegion));
             
             ArrayHeader transformsHeader;
-            transformsHeader.SizeInBytes = scene.transforms.size() * sizeof(GLTF::Transform);
+            transformsHeader.SizeInBytes = scene.transforms.size() * sizeof(Scene::Transform);
             transformsHeader.Count = scene.transforms.size();
             output.write(reinterpret_cast<const char*>(&transformsHeader), sizeof(ArrayHeader));
             
@@ -792,7 +792,7 @@ namespace GBS
             output.write(reinterpret_cast<const char*>(&region), sizeof(GeneralRegion));
             
             ArrayHeader instancesHeader;
-            instancesHeader.SizeInBytes = scene.instances.size() * sizeof(GLTF::MeshInstance);
+            instancesHeader.SizeInBytes = scene.instances.size() * sizeof(Scene::MeshInstance);
             instancesHeader.Count = scene.instances.size();
             output.write(reinterpret_cast<const char*>(&instancesHeader), sizeof(ArrayHeader));
             

@@ -99,7 +99,7 @@ static Vector4f ShadeHit(const TraceRayBVH& CurrentHit, const RayTracerFramePara
     
     const RayShadingParameters& Shading = RayTracingParameters.Shading;
     const TLAS* AccelerationStructure = RayTracingParameters.AccelerationStructure;
-    const GLTF::CPUScene* Scene = RayTracingParameters.Scene;
+    const Scene::CPUScene* Scene = RayTracingParameters.Scene;
     
     // Hit mesh instance properties
     const Mesh* Mesh = CurrentHit.ClosestHitElement()->BLAS->Meta.MeshRef;
@@ -412,7 +412,7 @@ void RayTracerBVH_RenderShaded(ImageBuffer<Math::Vector3f>& RenderTarget, ImageB
     
     const RayShadingParameters& Shading = RayTracingParameters.Shading;
     const TLAS* AccelerationStructure = RayTracingParameters.AccelerationStructure;
-    const GLTF::CPUScene* Scene = RayTracingParameters.Scene;
+    const Scene::CPUScene* Scene = RayTracingParameters.Scene;
     
     // Collect emissive elements
     std::vector<std::pair<const TLASElement*, Box3f>> emissiveElements;
@@ -477,7 +477,7 @@ void RayTracerBVH_DrawTraversal(const RayTracerFrameParameters& RayTracingParame
     
     const RayShadingParameters& Shading = RayTracingParameters.Shading;
     const TLAS* AccelerationStructure = RayTracingParameters.AccelerationStructure;
-    const GLTF::CPUScene* Scene = RayTracingParameters.Scene;
+    const Scene::CPUScene* Scene = RayTracingParameters.Scene;
     Rendering::Debug::Module* DebugRendering = Engine::GetModule<Rendering::Debug::Module>(*TraversalDebuggerParameters.EngineContext);
     
     const Matrix4f ProjToWorld = Camera.InverseView() * Camera.InverseProjection();

@@ -442,8 +442,8 @@ namespace FrameGraph
         INLINE const StorageBuffer* GetPreviousCamerasBuffer() const                                {return m_CameraArray.PreviousCamerasBuffer();}
         
         // TODO move to use the Mini Engine Scene instead
-        INLINE const GLTF::GPUScene& Scene() const {return m_SceneTree;}
-        INLINE GLTF::GPUScene& Scene() {return m_SceneTree;}
+        INLINE const Scene::GPUScene& Scene() const {return m_SceneTree;}
+        INLINE Scene::GPUScene& Scene() {return m_SceneTree;}
 
         INLINE bool HasReflection() const {return m_ReflectionData.has_value();}
         
@@ -487,7 +487,7 @@ namespace FrameGraph
 
         // Scene
         FrameGraph::CameraArray m_CameraArray;
-        GLTF::GPUScene m_SceneTree;
+        Scene::GPUScene m_SceneTree;
     };
 
     template<> FrameGraph::Location CommandContext::Add<VertexBuffer>(std::string_view Name);

@@ -211,7 +211,7 @@ int main(void)
         Pipeline sRGBMeshToRadiance = PipelineFromFile("sRGBMeshToRadiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshTosRGBRadiance.glsl"); 
         Pipeline SpectralSlicedMeshToRadiance = PipelineFromFile("SpectralSlicedMeshToRadiance", Pipeline::VERTEX_SHADER | Pipeline::FRAGMENT_SHADER, "MeshToRadianceSpectralSlices.glsl"); 
         
-        GLTF::GPUScene Scene;
+        Scene::GPUScene Scene;
         {
             std::filesystem::path path;
             if (GetAbsoluteFilePath(std::filesystem::path("Meshes") / "Sphere.glb" ,path))
@@ -294,7 +294,7 @@ int main(void)
             {
                 DebugScopeMarker scope("Draw Radiance sRGB");
                 
-                GLTF::MeshInstance Instance = Scene.instances[0];
+                Scene::MeshInstance Instance = Scene.instances[0];
                 MeshObject& Mesh = Scene.meshes[Instance.mesh];
                 Mesh::VertexGroup Group = Mesh.GetGroups()[Instance.vertexGroup]; 
                 
@@ -343,7 +343,7 @@ int main(void)
             {
                 DebugScopeMarker scope("Draw Radiance - Spectral Slices");
                 
-                GLTF::MeshInstance Instance = Scene.instances[0];
+                Scene::MeshInstance Instance = Scene.instances[0];
                 MeshObject& Mesh = Scene.meshes[Instance.mesh];
                 Mesh::VertexGroup Group = Mesh.GetGroups()[Instance.vertexGroup]; 
                 

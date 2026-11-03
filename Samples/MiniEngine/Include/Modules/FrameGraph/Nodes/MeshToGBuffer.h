@@ -62,7 +62,7 @@ namespace FrameGraph
             glEnable(GL_DEPTH_TEST);
             glClear(GL_DEPTH_BUFFER_BIT);
 
-            PipelineVariant.SetParameter(kParamMaterialParamMode, Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers ? 1 : 0);
+            PipelineVariant.SetParameter(kParamMaterialParamMode, Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers ? 1 : 0);
             const Pipeline& Pipeline = Pipelines.GetVariant(PipelineVariant);
             
             Bind(Pipeline);
@@ -74,11 +74,11 @@ namespace FrameGraph
             GLuint GLTFBaseColor, GLTFRoughness, GLTFMetalness, GLTFEmissiveColor, GLTFSpecularColor, GLTFMaterialFlags;
             GLuint  GLTFUseColorTexture, GLTFUseNormalTexture, GLTFUseMRTexture, GLTFUseAOTexture, GLTFUseSpecularTexture, GLTFUseEmissiveTexture;
             GLuint GLTFParamBuffer = -1;
-            if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers)
+            if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers)
             {
                 GLTFParamBuffer = GetUniformLocation(Pipeline, "ParamBuffer");
             }
-            else if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
+            else if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsUnifiedBuffer)
             {
                 AssertOrError(false, "Feature not yet supported")
             }
@@ -111,20 +111,20 @@ namespace FrameGraph
             
             // For now we only support GLTF materials
             // TODO generify material system and migrate to a scene mesh type
-            for (const GLTF::MeshInstance& Instance : Resources.Scene().instances)
+            for (const Scene::MeshInstance& Instance : Resources.Scene().instances)
             {
                 const MeshObject& Mesh = Resources.Scene().meshes[Instance.mesh];
                 const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
-                const GLTF::Transform& Transform = Resources.Scene().transforms[Instance.transform];
+                const Scene::Transform& Transform = Resources.Scene().transforms[Instance.transform];
                 const GLTF::Material& Material = Resources.Scene().materials[Instance.material];
-                const UniformBuffer* MaterialBuffer = Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers ?
+                const UniformBuffer* MaterialBuffer = Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers ?
                     &Resources.Scene().materialUniformBuffers[Instance.material] :
                     nullptr;
                 
                 // Transform
                 switch (Transform.Type)
                 {
-                case GLTF::Transform::Properties:
+                case Scene::Transform::Properties:
                     {
                         Math::Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
                 
@@ -134,7 +134,7 @@ namespace FrameGraph
                     }
                     break;
                     
-                case GLTF::Transform::Matrix:
+                case Scene::Transform::Matrix:
                     {
                         if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
                 
@@ -147,11 +147,11 @@ namespace FrameGraph
 
                 
                 // Material
-                if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers)
+                if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers)
                 {
                     SetUniform(GLTFParamBuffer, MaterialBuffer);
                 }
-                else if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
+                else if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsUnifiedBuffer)
                 {
                     AssertOrError(false, "Feature not yet supported")
                 }

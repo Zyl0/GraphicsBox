@@ -222,7 +222,7 @@ struct DirectionalLight
 
 struct SceneBuffers
 {
-    GLTF::GPUScene Scene;
+    Scene::GPUScene Scene;
     UniformBuffer Lights;
     UniformBuffer Camera;
 
@@ -435,16 +435,16 @@ public:
             return;
         }
         
-        for (const GLTF::MeshInstance& Instance : SceneObjects.Scene.instances)
+        for (const Scene::MeshInstance& Instance : SceneObjects.Scene.instances)
         {
             const MeshObject& Mesh = SceneObjects.Scene.meshes[Instance.mesh];
             const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
-            const GLTF::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
+            const Scene::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
             const GLTF::Material& Material = SceneObjects.Scene.materials[Instance.material];
             
             switch (Transform.Type)
             {
-            case GLTF::Transform::Properties:
+            case Scene::Transform::Properties:
                 {
                     Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
             
@@ -454,7 +454,7 @@ public:
                 }
                 break;
                 
-            case GLTF::Transform::Matrix:
+            case Scene::Transform::Matrix:
                 {
                     if (UseFrustumCulling && !frustumCullingTest(ViewProj, Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
             

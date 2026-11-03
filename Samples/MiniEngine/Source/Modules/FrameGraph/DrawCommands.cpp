@@ -20,11 +20,11 @@ namespace FrameGraph
         GLint GLTFParamBuffer = -1;
         if (Settings.BindMaterial)
         {
-            if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers)
+            if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers)
             {
                 GLTFParamBuffer = GetUniformLocation(Pipeline, "ParamBuffer");
             }
-            else if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
+            else if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsUnifiedBuffer)
             {
                 AssertOrError(false, "Feature not yet supported")
             }
@@ -54,13 +54,13 @@ namespace FrameGraph
         
         GLint GLTFModelMatrix = GetUniformLocation(Pipeline, "Model");
         
-        for (const GLTF::MeshInstance& Instance : Resources.Scene().instances)
+        for (const Scene::MeshInstance& Instance : Resources.Scene().instances)
         {
             const MeshObject& Mesh = Resources.Scene().meshes[Instance.mesh];
             const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
-            const GLTF::Transform& Transform = Resources.Scene().transforms[Instance.transform];
+            const Scene::Transform& Transform = Resources.Scene().transforms[Instance.transform];
             const GLTF::Material& Material = Resources.Scene().materials[Instance.material];
-            const UniformBuffer* MaterialBuffer = Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers ?
+            const UniformBuffer* MaterialBuffer = Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers ?
                 &Resources.Scene().materialUniformBuffers[Instance.material] :
                 nullptr;
             
@@ -72,7 +72,7 @@ namespace FrameGraph
             
             switch (Transform.Type)
             {
-            case GLTF::Transform::Properties:
+            case Scene::Transform::Properties:
                 {
                     Math::Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
                 
@@ -82,7 +82,7 @@ namespace FrameGraph
                 }
             break;
                     
-            case GLTF::Transform::Matrix:
+            case Scene::Transform::Matrix:
                 {
                     if (Settings.FrustumCulling && !Rendering::frustumCullingTest(Resources.GetCamera(Camera).Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
                 
@@ -96,11 +96,11 @@ namespace FrameGraph
             // Material
             if (Settings.BindMaterial)
             {
-                if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers)
+                if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers)
                 {
                     SetUniform(GLTFParamBuffer, MaterialBuffer);
                 }
-                else if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
+                else if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsUnifiedBuffer)
                 {
                     AssertOrError(false, "Feature not yet supported")
                 }

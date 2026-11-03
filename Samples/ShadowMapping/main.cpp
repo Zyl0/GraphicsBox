@@ -97,7 +97,7 @@ struct DirectionalLight_t
 
 struct SceneBuffers
 {
-    GLTF::GPUScene Scene;
+    Scene::GPUScene Scene;
 
     UniformBuffer DirectionalLight{};
     // StorageBuffer PointLights{};
@@ -184,16 +184,16 @@ public:
         SetUniform(0, SceneObjects.Cameras);
         SetUniform(m_Pipeline, "CameraIndex", 1u);
 
-        for (const GLTF::MeshInstance& Instance : SceneObjects.Scene.instances)
+        for (const Scene::MeshInstance& Instance : SceneObjects.Scene.instances)
         {
             const MeshObject& Mesh = SceneObjects.Scene.meshes[Instance.mesh];
             const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
-            const GLTF::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
+            const Scene::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
             const GLTF::Material& Material = SceneObjects.Scene.materials[Instance.material];
             
             switch (Transform.Type)
             {
-            case GLTF::Transform::Properties:
+            case Scene::Transform::Properties:
             {
                 Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
         
@@ -203,7 +203,7 @@ public:
             }
             break;
                 
-            case GLTF::Transform::Matrix:
+            case Scene::Transform::Matrix:
             {
                 if (UseFrustumCulling && !Rendering::frustumCullingTest(ViewProj, Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
         
@@ -402,16 +402,16 @@ public:
         SetUniform(*pipeline, "ShadowMapResolution", SceneObjects.ShadowMap.Width());
         SetUniform(*pipeline, "IndirectLightingSampleCount", m_SkyLightSampleCount);
         
-        for (const GLTF::MeshInstance& Instance : SceneObjects.Scene.instances)
+        for (const Scene::MeshInstance& Instance : SceneObjects.Scene.instances)
         {
             const MeshObject& Mesh = SceneObjects.Scene.meshes[Instance.mesh];
             const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
-            const GLTF::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
+            const Scene::Transform& Transform = SceneObjects.Scene.transforms[Instance.transform];
             const GLTF::Material& Material = SceneObjects.Scene.materials[Instance.material];
             
             switch (Transform.Type)
             {
-            case GLTF::Transform::Properties:
+            case Scene::Transform::Properties:
                 {
                     Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
             
@@ -421,7 +421,7 @@ public:
                 }
                 break;
                 
-            case GLTF::Transform::Matrix:
+            case Scene::Transform::Matrix:
                 {
                     if (UseFrustumCulling && !Rendering::frustumCullingTest(ViewProj, Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
             

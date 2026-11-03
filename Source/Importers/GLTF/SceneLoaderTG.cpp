@@ -299,13 +299,13 @@ namespace  GLTF
         return true;
     }
 
-    Transform GetNodeWorldTransform(const tinygltf::Model& model, const tinygltf::Node& NodeObject)
+    Scene::Transform GetNodeWorldTransform(const tinygltf::Model& model, const tinygltf::Node& NodeObject)
     {
-        Transform transform;
+        Scene::Transform transform;
 
         if (!NodeObject.matrix.empty())
         {
-            transform.Type = Transform::Matrix;
+            transform.Type = Scene::Transform::Matrix;
             for (size_t i = 0; i < NodeObject.matrix.size(); ++i)
             {
                 transform.Value.asMatrix[i] = static_cast<float>(NodeObject.matrix[i]);
@@ -314,7 +314,7 @@ namespace  GLTF
             return transform;
         }
 
-        transform.Type = Transform::Properties;
+        transform.Type = Scene::Transform::Properties;
         transform.Value.asProperties = Math::WorldTransformF{};
         if(!NodeObject.translation.empty())
             transform.Value.asProperties.Position = Math::Point3f(
@@ -341,7 +341,7 @@ namespace  GLTF
         return transform;
     }
 
-    void LoadTextures(const tinygltf::Model& model, CPUScene& scene)
+    void LoadTextures(const tinygltf::Model& model, Scene::CPUScene& scene)
     {
         for (const auto & texture : model.textures)
         {            
@@ -404,7 +404,7 @@ namespace  GLTF
         }
     }
 
-    void LoadMaterials(const tinygltf::Model& model, CPUScene& scene)
+    void LoadMaterials(const tinygltf::Model& model, Scene::CPUScene& scene)
     {
         for (const auto & material : model.materials)
         {
@@ -558,44 +558,44 @@ namespace  GLTF
     void LoadSceneTree(
         const tinygltf::Model& model,
         int node,
-        CPUScene& outScene, const Transform& parent = Transform{}
+        Scene::CPUScene& outScene, const Scene::Transform& parent = Scene::Transform{}
         )
     {
         const auto& NodeObject = model.nodes[node];
 
         size_t transformIndex = outScene.transforms.size();
         outScene.transforms.emplace_back();
-        Transform& TransformObject = outScene.transforms.back();
+        Scene::Transform& TransformObject = outScene.transforms.back();
         
         TransformObject = GetNodeWorldTransform(model, NodeObject);
         
         // Parent transform
         switch (TransformObject.Type)
         {
-        case Transform::Properties:
+        case Scene::Transform::Properties:
             switch (parent.Type)
             {
-            case Transform::Properties:
+            case Scene::Transform::Properties:
                 TransformObject.Value.asProperties = parent.Value.asProperties * TransformObject.Value.asProperties;
                 break;
                     
-            case Transform::Matrix:
+            case Scene::Transform::Matrix:
                 TransformObject.Value.asMatrix = parent.Value.asMatrix * TransformObject.Value.asProperties.GetTransform();
-                TransformObject.Type = Transform::Matrix;
+                TransformObject.Type = Scene::Transform::Matrix;
                 break;
             
             SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
             }
             break;
             
-        case Transform::Matrix:
+        case Scene::Transform::Matrix:
             switch (parent.Type)
             {
-            case Transform::Properties:
+            case Scene::Transform::Properties:
                 TransformObject.Value.asMatrix = parent.Value.asProperties.GetTransform() * TransformObject.Value.asMatrix;
                 break;
                     
-            case Transform::Matrix:
+            case Scene::Transform::Matrix:
                 TransformObject.Value.asMatrix = parent.Value.asMatrix * TransformObject.Value.asMatrix;
                 break;
                 
@@ -606,7 +606,7 @@ namespace  GLTF
         SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
         }
         
-        Transform NewParentTransform = TransformObject;
+        Scene::Transform NewParentTransform = TransformObject;
         
         // Recursive call
         for (int child : NodeObject.children)
@@ -618,7 +618,7 @@ namespace  GLTF
         uint8_t vertexGroupIndex = 0;
         for (const auto & primitive : model.meshes[NodeObject.mesh].primitives)
         {
-            MeshInstance inst;
+            Scene::MeshInstance inst;
             inst.mesh = NodeObject.mesh;
             inst.material = primitive.material;
             inst.transform = transformIndex;
@@ -628,7 +628,7 @@ namespace  GLTF
         }
     }
     
-    bool LoadCPUScene(const std::filesystem::path& path, CPUScene& scene)
+    bool LoadCPUScene(const std::filesystem::path& path, Scene::CPUScene& scene)
     {
         tinygltf::TinyGLTF loader;
 
@@ -1030,44 +1030,44 @@ namespace  GLTF
     void LoadSceneTree(
         const tinygltf::Model& model,
         int node,
-        GPUScene& outScene, const Transform& parent = Transform()
+        Scene::GPUScene& outScene, const Scene::Transform& parent = Scene::Transform()
         )
     {
         const auto& NodeObject = model.nodes[node];
 
         size_t transformIndex = outScene.transforms.size();
         outScene.transforms.emplace_back();
-        Transform& TransformObject = outScene.transforms.back();
+        Scene::Transform& TransformObject = outScene.transforms.back();
         
         TransformObject = GetNodeWorldTransform(model, NodeObject);
         
         // Parent transform
         switch (TransformObject.Type)
         {
-        case Transform::Properties:
+        case Scene::Transform::Properties:
             switch (parent.Type)
             {
-            case Transform::Properties:
+            case Scene::Transform::Properties:
                 TransformObject.Value.asProperties = parent.Value.asProperties * TransformObject.Value.asProperties;
                 break;
                 
-            case Transform::Matrix:
+            case Scene::Transform::Matrix:
                 TransformObject.Value.asMatrix = parent.Value.asMatrix * TransformObject.Value.asProperties.GetTransform();
-                TransformObject.Type = Transform::Matrix;
+                TransformObject.Type = Scene::Transform::Matrix;
                 break;
             
             SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
             }
             break;
             
-        case Transform::Matrix:
+        case Scene::Transform::Matrix:
             switch (parent.Type)
             {
-            case Transform::Properties:
+            case Scene::Transform::Properties:
                 TransformObject.Value.asMatrix = parent.Value.asProperties.GetTransform() * TransformObject.Value.asMatrix;
                 break;
                     
-            case Transform::Matrix:
+            case Scene::Transform::Matrix:
                 TransformObject.Value.asMatrix = parent.Value.asMatrix * TransformObject.Value.asMatrix;
                 break;
                 
@@ -1078,7 +1078,7 @@ namespace  GLTF
         SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
         }
         
-        Transform NewParentTransform = TransformObject;
+        Scene::Transform NewParentTransform = TransformObject;
         
         // Recursive call
         for (int child : NodeObject.children)
@@ -1090,7 +1090,7 @@ namespace  GLTF
         uint8_t vertexGroupIndex = 0;
         for (const auto & primitive : model.meshes[NodeObject.mesh].primitives)
         {
-            MeshInstance inst;
+            Scene::MeshInstance inst;
             inst.mesh = NodeObject.mesh;
             inst.material = primitive.material;
             inst.transform = transformIndex;
@@ -1100,7 +1100,7 @@ namespace  GLTF
         }
     }
     
-    void LoadTextures(const tinygltf::Model& model, GPUScene& scene)
+    void LoadTextures(const tinygltf::Model& model, Scene::GPUScene& scene)
     {
         for (const auto & texture : model.textures)
         {            
@@ -1161,7 +1161,7 @@ namespace  GLTF
         }
     }
 
-    void LoadMaterials(const tinygltf::Model& model, GPUScene& scene)
+    void LoadMaterials(const tinygltf::Model& model, Scene::GPUScene& scene)
     {
         for (const auto & material : model.materials)
         {
@@ -1358,7 +1358,7 @@ namespace  GLTF
         }
     }
     
-    bool LoadGPUScene(const std::filesystem::path& path, GPUScene& scene)
+    bool LoadGPUScene(const std::filesystem::path& path, Scene::GPUScene& scene)
     {
         tinygltf::TinyGLTF loader;
 

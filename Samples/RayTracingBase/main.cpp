@@ -155,13 +155,13 @@ public:
             const GLTF::Material& material = m_Scene->materials[instance.material];
             
             const Mesh::VertexGroup& Group = m_MeshObject->GetGroups()[instance.vertexGroup];
-            const GLTF::Transform& Transform = m_Scene->transforms[instance.transform];
+            const Scene::Transform& Transform = m_Scene->transforms[instance.transform];
             const GLTF::Material& Material = m_Scene->materials[instance.material];
             
             // Transform
             switch (Transform.Type)
             {
-            case GLTF::Transform::Properties:
+            case Scene::Transform::Properties:
                 {
                     Math::Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
             
@@ -171,7 +171,7 @@ public:
                 }
                 break;
                 
-            case GLTF::Transform::Matrix:
+            case Scene::Transform::Matrix:
                 {
                     // if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
             
@@ -280,16 +280,16 @@ public:
         std::vector<Matrix4f> WorldToModelMatrix(m_Scene->transforms.size());
         for (size_t i = 0; i < m_Scene->transforms.size(); ++i)
         {
-            const GLTF::Transform& Transform = m_Scene->transforms[i];
+            const Scene::Transform& Transform = m_Scene->transforms[i];
             switch (Transform.Type)
             {
-            case GLTF::Transform::Properties:
+            case Scene::Transform::Properties:
                 {
                     WorldToModelMatrix[i] = Inverse(Transform.Value.asProperties.GetTransform());
                 }
                 break;
 
-            case GLTF::Transform::Matrix:
+            case Scene::Transform::Matrix:
                 {
                     WorldToModelMatrix[i] = Inverse(Transform.Value.asMatrix);
                 }
@@ -321,7 +321,7 @@ public:
             };
 
             Hit ClosestHit = Hit();
-            GLTF::MeshInstance ClosestHitInstance;
+            Scene::MeshInstance ClosestHitInstance;
 
             // Traversal without BVH
             for (const auto & instance : m_Scene->instances)
@@ -331,7 +331,7 @@ public:
                 Mesh::VertexGroup group = mesh.GetVertexGroups()[instance.vertexGroup];
                 const Matrix4f& transform = WorldToModelMatrix[instance.transform];
 
-                TraceRay PrimaryRayTracer(m_Scene->meshes[0], group.FirstVertex, group.VertexCount, PrimaryRay, transform);
+                TraceRayLinear PrimaryRayTracer(m_Scene->meshes[0], group.FirstVertex, group.VertexCount, PrimaryRay, transform);
 
                 for (Hit hit : PrimaryRayTracer)
                 {
@@ -405,7 +405,7 @@ private:
 
     bool m_DrawDebugRays;
     
-    std::optional<GLTF::CPUScene> m_Scene;
+    std::optional<Scene::CPUScene> m_Scene;
     std::optional<Image> m_SkyboxHDRiCpu;
     std::optional<Image> m_WriteImage;
     

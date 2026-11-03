@@ -155,18 +155,18 @@ public:
                 for (const auto & instance : m_Scene->instances)
                 {
                     Transform4f TransformMatrix;
-                    const GLTF::Transform& Transform = m_Scene->transforms[instance.transform];
+                    const Scene::Transform& Transform = m_Scene->transforms[instance.transform];
                     
                     // Transform
                     switch (Transform.Type)
                     {
-                    case GLTF::Transform::Properties:
+                    case Scene::Transform::Properties:
                         {
                             TransformMatrix = Transform.Value.asProperties.GetTransform();
                         }
                         break;
                 
-                    case GLTF::Transform::Matrix:
+                    case Scene::Transform::Matrix:
                         {
                             // if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
             
@@ -253,13 +253,13 @@ public:
             Bind(Mesh.GetVAO());
             
             const Mesh::VertexGroup& Group = Mesh.GetGroups()[instance.vertexGroup];
-            const GLTF::Transform& Transform = m_Scene->transforms[instance.transform];
+            const Scene::Transform& Transform = m_Scene->transforms[instance.transform];
             const GLTF::Material& Material = m_Scene->materials[instance.material];
             
             // Transform
             switch (Transform.Type)
             {
-            case GLTF::Transform::Properties:
+            case Scene::Transform::Properties:
                 {
                     Math::Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
             
@@ -269,7 +269,7 @@ public:
                 }
                 break;
                 
-            case GLTF::Transform::Matrix:
+            case Scene::Transform::Matrix:
                 {
                     // if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
             
@@ -670,7 +670,7 @@ private:
     bool m_DebugFreezeRTCamera;
     Vector2t<int> m_DebugRayCoordinates;
     
-    std::optional<GLTF::CPUScene> m_Scene;
+    std::optional<Scene::CPUScene> m_Scene;
     std::optional<Image> m_SkyboxHDRiCpu;
     std::optional<Image> m_WriteImage;
     std::optional<Image> m_ColorBufferImage;

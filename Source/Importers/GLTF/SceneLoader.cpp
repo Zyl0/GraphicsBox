@@ -1,6 +1,6 @@
 #include "GLTF/SceneLoader.h"
 
-namespace  GLTF
+namespace Scene
 {
     Transform::Transform(const Transform& Other): 
         Type(Other.Type), Value(Math::WorldTransformF())
@@ -82,25 +82,24 @@ namespace  GLTF
         return *this;
     }
 
-}
-
-void EnableMaterialAsBuffers(GLTF::GPUScene& scene)
-{
-    scene.materialUniformBuffers.reserve(scene.materials.size());
-    for (const auto & material : scene.materials)
+    void EnableMaterialAsBuffers(GPUScene& scene)
     {
-        scene.materialUniformBuffers.emplace_back(sizeof(GLTF::Material), &material);
+        scene.materialUniformBuffers.reserve(scene.materials.size());
+        for (const auto & material : scene.materials)
+        {
+            scene.materialUniformBuffers.emplace_back(sizeof(GLTF::Material), &material);
+        }
+
+        scene.Extension = scene.Extension & GPUScene::Extensions::MaterialsAsBuffers;
     }
 
-    scene.Extension = scene.Extension & GLTF::GPUScene::Extensions::MaterialsAsBuffers;
-}
+    void EnableMaterialAsUnifiedBuffer(GPUScene& scene)
+    {
+        EngineLoggerWarn("EnableMaterialAsUnifiedBuffer feature not yet implemented");
+    }
 
-void EnableMaterialAsUnifiedBuffer(GLTF::GPUScene& scene)
-{
-    EngineLoggerWarn("EnableMaterialAsUnifiedBuffer feature not yet implemented");
-}
-
-void EnableTexturesAsBindlessArrays(GLTF::GPUScene& scene)
-{
-    EngineLoggerWarn("EnableTexturesAsBindlessArrays feature not yet implemented");
+    void EnableTexturesAsBindlessArrays(GPUScene& scene)
+    {
+        EngineLoggerWarn("EnableTexturesAsBindlessArrays feature not yet implemented");
+    }
 }

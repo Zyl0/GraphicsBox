@@ -41,7 +41,7 @@ struct RayShadingParameters
 
 struct RayTracerFrameParameters
 {
-    GLTF::CPUScene* Scene = nullptr;
+    Scene::CPUScene* Scene = nullptr;
     const TLAS* AccelerationStructure = nullptr;
     std::span<const BLAS> BLASes = {};
     RayShadingParameters Shading = {};
