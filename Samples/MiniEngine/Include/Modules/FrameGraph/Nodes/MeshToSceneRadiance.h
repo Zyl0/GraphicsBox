@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Modules/FrameGraph/Commands.h"
+#include "Modules/FrameGraph/Helpers/DrawCommands.h"
 #include "Rendering/Pipelines.h"
 
 namespace FrameGraph
@@ -20,10 +21,10 @@ namespace FrameGraph
             VMSAASampleCount(Resources.GetLocation<UInt>("MSAA Sample Count")),
             VUseScreenSpaceReflections(Resources.AddVariable<Bool>("Use Screen Space Reflections", false)),
             VUsePreviousRadiance(Resources.GetLocation<UInt>("Use Previous Radiance")),
-            PrevSceneRadiance(Resources.GetLocation<Texture2D>("Previous Scene Radiance")),
-            PrevSceneDepth(Resources.GetLocation<Texture2D>("Previous Scene Depth")),
             VUseMotionVectors(Resources.GetLocation<UInt>("Use Motion Vectors")),
             VUsePreviousMotionVectors(Resources.GetLocation<UInt>("Use Previous Motion Vectors")),
+            PrevSceneRadiance(Resources.GetLocation<Texture2D>("Previous Scene Radiance")),
+            PrevSceneDepth(Resources.GetLocation<Texture2D>("Previous Scene Depth")),
             VUseSSAO(Resources.AddVariable<Bool>("Use Screen Space AO", false)),
             Cubemap(Resources.GetLocation<TextureCube>("Cubemap Skylight")),
             HDRi(Resources.GetLocation<Texture2D>("HDRi Skylight")),
@@ -101,25 +102,128 @@ namespace FrameGraph
                 Bind(SceneRadianceFB);
             }
             
-
             PipelineVariant.SetParameter(kParamSkylight, Resources.GetValue<UInt>(VSkylightMethod));
             PipelineVariant.SetParameter(kParamMaterialParamMode, Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers ? 1 : 0);
-            const Pipeline& pipeline = Pipelines.GetVariant(PipelineVariant);
-
-            Bind(pipeline);
             
-            glEnable(GL_CULL_FACE);
             glEnable(GL_DEPTH_TEST);
             glClear(GL_DEPTH_BUFFER_BIT); // Color clear is done when drawing the skylight
             
-            // States settings
-            bool UseFrustumCulling = Resources.GetValue<Bool>(VUseFrustumCulling);
+            
+            // Draw scene
+            DrawGLTFSettings settings{};
+            settings.MaterialSampler = &MaterialSampler;
+            settings.CurrentCameraBufferBinding = 0;
+            settings.PreviousCameraBufferBinding = 1;
+            settings.FrustumCulling = Resources.GetValue<Bool>(VUseFrustumCulling);
+            settings.TextureUnitOffset = 4;
+            {
+                DebugScopeMarker opaqueScope("Draw Opaque");
+                
+                glEnable(GL_CULL_FACE);
+                
+                PipelineVariant.SetParameter(kParamMaterialBlendMode, 0);
+                const Pipeline& pipeline = Pipelines.GetVariant(PipelineVariant);
+                
+                settings.MaterialFlagsRequireFilter = GLTF::Material::None;
+                settings.MaterialFlagsExcludeFilter = GLTF::Material::Masked | GLTF::Material::Transparent | GLTF::Material::TwoSided;
+                DrawSceneWithFilters(Resources, pipeline, settings);
+            }
+            {
+                DebugScopeMarker opaqueScope("Draw Masked");
+                
+                PipelineVariant.SetParameter(kParamMaterialBlendMode, 1);
+                const Pipeline& maskedPipeline = Pipelines.GetVariant(PipelineVariant);
+                
+                settings.MaterialFlagsRequireFilter = GLTF::Material::Masked;
+                settings.MaterialFlagsExcludeFilter = GLTF::Material::TwoSided;
+                DrawSceneWithFilters(Resources, maskedPipeline, settings);
+            }
+            {
+                DebugScopeMarker opaqueScope("Draw Opaque - Two Sided");
+                
+                glEnable(GL_CULL_FACE);
+                
+                PipelineVariant.SetParameter(kParamMaterialBlendMode, 0);
+                const Pipeline& pipeline = Pipelines.GetVariant(PipelineVariant);
+                
+                settings.MaterialFlagsRequireFilter = GLTF::Material::TwoSided;
+                settings.MaterialFlagsExcludeFilter = GLTF::Material::Masked | GLTF::Material::Transparent;
+                DrawSceneWithFilters(Resources, pipeline, settings);
+            }
+            {
+                DebugScopeMarker opaqueScope("Draw Masked - Two Sided");
+                
+                PipelineVariant.SetParameter(kParamMaterialBlendMode, 1);
+                const Pipeline& maskedPipeline = Pipelines.GetVariant(PipelineVariant);
+
+                settings.MaterialFlagsRequireFilter = GLTF::Material::Masked | GLTF::Material::TwoSided;
+                settings.MaterialFlagsExcludeFilter = GLTF::Material::None;
+                DrawSceneWithFilters(Resources, maskedPipeline, settings);
+            }
+            {
+                DebugScopeMarker opaqueScope("Draw Transparent");
+                
+                // Transparent blend setup
+                glEnable(GL_BLEND);
+                glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+                glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+                
+                PipelineVariant.SetParameter(kParamMaterialBlendMode, 2);
+                const Pipeline& transparentPipeline = Pipelines.GetVariant(PipelineVariant);
+                
+                settings.MaterialFlagsRequireFilter = GLTF::Material::Transparent;
+                settings.MaterialFlagsExcludeFilter = GLTF::Material::None;
+                DrawSceneWithFilters(Resources, transparentPipeline, settings);
+                
+                glDisable(GL_BLEND);
+            }
+            
+            glDisable(GL_DEPTH_TEST);
+
+            // Resolve MSAA
+            if (UseMSAA)
+            {
+                Size2D SceneRadianceSize = Resources.GetValue<Size2D>("Scene Radiance");
+
+                Bind(SceneRadianceFB, SceneRadianceMSAAFB);
+                    
+                glBlitFramebuffer(
+                    0, 0, SceneRadianceSize.x, SceneRadianceSize.y,
+                    0, 0, SceneRadianceSize.x, SceneRadianceSize.y,
+                    GL_COLOR_BUFFER_BIT, GL_NEAREST );
+            }
+
+            UnBind(SceneRadianceFB);
+        }
+        
+        void DrawSceneWithFilters(const CommandContext& Resources, const Pipeline& pipeline, const DrawGLTFSettings& settings) const
+        {
+            Bind(pipeline);
             
             // Light properties
             SetUniform(pipeline, "LightDirection", Resources.GetValue<Math::Vector3f>(VDirectionalLightDirection));
             SetUniform(pipeline, "LightColor", Resources.GetValue<Math::Vector3f>(VDirectionalLightColor));
             SetUniform(pipeline, "LightIntensity", Resources.GetValue<Float>(VDirectionalLightIntensity));
             SetUniform(pipeline, "IndirectLightingSampleCount", Resources.GetValue<UInt>(VIndirectLightSamples));
+            
+            // Ambient light properties
+            switch (Resources.GetValue<UInt>(VSkylightMethod))
+            {
+            case 0: // Cubemap Sampling           
+                // Scene texture buffers
+                SetUniform(pipeline, "SkyLightCubeMap", 1, Resources.Get<TextureCube>(Cubemap), MaterialSampler);
+                // SetUniform(pipeline, "SkyLightMipCount", Resources.Get<TextureCube>(Cubemap).MipCount());
+                break;
+            
+            case 1: // HDRI Sampling
+                // Scene texture buffers
+                SetUniform(pipeline, "SkyLightHDRi", 1, Resources.Get<Texture2D>(HDRi), MaterialSampler);
+                // SetUniform(pipeline, "SkyLightMipCount", Resources.Get<Texture2D>(HDRi).MipCount());
+                break;
+                        
+            default:
+                return;
+            }
 
             // Screen space effects
             if (Resources.GetValue<Bool>(VUseScreenSpaceReflections) || Resources.GetValue<Bool>(VUseSSAO))
@@ -153,156 +257,9 @@ namespace FrameGraph
             // Motion vectors
             SetUniform(pipeline, "WriteMotionVectors", Resources.GetValue<UInt>(VUseMotionVectors));
             
-            // Scene storage buffers
-            SetUniform(0, Resources.GetCameraBuffer());
-            if (Resources.GetPreviousCamerasBuffer())
-            {
-                SetUniform(1, *Resources.GetPreviousCamerasBuffer());
-            }
-
-            // Uniform Data
-            GLuint GLTFBaseColor, GLTFRoughness, GLTFMetalness, GLTFEmissiveColor, GLTFSpecularColor, GLTFMaterialFlags;
-            GLuint  GLTFUseColorTexture, GLTFUseNormalTexture, GLTFUseMRTexture, GLTFUseAOTexture, GLTFUseSpecularTexture, GLTFUseEmissiveTexture;
-            GLuint GLTFParamBuffer = -1;
-            if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers)
-            {
-                GLTFParamBuffer = GetUniformLocation(pipeline, "ParamBuffer");
-            }
-            else if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
-            {
-                AssertOrError(false, "Feature not yet supported")
-            }
-            else
-            {
-                GLTFBaseColor = GetUniformLocation(pipeline, "BaseColor");
-                GLTFEmissiveColor = GetUniformLocation(pipeline, "EmissiveColor");
-                GLTFSpecularColor = GetUniformLocation(pipeline, "SpecularColor");
-                GLTFRoughness = GetUniformLocation(pipeline, "Roughness");
-                GLTFMetalness = GetUniformLocation(pipeline, "Metalness");
-                GLTFMaterialFlags = GetUniformLocation(pipeline, "MaterialFlags");
-                
-                GLTFUseColorTexture = GetUniformLocation(pipeline, "UseColorTexture");
-                GLTFUseNormalTexture = GetUniformLocation(pipeline, "UseNormalTexture");
-                GLTFUseMRTexture = GetUniformLocation(pipeline, "UseMRTexture");
-                GLTFUseAOTexture = GetUniformLocation(pipeline, "UseAOTexture");
-                GLTFUseSpecularTexture = GetUniformLocation(pipeline, "UseSpecularTexture");
-                GLTFUseEmissiveTexture = GetUniformLocation(pipeline, "UseEmissiveTexture");
-            }
-            GLuint GLTFTexColor = GetUniformLocation(pipeline, "texColor");
-            GLuint GLTFTexNormal = GetUniformLocation(pipeline, "texNormal");
-            GLuint GLTFTexMR = GetUniformLocation(pipeline, "texMR");
-            GLuint GLTFTexAO = GetUniformLocation(pipeline, "texAO");
-            GLuint GLTFTexSpecular = GetUniformLocation(pipeline, "texSpecular");
-            GLuint GLTFTexEmissive = GetUniformLocation(pipeline, "texEmissive");
-            GLuint GLTFModelMatrix = GetUniformLocation(pipeline, "Model");
-            
-            // For now we only support GLTF materials
-            // TODO generify material system and migrate to a scene mesh type
-            for (const GLTF::MeshInstance& Instance : Resources.Scene().instances)
-            {
-                const MeshObject& Mesh = Resources.Scene().meshes[Instance.mesh];
-                const Mesh::VertexGroup& Group = Mesh.GetGroups()[Instance.vertexGroup];
-                const GLTF::Transform& Transform = Resources.Scene().transforms[Instance.transform];
-                const GLTF::Material& Material = Resources.Scene().materials[Instance.material];
-                const UniformBuffer* MaterialBuffer = Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers ?
-                    &Resources.Scene().materialUniformBuffers[Instance.material] :
-                    nullptr;
-                
-                // Transform
-                switch (Transform.Type)
-                {
-                case GLTF::Transform::Properties:
-                    {
-                        Math::Transform4f TransformMatrix = Transform.Value.asProperties.GetTransform();
-                
-                        if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), TransformMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
-                
-                        SetUniform(GLTFModelMatrix, TransformMatrix);
-                    }
-                    break;
-                    
-                case GLTF::Transform::Matrix:
-                    {
-                        if (UseFrustumCulling && !Rendering::frustumCullingTest(Resources.GetMainCameraData().Camera_WorldToProj(), Transform.Value.asMatrix, Group.BoundsMin, Group.BoundsMax)) continue;
-                
-                        SetUniform(GLTFModelMatrix, Transform.Value.asMatrix);
-                    }
-                    break;
-                    
-                SWITCH_ENUM_DEFAULT_AS_OUT_OF_RANGE("Unsupported transform type")
-                }
-
-                
-                // Material
-                if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsBuffers)
-                {
-                    SetUniform(GLTFParamBuffer, MaterialBuffer);
-                }
-                else if (Resources.Scene().Extension & GLTF::GPUScene::MaterialsAsUnifiedBuffer)
-                {
-                    AssertOrError(false, "Feature not yet supported")
-                }
-                else
-                {
-                    SetUniform(GLTFBaseColor, Material.color.xyz());
-                    SetUniform(GLTFSpecularColor, Material.specularColor.xyz());
-                    SetUniform(GLTFEmissiveColor, Material.emissive.xyz());
-                    SetUniform(GLTFRoughness, Material.roughness);
-                    SetUniform(GLTFMetalness, Material.metallic);
-                    SetUniform(GLTFMaterialFlags, (uint32_t)Material.flags);
-                    
-                    SetUniform(GLTFUseColorTexture, Material.colorTexture != UINT64_MAX);
-                    SetUniform(GLTFUseNormalTexture, Material.normalTexture != UINT64_MAX);
-                    SetUniform(GLTFUseMRTexture, Material.metallicRoughnessTexture != UINT64_MAX);
-                    SetUniform(GLTFUseAOTexture, Material.occlusionTexture != UINT64_MAX);
-                    SetUniform(GLTFUseSpecularTexture, Material.specularTexture != UINT64_MAX);
-                    SetUniform(GLTFUseEmissiveTexture, Material.emissiveTexture != UINT64_MAX);
-                }
-                
-                if (Material.colorTexture != UINT64_MAX)                SetUniform(GLTFTexColor, 4, Resources.Scene().textures[Material.colorTexture], MaterialSampler);
-                if (Material.normalTexture != UINT64_MAX)               SetUniform(GLTFTexNormal, 5, Resources.Scene().textures[Material.normalTexture], MaterialSampler);
-                if (Material.metallicRoughnessTexture != UINT64_MAX)    SetUniform(GLTFTexMR, 6, Resources.Scene().textures[Material.metallicRoughnessTexture], MaterialSampler);
-                if (Material.occlusionTexture != UINT64_MAX)            SetUniform(GLTFTexAO, 7, Resources.Scene().textures[Material.occlusionTexture], MaterialSampler);
-                if (Material.specularTexture != UINT64_MAX)             SetUniform(GLTFTexSpecular, 7, Resources.Scene().textures[Material.specularTexture], MaterialSampler);
-                if (Material.emissiveTexture != UINT64_MAX)             SetUniform(GLTFTexEmissive, 7, Resources.Scene().textures[Material.emissiveTexture], MaterialSampler);
-                
-                Bind(Mesh.GetVAO());
-                if (Mesh.GetIndexBuffer().has_value())
-                {
-                    const IndexBuffer& indexBuffer = Mesh.GetIndexBuffer().value();
-                    Bind(indexBuffer);
-                
-                    glDrawElements(ToGLGeometryType(Mesh.GetVertexType()), Group.VertexCount, ToGLIndexType(indexBuffer.GetIndexType()), (void*)(Group.FirstVertex * ToGLIndexSize(indexBuffer.GetIndexType())));
-                
-                    UnBind(indexBuffer);
-                }
-                else
-                {
-                    glDrawArrays(ToGLGeometryType(Mesh.GetVertexType()), Group.FirstVertex, Group.VertexCount);
-                }
-                
-                UnBind(Mesh.GetVAO());
-            }
-            
-            glDisable(GL_CULL_FACE);
-            glDisable(GL_DEPTH_TEST);
-            
+            DrawGLTFScene(Resources, pipeline, Resources.GetMainCamera(), settings);
             
             UnBind(pipeline);
-
-            if (UseMSAA)
-            {
-                Size2D SceneRadianceSize = Resources.GetValue<Size2D>("Scene Radiance");
-
-                Bind(SceneRadianceFB, SceneRadianceMSAAFB);
-                    
-                glBlitFramebuffer(
-                    0, 0, SceneRadianceSize.x, SceneRadianceSize.y,
-                    0, 0, SceneRadianceSize.x, SceneRadianceSize.y,
-                    GL_COLOR_BUFFER_BIT, GL_NEAREST );
-            }
-
-            UnBind(SceneRadianceFB);
         }
 
     private:
@@ -310,10 +267,12 @@ namespace FrameGraph
         PipelineMatrix::MatrixDesc GLTFPipelineOptions = PipelineMatrix::MatrixDesc::Literal
         {
             {"SKYLIGHT_METHOD", {"SKYLIGHT_CUBE_MAP", "SKYLIGHT_HDRI"}},
-            {"GLTF_MATERIAL_PARAMS_MODE", {"GLTF_MATERIAL_PARAMS_UNIFORMS", "GLTF_MATERIAL_PARAMS_UNIFORM_BUFFER"}}
+            {"GLTF_MATERIAL_PARAMS_MODE", {"GLTF_MATERIAL_PARAMS_UNIFORMS", "GLTF_MATERIAL_PARAMS_UNIFORM_BUFFER"}},
+            {"GLTF_MATERIAL_OPACITY", {"GLTF_MATERIAL_OPAQUE", "GLTF_MATERIAL_MASKED", "GLTF_MATERIAL_TRANSPARENT"}},
         };
         static constexpr PipelineMatrix::Name kParamSkylight = 0;
         static constexpr PipelineMatrix::Name kParamMaterialParamMode = 1;
+        static constexpr PipelineMatrix::Name kParamMaterialBlendMode = 2;
         
         Location VDirectionalLightDirection;
         Location VDirectionalLightColor;

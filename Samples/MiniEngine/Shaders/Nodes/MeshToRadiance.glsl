@@ -5,6 +5,9 @@
 #define SKYLIGHT_HDRI 1
 #define GLTF_MATERIAL_PARAMS_UNIFORMS 0
 #define GLTF_MATERIAL_PARAMS_UNIFORM_BUFFER 1
+#define GLTF_MATERIAL_OPAQUE 0
+#define GLTF_MATERIAL_MASKED 1
+#define GLTF_MATERIAL_TRANSPARENT 2
 
 // Scene cameras
 #include "Include/Camera.glsl"
@@ -154,7 +157,7 @@ uniform uint IndirectLightingSampleCount;
 
 // Material
 #if GLTF_MATERIAL_PARAMS_MODE == GLTF_MATERIAL_PARAMS_UNIFORMS
-uniform vec3 BaseColor;
+uniform vec4 BaseColor;
 uniform vec3 EmissiveColor;
 uniform vec3 SpecularColor;
 uniform float Roughness;
@@ -209,18 +212,29 @@ void main()
     float PixAmbiantOcclusion;
     vec3 Normal = FragNormal;
     vec3 LocalNormal = vec3(0,0,1);
+#if GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
+    float opacity = 1.0f;
+#endif // GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
 #if GLTF_MATERIAL_PARAMS_MODE == GLTF_MATERIAL_PARAMS_UNIFORMS
-    PixBaseColor = BaseColor;
+    PixBaseColor = BaseColor.xyz;
     Specular = SpecularColor;
     Emissive = EmissiveColor;
     PixMetalness = Metalness;
     PixRoughness = Roughness;
     PixAmbiantOcclusion = 1.f;
+#if GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
+    opacity = BaseColor.a;
+#endif // GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
 
     if (UseColorTexture == 1)
     {
         vec4 s = texture(texColor, UV0);
+#if GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_MASKED
         if (s.a < 0.5f) discard;
+#endif // GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_MASKED
+#if GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
+        opacity = s.a;
+#endif // GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
         PixBaseColor = s.xyz * PixBaseColor;
     }
     if (UseMRTexture == 1)
@@ -258,13 +272,21 @@ void main()
     PixMetalness = mat.metallic;
     PixRoughness = mat.roughness;
     PixAmbiantOcclusion = 1.f;
+#if GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
+    opacity = mat.color.a;
+#endif // GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
     
     uint MaterialFlags = mat.flags;
 
     if (HasTexture(mat._colorTexture))
     {
         vec4 s = texture(texColor, UV0);
+#if GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_MASKED
         if (s.a < 0.5f) discard;
+        #endif // GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_MASKED
+#if GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
+        opacity = s.a;
+#endif // GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
         PixBaseColor = s.xyz * PixBaseColor;
     }
     if (HasTexture(mat._metallicRoughnessTexture))
@@ -320,6 +342,7 @@ void main()
         DiffuseColor = mix(PixBaseColor * (1 - max(Specular.x, max(Specular.y, Specular.z))), vec3(0), PixMetalness);
         F0 = mix(vec3(0.04), Specular, PixMetalness);
         PixRoughness = 1 - PixRoughness;
+        PixRoughness = max(PixRoughness, 0.004);
         Alpha = (PixRoughness * PixRoughness);
     }
 
@@ -492,7 +515,11 @@ void main()
     }
 
     OutColor.xyz = finalColor;
+#if GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
+    OutColor.w = opacity;
+#else
     OutColor.w = 1.0;
+#endif // GLTF_MATERIAL_OPACITY == GLTF_MATERIAL_TRANSPARENT
 
 
     // utMotion = vec3(0);
