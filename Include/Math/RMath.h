@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Math/Functons.h"
+#include "Math/Functions.h"
 #include "Math/Vector.h"
 #include "Math/Plane.h"
 #include "Math/Matrix.h"

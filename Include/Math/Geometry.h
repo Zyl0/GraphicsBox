@@ -2,7 +2,7 @@
 
 #include <cfloat>
 
-#include "Functons.h"
+#include "Functions.h"
 #include "Vector.h"
 #include "Plane.h"
 

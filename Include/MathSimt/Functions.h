@@ -2,7 +2,7 @@
 
 #include "Types.h"
 
-#include "Math/Functons.h"
+#include "Math/Functions.h"
 
 namespace Math::Simt
 {
