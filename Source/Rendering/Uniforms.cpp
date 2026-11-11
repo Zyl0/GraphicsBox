@@ -8,14 +8,40 @@ GLint GetUniformLocation(const Pipeline& Pipeline, std::string_view name)
 #ifdef GL_VERSION_4_3
         char label[1024];
         glGetObjectLabel(GL_PROGRAM, Pipeline.Handle(), sizeof(label), nullptr, label);
-        AssertOrWarnCallF(location >= 0,, "Cannot find Uniform %s %u \"%s\"", label, Pipeline.Handle(), name.data())
+        AssertOrWarnCallF(location >= 0,, "Cannot find Uniform location in program %s %u \"%.*s\"", label, Pipeline.Handle(), name.size(), name.data())
 #else
-        AssertOrWarnCallF(location >= 0,, "Uniform %s %u \"%s\"", "program", Pipeline.Handle(), name.data());
+        AssertOrWarnCallF(location >= 0,, "Cannot find Uniform location in program %u \"%.*s\"", Pipeline.Handle(), name.size(), name.data());
 #endif
 
         return -1;
     }
 
+    return location;
+}
+
+GLint GetBufferBlock(const Pipeline& Pipeline, std::string_view name)
+{
+    GLint location = glGetUniformBlockIndex(Pipeline.Handle(), name.data());
+    if(location < 0)
+    {
+#ifdef GL_VERSION_4_3
+        char label[1024];
+        glGetObjectLabel(GL_PROGRAM, Pipeline.Handle(), sizeof(label), nullptr, label);
+        AssertOrWarnCallF(location >= 0,, "Cannot find Buffer Binding in program %s %u \"%.*s\"", label, Pipeline.Handle(), name.size(), name.data())
+#else
+        AssertOrWarnCallF(location >= 0,, "Cannot find Buffer Binding program %u \"%.*s\"", Pipeline.Handle(), name.size(), name.data());
+#endif
+
+        return -1;
+    }
+
+    return location;
+}
+
+GLint RequestBufferBinding(const Pipeline& Pipeline, std::string_view name, uint8_t RequestedSlot)
+{
+    GLint location = GetBufferBlock(Pipeline, name);
+    if (location >= 0) GLCall(glUniformBlockBinding(Pipeline.Handle(), location, RequestedSlot))
     return location;
 }
 
@@ -156,6 +182,18 @@ void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t Texture
     const Sampler& sampler)
 {
     SetUniform(GetUniformLocation(Pipeline, name), TextureUnit, texture, sampler);
+}
+
+void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t Binding, const UniformBuffer& buffer)
+{
+    GLint location = RequestBufferBinding(Pipeline, name, Binding);
+    if (location >= 0) SetUniform(location, buffer);
+}
+
+void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t Binding, const StorageBuffer& buffer)
+{
+    GLint location = RequestBufferBinding(Pipeline, name, Binding);
+    if (location >= 0) SetUniform(location, buffer);
 }
 
 void SetUniform(GLint Location, bool value)
@@ -315,7 +353,7 @@ void SetUniform(GLint Location, uint8_t TextureUnit, const TextureCube& texture,
 
 void SetUniform(GLint Binding, const UniformBuffer& buffer)
 {
-    glBindBufferBase(GL_UNIFORM_BUFFER, Binding, buffer.Handle());
+    if (Binding >= 0) glBindBufferBase(GL_UNIFORM_BUFFER, Binding, buffer.Handle());
 }
 
 void SetUniform(GLint Binding, const StorageBuffer& buffer)

@@ -11,6 +11,7 @@
 #include "UniformBuffer.h"
 
 GLint GetUniformLocation(const Pipeline& Pipeline, std::string_view name);
+GLint RequestBufferBinding(const Pipeline& Pipeline, std::string_view name, uint8_t RequestedSlot);
 
 void SetUniform(const Pipeline& Pipeline, std::string_view name, bool value);
 void SetUniform(const Pipeline& Pipeline, std::string_view name, int value);
@@ -44,6 +45,8 @@ void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t Texture
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const Texture2D& texture, const Sampler& sampler);
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const Texture3D& texture, const Sampler& sampler);
 void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t TextureUnit, const TextureCube& texture, const Sampler& sampler);
+void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t Binding, const UniformBuffer& buffer);
+void SetUniform(const Pipeline& Pipeline, std::string_view name, uint8_t Binding, const StorageBuffer& buffer);
 
 void SetUniform(GLint Location, bool value);
 void SetUniform(GLint Location, int value);
