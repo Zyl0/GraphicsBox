@@ -11,6 +11,7 @@ namespace FrameGraph
         uint8_t TextureUnitOffset = 0;
         const Sampler* MaterialSampler = nullptr;
         
+        GLint GLTFMaterialBufferBinding = -1;
         GLint CurrentCameraBufferBinding = -1;
         GLint PreviousCameraBufferBinding = -1;
         

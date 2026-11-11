@@ -17,16 +17,13 @@ namespace FrameGraph
         GLint GLTFBaseColor, GLTFRoughness, GLTFMetalness, GLTFEmissiveColor, GLTFSpecularColor, GLTFMaterialFlags;
         GLint  GLTFUseColorTexture, GLTFUseNormalTexture, GLTFUseMRTexture, GLTFUseAOTexture, GLTFUseSpecularTexture, GLTFUseEmissiveTexture;
         GLint GLTFTexColor, GLTFTexNormal, GLTFTexMR, GLTFTexAO, GLTFTexSpecular, GLTFTexEmissive;
-        GLint GLTFParamBuffer = -1;
         if (Settings.BindMaterial)
         {
             if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers)
             {
-                GLTFParamBuffer = GetUniformLocation(Pipeline, "ParamBuffer");
             }
             else if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsUnifiedBuffer)
             {
-                AssertOrError(false, "Feature not yet supported")
             }
             else
             {
@@ -98,7 +95,7 @@ namespace FrameGraph
             {
                 if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsBuffers)
                 {
-                    SetUniform(GLTFParamBuffer, MaterialBuffer);
+                    SetUniform(Settings.GLTFMaterialBufferBinding, *MaterialBuffer);
                 }
                 else if (Resources.Scene().Extension & Scene::GPUScene::MaterialsAsUnifiedBuffer)
                 {

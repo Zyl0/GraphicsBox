@@ -114,6 +114,7 @@ namespace FrameGraph
             settings.MaterialSampler = &MaterialSampler;
             settings.CurrentCameraBufferBinding = 0;
             settings.PreviousCameraBufferBinding = 1;
+            settings.GLTFMaterialBufferBinding = 2;
             settings.FrustumCulling = Resources.GetValue<Bool>(VUseFrustumCulling);
             settings.TextureUnitOffset = 4;
             {
@@ -256,6 +257,9 @@ namespace FrameGraph
 
             // Motion vectors
             SetUniform(pipeline, "WriteMotionVectors", Resources.GetValue<UInt>(VUseMotionVectors));
+            
+            // Material buffer
+            AssertOrWarnCallF(RequestBufferBinding(pipeline, "ParamBuffer", settings.GLTFMaterialBufferBinding) >= 0,, "Failed to request GLTF material Uniform Binding");
             
             DrawGLTFScene(Resources, pipeline, Resources.GetMainCamera(), settings);
             
