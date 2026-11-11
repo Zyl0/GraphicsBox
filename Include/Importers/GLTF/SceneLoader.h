@@ -173,6 +173,7 @@ namespace Scene
             MaterialsAsBuffers =        1 << 0,
             MaterialsAsUnifiedBuffer =  1 << 1,
             TexturesAsBindlessArrays =  1 << 2,
+            NamedResources =            1 << 3,
         } Extension = ExNone;
         
         std::vector<Texture2D> textures;
@@ -192,6 +193,10 @@ namespace Scene
         
         std::vector<Texture2DArray> texturesArrays;
         
+        std::vector<std::string> texturesNames;
+        std::vector<std::string> materialNames;
+        std::vector<std::string> meshNames;
+        
         void Clear()
         {
             Extension = GPUScene::ExNone;
@@ -204,6 +209,9 @@ namespace Scene
             transforms.clear();
             instances.clear();
             texturesArrays.clear();
+            texturesNames.clear();
+            materialNames.clear();
+            meshNames.clear();
         }
     };
 
@@ -236,6 +244,7 @@ namespace GBS
             ImageCompression =      1 << 0,
             ImageCompressionJPG =   1 << 1,
             ImageCompressionEXR =   1 << 2,
+            PreserveNames =         1 << 3,
         } flags;
     };
     bool SaveGPUScene(const std::filesystem::path& path, const Scene::GPUScene& scene, ExportSettings settings);

@@ -1123,6 +1123,11 @@ namespace GLTF
         tinygltf3::Model model;
         tinygltf3::ErrorStack errors;
         tg3_parse_options options;
+        
+        // Resolve unnamed resources
+        size_t UnnamedTextureCount = 0;
+        // size_t UnnamedMaterialCount = 0;
+        size_t UnnamedMeshCount = 0;
 
         tg3_parse_options_init(&options);
         // options.image.load_image = &ImageLoadCallback;
@@ -1135,6 +1140,9 @@ namespace GLTF
         scene.textures.reserve(model->textures_count);
         scene.materials.reserve(model->materials_count);
         scene.meshes.reserve(model->meshes_count);
+        
+        // Enable named resources
+        scene.Extension = scene.Extension | Scene::GPUScene::NamedResources;
         
         // 1 - Textures
         {
@@ -1181,20 +1189,41 @@ namespace GLTF
                             AssertOrErrorCallF(false, goto on_failed_to_load_image;, "Unsupported mime type format \"%.*s\"", image.mime_type.len, image.mime_type.data)
                         }
                     }
-                    scene.textures.emplace_back(ImageLoadFromMemory(rawData, rawSize, fileType));    
-                    continue;
+                    scene.textures.emplace_back(ImageLoadFromMemory(rawData, rawSize, fileType));
+                    
+                    goto name_object;
                 }
                 if (image.uri.data != nullptr && image.uri.len > 0)
                 {
-                    scene.textures.emplace_back(ImageLoad(ResolveFileTypeMismatch(path, std::string_view(image.uri.data, image.uri.len)), Image::UnsignedByte));   
-                    continue;
+                    scene.textures.emplace_back(ImageLoad(ResolveFileTypeMismatch(path, std::string_view(image.uri.data, image.uri.len)), Image::UnsignedByte));
+                    
+                    goto name_object;
                 }
                 
                 AssertOrErrorCall(false,,"Unsupported image. Could not find a way to import")
                      
             on_failed_to_load_image:
-                Image emptyImage(1, 1, Image::UnsignedByte, Image::R);
-                scene.textures.emplace_back(emptyImage);
+                {
+                    Image emptyImage(1, 1, Image::UnsignedByte, Image::R);
+                    scene.textures.emplace_back(emptyImage);
+                }
+                
+            name_object:
+                if (image.name.data != nullptr && image.name.len > 0)
+                {
+                    scene.texturesNames.emplace_back(image.name.data, image.name.len);
+                    Texture2D& tex = scene.textures.back();
+                    Label(tex, {image.name.data, image.name.len});
+                }
+                else
+                {
+                    std::string defaultName = "unnamed texture ";
+                    defaultName.append(std::to_string(UnnamedTextureCount++));
+                    
+                    scene.texturesNames.emplace_back(defaultName);
+                    Texture2D& tex = scene.textures.back();
+                    Label(tex, defaultName);
+                }
             }
         }
 
@@ -1203,6 +1232,7 @@ namespace GLTF
             for (size_t i = 0; i < model->materials_count; ++i)
             {
                 scene.materials.emplace_back(DecodeMaterial(model->materials[i]));
+                scene.materialNames.emplace_back(model->materials[i].name.data, model->materials[i].name.len);
                 
                 // TODO Revert sRGB encoding for non sRGB textures (normals, metallicRoughness, ao, etc)
                 // Revert sRGB encoding for non sRGB textures (normals, metallicRoughness, ao, etc)
@@ -1405,6 +1435,20 @@ namespace GLTF
                         MeshObject.SetIndexSubBuffer(view.View.data(), Offset, view.View.size());
                         Offset += view.View.size();
                     }
+                    
+                    if (mesh.name.data != nullptr && mesh.name.len > 0)
+                    {
+                        std::string bufferName(mesh.name.data, mesh.name.len);
+                        bufferName.append(" - Indexes");
+                        Label(*MeshObject.GetIndexBuffer(), bufferName);
+                    }
+                    else
+                    {
+                        std::string defaultName = "unnamed mesh ";
+                        defaultName.append(std::to_string(UnnamedMeshCount));
+                        defaultName.append(" - Indexes");
+                        Label(*MeshObject.GetIndexBuffer(), defaultName);
+                    }
                 }
                 if (!Positions.empty())
                 {
@@ -1436,6 +1480,20 @@ namespace GLTF
                     {
                         MeshObject.SetVertexSubBuffer(VBO, view.View.data(), Offset, view.View.size());
                         Offset += view.View.size();
+                    }
+                    
+                    if (mesh.name.data != nullptr && mesh.name.len > 0)
+                    {
+                        std::string bufferName(mesh.name.data, mesh.name.len);
+                        bufferName.append(" - Positions");
+                        Label(MeshObject.GetVertexBuffer(VBO), bufferName);
+                    }
+                    else
+                    {
+                        std::string defaultName = "unnamed mesh ";
+                        defaultName.append(std::to_string(UnnamedMeshCount));
+                        defaultName.append(" - Positions");
+                        Label(MeshObject.GetVertexBuffer(VBO), defaultName);
                     }
                 }
                 if (!Normals.empty())
@@ -1469,6 +1527,20 @@ namespace GLTF
                         MeshObject.SetVertexSubBuffer(VBO, view.View.data(), Offset, view.View.size());
                         Offset += view.View.size();
                     }
+                    
+                    if (mesh.name.data != nullptr && mesh.name.len > 0)
+                    {
+                        std::string bufferName(mesh.name.data, mesh.name.len);
+                        bufferName.append(" - Normals");
+                        Label(MeshObject.GetVertexBuffer(VBO), bufferName);
+                    }
+                    else
+                    {
+                        std::string defaultName = "unnamed mesh ";
+                        defaultName.append(std::to_string(UnnamedMeshCount));
+                        defaultName.append(" - Normals");
+                        Label(MeshObject.GetVertexBuffer(VBO), defaultName);
+                    }
                 }
                 if (!TextCoords.empty())
                 {
@@ -1501,9 +1573,37 @@ namespace GLTF
                         MeshObject.SetVertexSubBuffer(VBO, view.View.data(), Offset, view.View.size());
                         Offset += view.View.size();
                     }
+                    
+                    if (mesh.name.data != nullptr && mesh.name.len > 0)
+                    {
+                        std::string bufferName(mesh.name.data, mesh.name.len);
+                        bufferName.append(" - Texture Coordinates");
+                        Label(MeshObject.GetVertexBuffer(VBO), bufferName);
+                    }
+                    else
+                    {
+                        std::string defaultName = "unnamed mesh ";
+                        defaultName.append(std::to_string(UnnamedMeshCount));
+                        defaultName.append(" - Texture Coordinates");
+                        Label(MeshObject.GetVertexBuffer(VBO), defaultName);
+                    }
                 }
                 
                 MeshObject.EndMesh();
+                
+                if (mesh.name.data != nullptr && mesh.name.len > 0)
+                {
+                    std::string bufferName(mesh.name.data, mesh.name.len);
+                    Label(MeshObject.GetVAO(), bufferName);
+                    scene.meshNames.emplace_back(mesh.name.data, mesh.name.len);
+                }
+                else
+                {
+                    std::string defaultName = "unnamed mesh ";
+                    defaultName.append(std::to_string(UnnamedMeshCount++));
+                    Label(MeshObject.GetVAO(), defaultName);
+                    scene.meshNames.emplace_back(defaultName);
+                }
             }
 
         }

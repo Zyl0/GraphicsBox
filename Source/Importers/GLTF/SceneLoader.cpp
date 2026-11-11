@@ -85,12 +85,18 @@ namespace Scene
     void EnableMaterialAsBuffers(GPUScene& scene)
     {
         scene.materialUniformBuffers.reserve(scene.materials.size());
-        for (const auto & material : scene.materials)
+        for (size_t i = 0; i < scene.materials.size(); ++i)
         {
+            const auto & material = scene.materials[i];
             scene.materialUniformBuffers.emplace_back(sizeof(GLTF::Material), &material);
+            
+            if (scene.Extension & GPUScene::NamedResources)
+            {
+                Label(scene.materialUniformBuffers.back(), scene.materialNames[i]);
+            }
         }
 
-        scene.Extension = scene.Extension & GPUScene::Extensions::MaterialsAsBuffers;
+        scene.Extension = scene.Extension | GPUScene::Extensions::MaterialsAsBuffers;
     }
 
     void EnableMaterialAsUnifiedBuffer(GPUScene& scene)

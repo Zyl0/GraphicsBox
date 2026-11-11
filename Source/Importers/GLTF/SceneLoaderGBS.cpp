@@ -27,6 +27,7 @@ namespace GBS
         Textures,
         Transforms,
         Instances,
+        ExtNames,
     };
     
     static struct TextureHeader
@@ -404,6 +405,81 @@ namespace GBS
             ifs.read(reinterpret_cast<char*>(scene.instances.data()), instancesHeader.SizeInBytes);
         }
         
+        if (scene.Extension & Scene::GPUScene::NamedResources)
+        {
+            std::vector<char> nameBuffer;
+            
+            GeneralRegion region;
+            ifs.read(reinterpret_cast<char*>(&region), sizeof(GeneralRegion));
+            AssertOrError(region == ExtNames, "GBS Section missmatch")
+            
+            // Textures
+            {
+                ListHeader textureNamesVector;
+                ifs.read(reinterpret_cast<char*>(&textureNamesVector), sizeof(ListHeader));
+                scene.texturesNames.resize(textureNamesVector.Count);
+                
+                for (size_t i = 0; i < textureNamesVector.Count; ++i)
+                {
+                    auto & name = scene.texturesNames[i];
+                    ArrayHeader textureNameHeader;
+                    ifs.read(reinterpret_cast<char*>(&textureNameHeader), sizeof(ArrayHeader));
+                    
+                    nameBuffer.resize(textureNameHeader.SizeInBytes);
+                    ifs.read(reinterpret_cast<char*>(nameBuffer.data()), textureNameHeader.SizeInBytes);
+                    
+                    name = {nameBuffer.data(), nameBuffer.size()};
+                    Label(scene.textures[i], name);
+                }
+            }
+            
+            // Materials
+            {
+                ListHeader materialNamesVector;
+                ifs.read(reinterpret_cast<char*>(&materialNamesVector), sizeof(ListHeader));
+                scene.materialNames.resize(materialNamesVector.Count);
+                
+                for (size_t i = 0; i < materialNamesVector.Count; ++i)
+                {
+                    auto & name = scene.materialNames[i];
+                    ArrayHeader materialNameHeader;
+                    ifs.read(reinterpret_cast<char*>(&materialNameHeader), sizeof(ArrayHeader));
+                    
+                    nameBuffer.resize(materialNameHeader.SizeInBytes);
+                    ifs.read(reinterpret_cast<char*>(nameBuffer.data()), materialNameHeader.SizeInBytes);
+                    
+                    name = {nameBuffer.data(), nameBuffer.size()};
+                    
+                    if (scene.Extension & Scene::GPUScene::MaterialsAsBuffers)
+                    {
+                        Label(scene.materialUniformBuffers[i], name);
+                    }
+                }
+            }
+            
+            // Meshes
+            {
+                ListHeader meshNamesVector;
+                ifs.read(reinterpret_cast<char*>(&meshNamesVector), sizeof(ListHeader));
+                scene.meshNames.resize(meshNamesVector.Count);
+                
+                for (size_t i = 0; i < meshNamesVector.Count; ++i)
+                {
+                    auto & name = scene.meshNames[i];
+                    ArrayHeader meshNameHeader;
+                    ifs.read(reinterpret_cast<char*>(&meshNameHeader), sizeof(ArrayHeader));
+                    
+                    nameBuffer.resize(meshNameHeader.SizeInBytes);
+                    ifs.read(reinterpret_cast<char*>(nameBuffer.data()), meshNameHeader.SizeInBytes);
+                    
+                    name = {nameBuffer.data(), nameBuffer.size()};
+                    
+                    MeshObject& mesh = scene.meshes[i];
+                    Label(mesh.GetVAO(), name);
+                }
+            }
+        }
+        
         return true;
     }
 
@@ -429,9 +505,16 @@ namespace GBS
         std::ofstream output(path, std::ios::binary);
         output.clear();
         
+        // Scene extensions
+        Scene::GPUScene::Extensions strippedExtensions = scene.Extension;
+        if (settings.flags & ExportSettings::PreserveNames == ExportSettings::None)
+        {
+            strippedExtensions = static_cast<Scene::GPUScene::Extensions>(strippedExtensions & (~Scene::GPUScene::NamedResources));
+        }
+        
         // Header
         output.write(reinterpret_cast<const char*>(&FileHeader), sizeof(FileHeaderT));
-        output.write(reinterpret_cast<const char*>(&(scene.Extension)), sizeof(Scene::GPUScene::Extension));
+        output.write(reinterpret_cast<const char*>(&(strippedExtensions)), sizeof(Scene::GPUScene::Extension));
         output.write(reinterpret_cast<const char*>(&(settings.flags)), sizeof(ExportSettings::Flags));
         
         // Textures
@@ -797,6 +880,67 @@ namespace GBS
             output.write(reinterpret_cast<const char*>(&instancesHeader), sizeof(ArrayHeader));
             
             output.write(reinterpret_cast<const char*>(scene.instances.data()), instancesHeader.SizeInBytes);
+        }
+        
+        // Names
+        if (strippedExtensions & Scene::GPUScene::NamedResources)
+        {
+            GeneralRegion region = ExtNames;
+            output.write(reinterpret_cast<const char*>(&region), sizeof(GeneralRegion));
+            
+            // Textures
+            {                
+                ListHeader textureNamesVector;
+                textureNamesVector.Count = scene.texturesNames.size();
+                output.write(reinterpret_cast<const char*>(&textureNamesVector), sizeof(ListHeader));
+                
+                for (size_t i = 0; i < textureNamesVector.Count; ++i)
+                {
+                    const auto & name = scene.texturesNames[i];
+                    ArrayHeader textureNameHeader;
+                    textureNameHeader.SizeInBytes = name.size();
+                    textureNameHeader.Count = name.size();
+                    output.write(reinterpret_cast<const char*>(&textureNameHeader), sizeof(ArrayHeader));
+            
+                    output.write(reinterpret_cast<const char*>(name.data()), textureNameHeader.SizeInBytes);
+                }
+            }
+            
+            // Materials
+            {
+                ListHeader textureNamesVector;
+                textureNamesVector.Count = scene.materialNames.size();
+                output.write(reinterpret_cast<const char*>(&textureNamesVector), sizeof(ListHeader));
+                
+                for (size_t i = 0; i < textureNamesVector.Count; ++i)
+                {
+                    const auto & name = scene.materialNames[i];
+                    ArrayHeader materialNameHeader;
+                    materialNameHeader.SizeInBytes = name.size();
+                    materialNameHeader.Count = name.size();
+                    output.write(reinterpret_cast<const char*>(&materialNameHeader), sizeof(ArrayHeader));
+            
+                    output.write(name.data(), materialNameHeader.SizeInBytes);
+                }
+            }
+            
+            // Meshes
+            {
+                ListHeader textureNamesVector;
+                textureNamesVector.Count = scene.meshNames.size();
+                output.write(reinterpret_cast<const char*>(&textureNamesVector), sizeof(ListHeader));
+                
+                for (size_t i = 0; i < textureNamesVector.Count; ++i)
+                {
+                    const auto & name = scene.meshNames[i];
+                    ArrayHeader meshNameHeader;
+                    meshNameHeader.SizeInBytes = name.size();
+                    meshNameHeader.Count = name.size();
+                    output.write(reinterpret_cast<const char*>(&meshNameHeader), sizeof(ArrayHeader));
+            
+                    output.write(name.data(), meshNameHeader.SizeInBytes);
+                }
+            }
         }
         
         output.close();

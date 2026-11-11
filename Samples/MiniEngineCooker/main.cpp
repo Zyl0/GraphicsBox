@@ -94,7 +94,7 @@ private:
         EngineLoggerLogF("Exporting Cooked Scene to %s", ExportPath.generic_string().c_str());
         ExportPath.replace_extension(".gbs");
         GBS::SaveGPUScene(ExportPath, scene, GBS::ExportSettings{
-            .flags = GBS::ExportSettings::None
+            .flags = GBS::ExportSettings::PreserveNames
         });
     }
 };
