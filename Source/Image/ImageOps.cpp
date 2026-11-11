@@ -2,7 +2,7 @@
 
 #include "ColorSpaces.h"
 #include "Image.h"
-#include "Math/Functons.h"
+#include "Math/Functions.h"
 #include "Memory/Functions.h"
 #include "Shared/Assertion.h"
 
