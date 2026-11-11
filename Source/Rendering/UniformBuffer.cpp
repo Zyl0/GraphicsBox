@@ -62,4 +62,9 @@ void UnBind(const UniformBuffer& UniformBuffer)
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
+void Label(const UniformBuffer& texture, std::string_view text)
+{
+    GLCall(glObjectLabel(GL_BUFFER, texture.Handle(), text.size(), text.data()))
+}
+
 

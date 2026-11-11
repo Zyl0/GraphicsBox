@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 #include "Shared/Annotations.h"
 #include "GLHelper.h"
@@ -64,3 +65,4 @@ GLsizei ToGLIndexSize(IndexBuffer::IndexType Type);
 
 void Bind(const IndexBuffer& VertexBuffer);
 void UnBind(const IndexBuffer& VertexBuffer);
+void Label(const IndexBuffer& texture, std::string_view text);

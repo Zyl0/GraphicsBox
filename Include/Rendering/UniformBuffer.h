@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <cstdint>
+#include <string_view>
 
 #include "Shared/Annotations.h"
 #include "GLHelper.h"
@@ -51,3 +52,4 @@ private:
 
 void Bind(const UniformBuffer& UniformBuffer);
 void UnBind(const UniformBuffer& UniformBuffer);
+void Label(const UniformBuffer& texture, std::string_view text);

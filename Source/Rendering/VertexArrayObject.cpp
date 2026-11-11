@@ -180,3 +180,8 @@ void UnBind(const VertexArrayObject& vao)
 {
 	glBindVertexArray(0);
 }
+
+void Label(const VertexArrayObject& texture, std::string_view text)
+{
+	GLCall(glObjectLabel(GL_VERTEX_ARRAY, texture.Handle(), text.size(), text.data()))
+}

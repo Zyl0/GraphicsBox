@@ -102,6 +102,7 @@ private:
 
 void Bind(const Texture2D& texture);
 void UnBind(const Texture2D& texture);
+void Label(const Texture2D& texture, std::string_view text);
 
 class WriteOnlyTexture2D
 {
@@ -141,6 +142,7 @@ private:
 
 void Bind(const WriteOnlyTexture2D& texture);
 void UnBind(const WriteOnlyTexture2D& texture);
+void Label(const WriteOnlyTexture2D& texture, std::string text);
 
 class Texture2DArray
 {
@@ -186,6 +188,7 @@ private:
 
 void Bind(const Texture2DArray& texture);
 void UnBind(const Texture2DArray& texture);
+void Label(const Texture2DArray& texture, std::string_view text);
 
 class Texture3D
 {
@@ -229,6 +232,7 @@ private:
 
 void Bind(const Texture3D& texture);
 void UnBind(const Texture3D& texture);
+void Label(const Texture3D& texture, std::string text);
 
 class TextureCube
 {
@@ -282,6 +286,7 @@ private:
 
 void Bind(const TextureCube& texture);
 void UnBind(const TextureCube& texture);
+void Label(const TextureCube& texture, std::string_view text);
 
 class TextureCubeView
 {
@@ -322,3 +327,4 @@ private:
 
 void Bind(const TextureCubeView& texture);
 void UnBind(const TextureCubeView& texture);
+void Label(const TextureCubeView& texture, std::string_view text);

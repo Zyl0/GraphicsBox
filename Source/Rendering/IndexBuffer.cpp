@@ -104,3 +104,8 @@ void UnBind(const IndexBuffer& VertexBuffer)
 {
     GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0))
 }
+
+void Label(const IndexBuffer& texture, std::string_view text)
+{
+	GLCall(glObjectLabel(GL_BUFFER, texture.Handle(), text.size(), text.data()))
+}

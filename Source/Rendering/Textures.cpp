@@ -679,6 +679,11 @@ void UnBind(const Texture2D& texture)
     GLCall(glBindTexture(mode, 0))
 }
 
+void Label(const Texture2D& texture, std::string_view text)
+{
+    GLCall(glObjectLabel(GL_TEXTURE, texture.Handle(), text.size(), text.data()))
+}
+
 WriteOnlyTexture2D::WriteOnlyTexture2D(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, uint8_t SampleCount):
     m_Width(width), m_Height(height),
     m_Type(type),
@@ -803,6 +808,11 @@ void Bind(const WriteOnlyTexture2D& texture)
 void UnBind(const WriteOnlyTexture2D& texture)
 {
     GLCall(glBindRenderbuffer(GL_RENDERBUFFER, 0))
+}
+
+void Label(const WriteOnlyTexture2D& texture, std::string_view text)
+{
+    GLCall(glObjectLabel(GL_RENDERBUFFER, texture.Handle(), text.size(), text.data()))
 }
 
 Texture2DArray::Texture2DArray(uint32_t width, uint32_t height, uint32_t count, Texture::Type type, Texture::Layout layout, bool UseMips):
@@ -1008,8 +1018,12 @@ void Bind(const Texture2DArray& texture)
 
 void UnBind(const Texture2DArray& texture)
 {
-    GL_TEXTURE_2D;
     GLCall(glBindTexture(GL_TEXTURE_2D_ARRAY, 0))
+}
+
+void Label(const Texture2DArray& texture, std::string_view text)
+{
+    GLCall(glObjectLabel(GL_TEXTURE, texture.Handle(), text.size(), text.data()))
 }
 
 Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, Texture::Type type, Texture::Layout layout):
@@ -1193,6 +1207,11 @@ void UnBind(const Texture3D& texture)
     GLCall(glBindTexture(GL_TEXTURE_3D, 0))
 }
 
+void Label(const Texture3D& texture, std::string_view text)
+{
+    GLCall(glObjectLabel(GL_TEXTURE, texture.Handle(), text.size(), text.data()))
+}
+
 TextureCube::TextureCube(uint32_t width, uint32_t height, Texture::Type type, Texture::Layout layout, bool UseMips):
     m_Width(width), m_Height(height),
     m_MipCount(UseMips > 0 ? miplevels(Width(), Height()) : 0), m_UseMips(UseMips), m_Type(type),
@@ -1351,6 +1370,11 @@ void UnBind(const TextureCube& texture)
     GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, 0))
 }
 
+void Label(const TextureCube& texture, std::string_view text)
+{
+    GLCall(glObjectLabel(GL_TEXTURE, texture.Handle(), text.size(), text.data()))
+}
+
 TextureCubeView::TextureCubeView(const TextureCube& texture, uint32_t MipLevel, uint32_t MipCount)
 {
     GLCall(glGenTextures(1, &m_Texture))
@@ -1406,4 +1430,9 @@ void TextureCubeView::Data(const TextureCube& texture, uint32_t MipLevel, uint32
     m_Layout = texture.ComponentLayout();
     
     GLCall(glTextureView(m_Texture, GL_TEXTURE_CUBE_MAP, texture.Handle(), ToGPUTextureType(m_Type, m_Layout), MipLevel, MipCount, 0, 1))
+}
+
+void Label(const TextureCubeView& texture, std::string_view text)
+{
+    GLCall(glObjectLabel(GL_TEXTURE, texture.Handle(), text.size(), text.data()))
 }

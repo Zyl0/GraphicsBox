@@ -1,6 +1,7 @@
 #pragma once
 
 #include <span>
+#include <string_view>
 #include <vector>
 
 #include "Shared/Annotations.h"
@@ -150,3 +151,4 @@ private:
 
 void Bind(const VertexArrayObject& shader);
 void UnBind(const VertexArrayObject& shader);
+void Label(const VertexArrayObject& texture, std::string_view text);
