@@ -115,7 +115,7 @@ namespace FrameGraph
             settings.CurrentCameraBufferBinding = 0;
             settings.PreviousCameraBufferBinding = 1;
             settings.GLTFMaterialBufferBinding = 2;
-            settings.FrustumCulling = Resources.GetValue<Bool>(VUseFrustumCulling);
+            settings.Filters.FrustumCulling = Resources.GetValue<Bool>(VUseFrustumCulling);
             settings.TextureUnitOffset = 4;
             {
                 DebugScopeMarker opaqueScope("Draw Opaque");
@@ -125,8 +125,8 @@ namespace FrameGraph
                 PipelineVariant.SetParameter(kParamMaterialBlendMode, 0);
                 const Pipeline& pipeline = Pipelines.GetVariant(PipelineVariant);
                 
-                settings.MaterialFlagsRequireFilter = GLTF::Material::None;
-                settings.MaterialFlagsExcludeFilter = GLTF::Material::Masked | GLTF::Material::Transparent | GLTF::Material::TwoSided;
+                settings.Filters.MaterialFlagsRequire = GLTF::Material::None;
+                settings.Filters.MaterialFlagsExclude = GLTF::Material::Masked | GLTF::Material::Transparent | GLTF::Material::TwoSided;
                 DrawSceneWithFilters(Resources, pipeline, settings);
             }
             {
@@ -135,8 +135,8 @@ namespace FrameGraph
                 PipelineVariant.SetParameter(kParamMaterialBlendMode, 1);
                 const Pipeline& maskedPipeline = Pipelines.GetVariant(PipelineVariant);
                 
-                settings.MaterialFlagsRequireFilter = GLTF::Material::Masked;
-                settings.MaterialFlagsExcludeFilter = GLTF::Material::TwoSided;
+                settings.Filters.MaterialFlagsRequire = GLTF::Material::Masked;
+                settings.Filters.MaterialFlagsExclude = GLTF::Material::TwoSided;
                 DrawSceneWithFilters(Resources, maskedPipeline, settings);
             }
             {
@@ -147,8 +147,8 @@ namespace FrameGraph
                 PipelineVariant.SetParameter(kParamMaterialBlendMode, 0);
                 const Pipeline& pipeline = Pipelines.GetVariant(PipelineVariant);
                 
-                settings.MaterialFlagsRequireFilter = GLTF::Material::TwoSided;
-                settings.MaterialFlagsExcludeFilter = GLTF::Material::Masked | GLTF::Material::Transparent;
+                settings.Filters.MaterialFlagsRequire = GLTF::Material::TwoSided;
+                settings.Filters.MaterialFlagsExclude = GLTF::Material::Masked | GLTF::Material::Transparent;
                 DrawSceneWithFilters(Resources, pipeline, settings);
             }
             {
@@ -157,8 +157,8 @@ namespace FrameGraph
                 PipelineVariant.SetParameter(kParamMaterialBlendMode, 1);
                 const Pipeline& maskedPipeline = Pipelines.GetVariant(PipelineVariant);
 
-                settings.MaterialFlagsRequireFilter = GLTF::Material::Masked | GLTF::Material::TwoSided;
-                settings.MaterialFlagsExcludeFilter = GLTF::Material::None;
+                settings.Filters.MaterialFlagsRequire = GLTF::Material::Masked | GLTF::Material::TwoSided;
+                settings.Filters.MaterialFlagsExclude = GLTF::Material::None;
                 DrawSceneWithFilters(Resources, maskedPipeline, settings);
             }
             {
@@ -172,8 +172,8 @@ namespace FrameGraph
                 PipelineVariant.SetParameter(kParamMaterialBlendMode, 2);
                 const Pipeline& transparentPipeline = Pipelines.GetVariant(PipelineVariant);
                 
-                settings.MaterialFlagsRequireFilter = GLTF::Material::Transparent;
-                settings.MaterialFlagsExcludeFilter = GLTF::Material::None;
+                settings.Filters.MaterialFlagsRequire = GLTF::Material::Transparent;
+                settings.Filters.MaterialFlagsExclude = GLTF::Material::None;
                 DrawSceneWithFilters(Resources, transparentPipeline, settings);
                 
                 glDisable(GL_BLEND);
@@ -197,8 +197,14 @@ namespace FrameGraph
             UnBind(SceneRadianceFB);
         }
         
-        void DrawSceneWithFilters(const CommandContext& Resources, const Pipeline& pipeline, const DrawGLTFSettings& settings) const
+        void DrawSceneWithFilters(const CommandContext& Resources, const Pipeline& pipeline, DrawGLTFSettings& settings)
         {
+            // Collect draw calls
+            DrawCallsList.resize(DrawGLTFElementListSize(Resources, Resources.GetMainCamera(), settings.Filters));
+            DrawGLTFElementListCollect(Resources, Resources.GetMainCamera(), DrawCallsList, settings.Filters);
+            DrawGLTFElementListSort(Resources, Resources.GetMainCamera(), DrawCallsList, SP_SortForRenderingShadedElements);
+            settings.ElementListToDraw = DrawCallsList;
+            
             Bind(pipeline);
             
             // Light properties
@@ -304,5 +310,7 @@ namespace FrameGraph
         Sampler MaterialSampler;
         Sampler PreviousFrameSamplerDepth;
         Sampler PreviousFrameSamplerColor;
+        
+        std::vector<uint32_t> DrawCallsList;
     };
 }
